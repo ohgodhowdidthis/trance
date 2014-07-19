@@ -12,10 +12,10 @@ Image::texture_deleter::~texture_deleter()
 
 ImageSet::ImageSet(const std::vector<std::string>& paths,
                    const std::vector<std::string>& texts)
-  : _paths(paths)
-  , _target_load(0)
-  , _last_id(0)
-  , _last_text_id(0)
+: _paths{paths}
+, _target_load{0}
+, _last_id{0}
+, _last_text_id{0}
 {
   // Split strings into two lines at the space closest to the middle. This is
   // sort of ad-hoc. There should probably be a better way that can judge length

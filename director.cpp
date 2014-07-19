@@ -134,19 +134,19 @@ void main(void)
 Director::Director(sf::RenderWindow& window,
                    ImageBank& images, const std::vector<std::string>& fonts,
                    std::size_t width, std::size_t height)
-: _window(window)
-, _images(images)
-, _fonts(fonts)
-, _width(width)
-, _height(height)
-, _image_program(0)
-, _spiral_program(0)
-, _quad_buffer(0)
-, _tex_buffer(0)
-, _spiral(0)
-, _spiral_type(0)
-, _spiral_width(0)
-, _switch_sets(0)
+: _window{window}
+, _images{images}
+, _fonts{fonts}
+, _width{width}
+, _height{height}
+, _image_program{0}
+, _spiral_program{0}
+, _quad_buffer{0}
+, _tex_buffer{0}
+, _spiral{0}
+, _spiral_type{0}
+, _spiral_width{0}
+, _switch_sets{0}
 {
   static const std::size_t gl_preload = 1000;
   for (std::size_t i = 0; i < gl_preload; ++i) {
@@ -529,22 +529,22 @@ void Director::change_program()
 
   auto r = random(11);
   if (r == 0) {
-    _program.reset(new AccelerateProgram(*this, random_chance()));
+    _program.reset(new AccelerateProgram{*this, random_chance()});
   }
   else if (r == 1) {
-    _program.reset(new SubTextProgram(*this));
+    _program.reset(new SubTextProgram{*this});
   }
   else if (r == 2 || r == 3) {
-    _program.reset(new SlowFlashProgram(*this));
+    _program.reset(new SlowFlashProgram{*this});
   }
   else if (r == 4 || r == 5) {
-    _program.reset(new ParallelProgram(*this));
+    _program.reset(new ParallelProgram{*this});
   }
   else if (r == 6 || r == 7) {
-    _program.reset(new SuperParallelProgram(*this));
+    _program.reset(new SuperParallelProgram{*this});
   }
   else {
-    _program.reset(new FlashTextProgram(*this));
+    _program.reset(new FlashTextProgram{*this});
   }
 }
 

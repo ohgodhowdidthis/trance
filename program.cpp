@@ -3,7 +3,7 @@
 #include "util.h"
 
 Program::Program(Director& director)
-: _director(director)
+: _director{director}
 {
 }
 
@@ -18,14 +18,14 @@ Director& Program::director()
 }
 
 AccelerateProgram::AccelerateProgram(Director& director, bool start_fast)
-: Program(director)
-, _current(director.get())
-, _current_text(director.get_text())
-, _text_on(true)
-, _change_timer(start_fast ? min_speed : max_speed)
-, _change_speed(start_fast ? min_speed : max_speed)
-, _change_speed_timer(0)
-, _change_faster(!start_fast)
+: Program{director}
+, _current{director.get()}
+, _current_text{director.get_text()}
+, _text_on{true}
+, _change_timer{start_fast ? min_speed : max_speed}
+, _change_speed{start_fast ? min_speed : max_speed}
+, _change_speed_timer{0}
+, _change_faster{!start_fast}
 {
 }
 
@@ -34,7 +34,7 @@ void AccelerateProgram::update()
   unsigned long d = max_speed - _change_speed;
   unsigned long m = max_speed;
 
-  float spiral_d = (1 + float(d) / 8);
+  float spiral_d = 1 + float(d) / 8;
   director().rotate_spiral(_change_faster ? spiral_d : -spiral_d);
 
   if (_change_timer) {
@@ -102,14 +102,14 @@ void AccelerateProgram::render() const
 }
 
 SubTextProgram::SubTextProgram(Director& director)
-: Program(director)
-, _current(director.get())
-, _current_text(director.get_text())
-, _text_on(true)
-, _change_timer(speed)
-, _sub_timer(sub_speed)
-, _cycle(cycles)
-, _sub_speed_multiplier(1)
+: Program{director}
+, _current{director.get()}
+, _current_text{director.get_text()}
+, _text_on{true}
+, _change_timer{speed}
+, _sub_timer{sub_speed}
+, _cycle{cycles}
+, _sub_speed_multiplier{1}
 {
 }
 
@@ -162,13 +162,13 @@ void SubTextProgram::render() const
 }
 
 SlowFlashProgram::SlowFlashProgram(Director& director)
-: Program(director)
-, _current(director.get())
-, _current_text(director.get_text())
-, _change_timer(max_speed)
-, _flash(false)
-, _image_count(cycle_length)
-, _cycle_count(set_length)
+: Program{director}
+, _current{director.get()}
+, _current_text{director.get_text()}
+, _change_timer{max_speed}
+, _flash{false}
+, _image_count{cycle_length}
+, _cycle_count{set_length}
 {
 }
 
@@ -217,13 +217,13 @@ void SlowFlashProgram::render() const
 }
 
 FlashTextProgram::FlashTextProgram(Director& director)
-: Program(director)
-, _start(director.get())
-, _end(director.get())
-, _current_text(director.get_text())
-, _timer(length)
-, _font_timer(font_length)
-, _cycle(cycles)
+: Program{director}
+, _start{director.get()}
+, _end{director.get()}
+, _current_text{director.get_text()}
+, _timer{length}
+, _font_timer{font_length}
+, _cycle{cycles}
 {
 }
 
@@ -264,14 +264,14 @@ void FlashTextProgram::render() const
 }
 
 ParallelProgram::ParallelProgram(Director& director)
-: Program(director)
-, _image(director.get())
-, _alternate(director.get(true))
-, _switch_alt(false)
-, _text_on(true)
-, _current_text(director.get_text(random_chance()))
-, _timer(length)
-, _cycle(cycles)
+: Program{director}
+, _image{director.get()}
+, _alternate{director.get(true)}
+, _switch_alt{false}
+, _text_on{true}
+, _current_text{director.get_text(random_chance())}
+, _timer{length}
+, _cycle{cycles}
 {
 }
 
@@ -320,12 +320,12 @@ void ParallelProgram::render() const
 }
 
 SuperParallelProgram::SuperParallelProgram(Director& director)
-: Program(director)
-, _index(0)
-, _current_text(director.get_text(random_chance()))
-, _timer(length)
-, _font_timer(font_length)
-, _cycle(cycles)
+: Program{director}
+, _index{0}
+, _current_text{director.get_text(random_chance())}
+, _timer{length}
+, _font_timer{font_length}
+, _cycle{cycles}
 {
   for (std::size_t i = 0; i < image_count; ++i) {
     _images.push_back(director.get(i % 2 == 0));

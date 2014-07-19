@@ -1,6 +1,7 @@
 #ifndef TRANCE_IMAGES_H
 #define TRANCE_IMAGES_H
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -12,16 +13,16 @@
 struct Image {
   struct texture_deleter {
     texture_deleter(std::size_t texture)
-      : texture(texture) {}
+    : texture{texture} {}
     ~texture_deleter();
     std::size_t texture;
   };
 
   Image(const std::string& path)
-    : path(path)
-    , width(0)
-    , height(0)
-    , texture(0) {}
+  : path{path}
+  , width{0}
+  , height{0}
+  , texture{0} {}
 
   std::string path;
   unsigned int width;
@@ -124,7 +125,7 @@ private:
 
   std::vector<ImageSet> _sets;
   unsigned int _updates;
-  unsigned int _cooldown;
+  std::atomic<unsigned int> _cooldown;
 
 };
 
