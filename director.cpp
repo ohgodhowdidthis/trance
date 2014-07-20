@@ -145,7 +145,7 @@ Director::Director(sf::RenderWindow& window,
 , _tex_buffer{0}
 , _spiral{0}
 , _spiral_type{0}
-, _spiral_width{0}
+, _spiral_width{60}
 , _switch_sets{0}
 {
   static const std::size_t gl_preload = 1000;

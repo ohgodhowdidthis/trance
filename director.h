@@ -28,7 +28,6 @@ class Program;
 class Director {
 public:
 
-  // TODO: why does it sometimes not start up correctly?
   Director(sf::RenderWindow& window,
            ImageBank& images, const std::vector<std::string>& fonts,
            std::size_t width, std::size_t height);

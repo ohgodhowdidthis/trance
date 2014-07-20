@@ -20,7 +20,7 @@ image_cache_size 120
 # each character size of a single font uses another
 # slot in the cache
 # (uses up video card memory)
-font_cache_size 15
+font_cache_size 10
 
 # rgba of the main text
 main_text_colour 255 150 200 224
@@ -162,22 +162,24 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  auto video_mode = sf::VideoMode::getDesktopMode();
-  sf::RenderWindow window(video_mode, "Ubtrance", sf::Style::Fullscreen);
-  window.setVerticalSyncEnabled(false);
-  window.setFramerateLimit(60);
-  window.setActive();
-
+  sf::RenderWindow window;
   glClearDepth(1.f);
   glClearColor(0.f, 0.f, 0.f, 0.f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  window.display();
 
   ImageBank images;
   for (const auto& p : data.images) {
     images.add_set(p.second, data.texts[p.first]);
   }
   images.initialise();
+
+  auto video_mode = sf::VideoMode::getDesktopMode();
+  window.create(video_mode, "Ubtrance", sf::Style::Fullscreen);
+  window.setVerticalSyncEnabled(false);
+  window.setFramerateLimit(60);
+  window.setVisible(true);
+  window.setActive();
+  window.display();
 
   Director director(
       window, images, data.fonts,
