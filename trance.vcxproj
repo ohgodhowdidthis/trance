@@ -43,7 +43,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\sfml_2_1\include;$(SolutionDir)\glew_1_10_0\include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\sfml_2_1\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -59,7 +59,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\sfml_2_1\include;$(SolutionDir)\glew_1_10_0\include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\sfml_2_1\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -76,6 +76,7 @@
     <ClCompile Include="director.cpp" />
     <ClCompile Include="fonts.cpp" />
     <ClCompile Include="images.cpp" />
+    <ClCompile Include="jpeg\jpgd.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="program.cpp" />
   </ItemGroup>

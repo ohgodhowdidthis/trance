@@ -5,6 +5,7 @@
 #include <iostream>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
+#include <jpgd.h>
 
 namespace {
   std::size_t image_cache_size()
@@ -184,8 +185,40 @@ const std::string& ImageSet::get_text() const
 
 bool ImageSet::load_internal(Image* image, const std::string& path) const
 {
-  // TODO: somehow support progressive .jpgs.
   image->sf_image.reset(new sf::Image);
+  std::string lower = path;
+  for (auto& c : lower) {
+    c = tolower(c);
+  }
+
+  // Load JPEGs with the jpgd library since SFML does not support progressive
+  // JPEGs.
+  if (lower.substr(lower.size() - 4) == ".jpg" ||
+      lower.substr(lower.size() - 5) == ".jpeg") {
+    int width = 0;
+    int height = 0;
+    int reqs = 0;
+    unsigned char* data = jpgd::decompress_jpeg_image_from_file(
+        path.c_str(), &width, &height, &reqs, 4);
+
+    image->width = width;
+    image->height = height;
+    image->sf_image->create(width, height);
+
+    std::size_t n = 0;
+    for (std::size_t y = 0; y < image->height; ++y) {
+        for (std::size_t x = 0; x < image->width; ++x) {
+        image->sf_image->setPixel(
+            x, y, sf::Color(data[n], data[1 + n], data[2 + n], data[3 + n]));
+        n += 4;
+      }
+    }
+
+    free(data);
+    std::cout << ".";
+    return true;
+  }
+
   if (!image->sf_image->loadFromFile(path)) {
     std::cerr << "\ncouldn't load " << path << std::endl;
     return false;

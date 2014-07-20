@@ -6,6 +6,9 @@
     <ClCompile Include="program.cpp" />
     <ClCompile Include="fonts.cpp" />
     <ClCompile Include="images.cpp" />
+    <ClCompile Include="jpeg\jpgd.cpp">
+      <Filter>jpeg</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="director.h" />
@@ -13,5 +16,10 @@
     <ClInclude Include="fonts.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="images.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="jpeg">
+      <UniqueIdentifier>{faa220e2-e063-4c92-bdbe-b5a9aac9c57d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>
