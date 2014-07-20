@@ -2,7 +2,6 @@
 #define TRANCE_UTIL_H
 
 #include <random>
-#include <iostream>
 
 inline std::mt19937& mersenne_twister()
 {

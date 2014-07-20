@@ -1,9 +1,17 @@
 #include "images.h"
 #include "director.h"
 #include "util.h"
+#include <algorithm>
 #include <iostream>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
+
+namespace {
+  std::size_t image_cache_size()
+  {
+    return std::max(6u, Settings::settings.image_cache_size);
+  }
+}
 
 Image::texture_deleter::~texture_deleter()
 {
@@ -225,7 +233,7 @@ void ImageBank::initialise()
     // Only have one active set and no switching.
     _a = 0;
     _b = 0;
-    _sets[0].set_target_load(Settings::settings.image_cache_size);
+    _sets[0].set_target_load(image_cache_size());
     _sets[0].perform_all_loads();
     return;
   }
@@ -233,8 +241,8 @@ void ImageBank::initialise()
     // Two active sets and switching just swaps them.
     _a = 0;
     _b = 1;
-    _sets[0].set_target_load(Settings::settings.image_cache_size / 2);
-    _sets[1].set_target_load(Settings::settings.image_cache_size / 2);
+    _sets[0].set_target_load(image_cache_size() / 2);
+    _sets[1].set_target_load(image_cache_size() / 2);
     _sets[0].perform_all_loads();
     _sets[1].perform_all_loads();
     return;
@@ -255,9 +263,9 @@ void ImageBank::initialise()
   }
   while (_next == _b);
 
-  _sets[_a].set_target_load(Settings::settings.image_cache_size / 3);
-  _sets[_b].set_target_load(Settings::settings.image_cache_size / 3);
-  _sets[_next].set_target_load(Settings::settings.image_cache_size / 3);
+  _sets[_a].set_target_load(image_cache_size() / 3);
+  _sets[_b].set_target_load(image_cache_size() / 3);
+  _sets[_next].set_target_load(image_cache_size() / 3);
   _sets[_a].perform_all_loads();
   _sets[_b].perform_all_loads();
 
@@ -323,7 +331,7 @@ bool ImageBank::change_sets()
 
   // Update target loads.
   _sets[_prev].set_target_load(0);
-  _sets[_next].set_target_load(Settings::settings.image_cache_size / 3);
+  _sets[_next].set_target_load(image_cache_size() / 3);
   return true;
 }
 

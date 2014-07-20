@@ -380,13 +380,13 @@ void Director::render_text(const std::string& text) const
     return t;
   };
 
+  _window.pushGLStates();
   auto main = fit_text(
       Settings::settings.main_text_colour, default_size, false);
   auto shadow = fit_text(
       Settings::settings.shadow_text_colour,
       default_size + shadow_extra, true);
 
-  _window.pushGLStates();
   _window.draw(shadow);
   _window.draw(main);
   _window.popGLStates();
@@ -394,6 +394,10 @@ void Director::render_text(const std::string& text) const
 
 void Director::render_subtext(float alpha) const
 {
+  if (_subtext.empty()) {
+    return;
+  }
+
   static const unsigned int char_size = 100;
   std::size_t n = 0;
 
@@ -415,12 +419,12 @@ void Director::render_subtext(float alpha) const
     return t;
   };
 
+  _window.pushGLStates();
   auto text = make_text();
   auto r = text.getLocalBounds();
   r.left += text.getPosition().x;
   r.top += text.getPosition().y;
 
-  _window.pushGLStates();
   _window.draw(text);
   int i = 1;
   auto offset = r.height + 4;
@@ -501,9 +505,6 @@ void Director::change_subtext(bool alternate)
     if (!s.empty()) {
       _subtext.push_back(s);
     }
-  }
-  if (_subtext.empty()) {
-    return;
   }
 }
 

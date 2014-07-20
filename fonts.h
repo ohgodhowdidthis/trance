@@ -13,7 +13,8 @@ struct Font {
   Font(const std::string& path, std::size_t char_size)
   : font(new sf::Font)
   {
-    key = {path, char_size};
+    key.path = path;
+    key.char_size = char_size;
     font->loadFromFile(path);
   }
 
@@ -57,9 +58,6 @@ namespace std {
 class FontCache {
 public:
 
-  // TODO: text still occasionally disappears - don't understand what the
-  // problem is. Seems to be all text of a certain font/size. But sometimes
-  // happens right at the start, so not a memory issue.
   FontCache(const std::vector<std::string>& paths);
 
   static const std::size_t char_size_lock = 20;

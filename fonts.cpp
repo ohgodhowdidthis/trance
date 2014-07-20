@@ -1,6 +1,7 @@
 #include "fonts.h"
 #include "director.h"
 #include "util.h"
+#include <algorithm>
 
 FontCache::FontCache(const std::vector<std::string>& paths)
 : _last_id{random(paths.size())}
@@ -41,9 +42,11 @@ sf::Text FontCache::get_text(
 
   _list.emplace_front(font_path, char_size);
   _map.emplace(k, &_list.front());
-  if (_list.size() > Settings::settings.font_cache_size) {
+  if (_list.size() > std::max(2u, Settings::settings.font_cache_size)) {
     _map.erase(_list.back().key);
     _list.pop_back();
   }
+  // TODO: text disappearing is a flaw in SFML findGlyphRect function.
+  // Investigating.
   return sf::Text{text, *_list.front().font, char_size};
 }
