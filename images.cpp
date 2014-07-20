@@ -200,6 +200,10 @@ bool ImageSet::load_internal(Image* image, const std::string& path) const
     int reqs = 0;
     unsigned char* data = jpgd::decompress_jpeg_image_from_file(
         path.c_str(), &width, &height, &reqs, 4);
+    if (!data) {
+      std::cerr << "\ncouldn't load " << path << std::endl;
+      return false;
+    }
 
     image->width = width;
     image->height = height;
