@@ -137,7 +137,7 @@ Image ImageSet::get() const
     // it's cleaned up when there are no more Image objects referencing it.
     glGenTextures(1, &image.texture);
     image.deleter.reset(
-        new Image::texture_deleter(_images[index].texture));
+        new Image::texture_deleter(image.texture));
 
     _images[index].deleter = image.deleter;
     _images[index].texture = image.texture;

@@ -46,7 +46,5 @@ sf::Text FontCache::get_text(
     _map.erase(_list.back().key);
     _list.pop_back();
   }
-  // TODO: text disappearing is a flaw in SFML findGlyphRect function.
-  // Investigating.
   return sf::Text{text, *_list.front().font, char_size};
 }
