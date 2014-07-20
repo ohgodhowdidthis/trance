@@ -2,7 +2,7 @@
 #include "images.h"
 #include "program.h"
 #include "util.h"
-#include "glew/include/GL/glew.h"
+#include <GL/glew.h>
 #include <SFML/OpenGL.hpp>
 #include <iostream>
 
