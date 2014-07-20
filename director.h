@@ -4,7 +4,9 @@
 #include <cstddef>
 #include <memory>
 #include <vector>
+#include <GL/glew.h>
 #include <SFML/Graphics.hpp>
+#include <SFML/OpenGL.hpp>
 #include "fonts.h"
 
 struct Settings {

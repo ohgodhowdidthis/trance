@@ -2,9 +2,9 @@
 #include "images.h"
 #include "program.h"
 #include "util.h"
+#include <iostream>
 #include <GL/glew.h>
 #include <SFML/OpenGL.hpp>
-#include <iostream>
 
 Settings Settings::settings;
 static const unsigned int spiral_type_max = 7;
@@ -148,6 +148,25 @@ Director::Director(sf::RenderWindow& window,
 , _spiral_width{60}
 , _switch_sets{0}
 {
+
+  GLenum ok = glewInit();
+  if (ok != GLEW_OK) {
+    std::cerr << "Couldn't initialise GLEW: ", glewGetErrorString(ok);
+  }
+
+  if (!GLEW_VERSION_2_1) {
+    std::cerr << "OpenGL 2.1 not available";
+  }
+
+  if (!GLEW_ARB_texture_non_power_of_two) {
+    std::cerr << "OpenGL non-power-of-two textures not available";
+  }
+
+  if (!GLEW_ARB_shading_language_100 || !GLEW_ARB_shader_objects ||
+      !GLEW_ARB_vertex_shader || !GLEW_ARB_fragment_shader) {
+    std::cerr << "OpenGL shaders not available";
+  }
+
   static const std::size_t gl_preload = 1000;
   for (std::size_t i = 0; i < gl_preload; ++i) {
     images.get();
@@ -188,7 +207,6 @@ Director::Director(sf::RenderWindow& window,
     }
   };
 
-  glewInit();
   auto compile = [&](const std::string& vertex_text,
                      const std::string& fragment_text)
   {
@@ -259,6 +277,7 @@ void Director::update()
 
 void Director::render() const
 {
+  Image::delete_textures();
   _program->render();
 }
 
@@ -288,7 +307,6 @@ void Director::render_image(const Image& image, float alpha) const
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, image.texture);
-  glUniform1ui(glGetUniformLocation(_image_program, "texture"), 0);
   glUniform1f(glGetUniformLocation(_image_program, "alpha"), alpha);
 
   GLuint ploc = glGetAttribLocation(_image_program, "position");
@@ -380,13 +398,13 @@ void Director::render_text(const std::string& text) const
     return t;
   };
 
-  _window.pushGLStates();
   auto main = fit_text(
       Settings::settings.main_text_colour, default_size, false);
   auto shadow = fit_text(
       Settings::settings.shadow_text_colour,
       default_size + shadow_extra, true);
 
+  _window.pushGLStates();
   _window.draw(shadow);
   _window.draw(main);
   _window.popGLStates();
@@ -419,12 +437,12 @@ void Director::render_subtext(float alpha) const
     return t;
   };
 
-  _window.pushGLStates();
   auto text = make_text();
   auto r = text.getLocalBounds();
   r.left += text.getPosition().x;
   r.top += text.getPosition().y;
 
+  _window.pushGLStates();
   _window.draw(text);
   int i = 1;
   auto offset = r.height + 4;

@@ -13,9 +13,24 @@ namespace {
   }
 }
 
+std::vector<GLuint> Image::textures_to_delete;
+std::mutex Image::textures_to_delete_mutex;
+
+void Image::delete_textures()
+{
+  textures_to_delete_mutex.lock();
+  for (const auto& texture : textures_to_delete) {
+    glDeleteTextures(1, &texture);
+  }
+  textures_to_delete.clear();
+  textures_to_delete_mutex.unlock();
+}
+
 Image::texture_deleter::~texture_deleter()
 {
-  glDeleteTextures(1, &texture);
+  textures_to_delete_mutex.lock();
+  textures_to_delete.push_back(texture);
+  textures_to_delete_mutex.unlock();
 }
 
 ImageSet::ImageSet(const std::vector<std::string>& paths,

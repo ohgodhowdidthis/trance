@@ -11,6 +11,12 @@
 // In-memory image with load-on-request OpenGL texture which is ref-counted
 // and automatically unloaded once no longer used.
 struct Image {
+  // In order to ensure textures are deleted from the rendering thread, we
+  // use a separate set.
+  static std::vector<std::size_t> textures_to_delete;
+  static std::mutex textures_to_delete_mutex;
+  static void delete_textures();
+
   struct texture_deleter {
     texture_deleter(std::size_t texture)
     : texture{texture} {}

@@ -1,5 +1,4 @@
 #include <SFML/Window.hpp>
-#include <SFML/OpenGL.hpp>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
