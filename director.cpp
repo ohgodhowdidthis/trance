@@ -527,15 +527,15 @@ void Director::change_program()
   _current_subfont = _fonts.get_path(false);
   _program.swap(_old_program);
 
-  auto r = random(11);
+  auto r = random(10);
   if (r == 0) {
     _program.reset(new AccelerateProgram{*this, random_chance()});
   }
   else if (r == 1) {
-    _program.reset(new SubTextProgram{*this});
+    _program.reset(new SlowFlashProgram{*this});
   }
   else if (r == 2 || r == 3) {
-    _program.reset(new SlowFlashProgram{*this});
+    _program.reset(new SubTextProgram{*this});
   }
   else if (r == 4 || r == 5) {
     _program.reset(new ParallelProgram{*this});
