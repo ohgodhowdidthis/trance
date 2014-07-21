@@ -16,24 +16,24 @@ uniform vec2 flip;
 uniform float alpha;
 attribute vec2 position;
 attribute vec2 texcoord;
-noperspective varying vec2 vtexcoord;
-flat varying float valpha;
+varying vec2 vtexcoord;
+varying float valpha;
 
 void main()
 {
-  vec2 pos = position.xy / 2 + 0.5;
+  vec2 pos = position.xy / 2.0 + 0.5;
   pos = pos * (max - min) + min;
-  pos = (pos - 0.5) * 2;
+  pos = (pos - 0.5) * 2.0;
   gl_Position = vec4(pos, 0.0, 1.0);
-  vtexcoord = vec2(flip.x != 0 ? 1.0 - texcoord.x : texcoord.x,
-                   flip.y != 0 ? 1.0 - texcoord.y : texcoord.y);
+  vtexcoord = vec2(flip.x != 0.0 ? 1.0 - texcoord.x : texcoord.x,
+                   flip.y != 0.0 ? 1.0 - texcoord.y : texcoord.y);
   valpha = alpha;
 }
 )";
 static const std::string image_fragment = R"(
 uniform sampler2D texture;
-noperspective varying vec2 vtexcoord;
-flat varying float valpha;
+varying vec2 vtexcoord;
+varying float valpha;
 
 void main()
 {
@@ -85,14 +85,14 @@ float spiral6(float r)
 {
   float r1 = r * 1.2;
   float r2 = (1.5 - 0.5 * r) * 1.2;
-  return r < 1 ? pow(r1, 6) : -pow(r2, 6);
+  return r < 1 ? pow(r1, 6.0) : -pow(r2, 6.0);
 }
 
 float spiral7(float r)
 {
   float m = mod(r, 0.2);
   m = m < 0.1 ? m : 0.2 - m;
-  return r + m * 3;
+  return r + m * 3.0;
 }
 
 void main(void)
@@ -114,20 +114,20 @@ void main(void)
       spiral_type == 5 ? spiral5(radius) :
       spiral_type == 6 ? spiral6(radius) :
                          spiral7(radius);
-  float amod = mod(angle - width * time - 2 * width * factor, width);
+  float amod = mod(angle - width * time - 2.0 * width * factor, width);
   float v = amod < width / 2 ? 0.0 : 1.0;
   float t = 0.2 + 2.0 * (1.0 - pow(min(1.0, radius), 0.4));
-  if (amod > width / 2 - t && amod < width / 2 + t) {
-    v = (amod - width / 2 + t) / (2 * t);
+  if (amod > width / 2.0 - t && amod < width / 2.0 + t) {
+    v = (amod - width / 2.0 + t) / (2.0 * t);
   }
   if (amod < t) {
-    v = 1.0 - (amod + t) / (2 * t);
+    v = 1.0 - (amod + t) / (2.0 * t);
   }
   if (amod > width - t) {
-    v = 1.0 - (amod - width + t) / (2 * t);
+    v = 1.0 - (amod - width + t) / (2.0 * t);
   }
   gl_FragColor = vec4(v, v, v,
-                      0.2 * min(1.0, radius * 2));
+                      0.2 * min(1.0, radius * 2.0));
 }
 )";
 
