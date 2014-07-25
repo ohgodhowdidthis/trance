@@ -87,6 +87,9 @@ void search_data(program_data& data)
     }
   }
 
+  if (data.images.empty()) {
+    data.images["/default/"].begin();
+  }
   for (auto& pair : data.images) {
     for (const auto& s : wildcards) {
       pair.second.push_back(s);
