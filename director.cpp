@@ -98,7 +98,7 @@ float spiral7(float r)
 void main(void)
 {
   vec2 aspect = vec2(resolution.x / resolution.y, 1.0);
-	vec2 position =
+  vec2 position =
       -aspect.xy + 2.0 * gl_FragCoord.xy / resolution.xy * aspect.xy;
   float angle = 0.0;
   float radius = length(position);
@@ -229,7 +229,7 @@ Director::Director(sf::RenderWindow& window,
     return program;
   };
 
-	_spiral_program = compile(spiral_vertex, spiral_fragment);
+  _spiral_program = compile(spiral_vertex, spiral_fragment);
   _image_program = compile(image_vertex, image_fragment);
 
   static const float quad_data[] = {
@@ -241,7 +241,7 @@ Director::Director(sf::RenderWindow& window,
     -1.f, 1.f};
   glGenBuffers(1, &_quad_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, _quad_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, quad_data, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, quad_data, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   static const float tex_data[] = {
@@ -253,7 +253,7 @@ Director::Director(sf::RenderWindow& window,
     0.005f, 0.005f};
   glGenBuffers(1, &_tex_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, _tex_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, tex_data, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, tex_data, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   change_font();
@@ -311,13 +311,13 @@ void Director::render_image(const Image& image, float alpha) const
 
   GLuint ploc = glGetAttribLocation(_image_program, "position");
   glEnableVertexAttribArray(ploc);
-	glBindBuffer(GL_ARRAY_BUFFER, _quad_buffer);
-	glVertexAttribPointer(ploc, 2, GL_FLOAT, false, 0, 0);
+  glBindBuffer(GL_ARRAY_BUFFER, _quad_buffer);
+  glVertexAttribPointer(ploc, 2, GL_FLOAT, false, 0, 0);
 
   GLuint tloc = glGetAttribLocation(_image_program, "texcoord");
   glEnableVertexAttribArray(tloc);
-	glBindBuffer(GL_ARRAY_BUFFER, _tex_buffer);
-	glVertexAttribPointer(tloc, 2, GL_FLOAT, false, 0, 0);
+  glBindBuffer(GL_ARRAY_BUFFER, _tex_buffer);
+  glVertexAttribPointer(tloc, 2, GL_FLOAT, false, 0, 0);
 
   auto x = float(image.width);
   auto y = float(image.height);
@@ -361,7 +361,7 @@ void Director::render_image(const Image& image, float alpha) const
   }
 
   glDisableVertexAttribArray(ploc);
-	glDisableVertexAttribArray(tloc);
+  glDisableVertexAttribArray(tloc);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
@@ -477,10 +477,10 @@ void Director::render_spiral() const
 
   auto loc = glGetAttribLocation(_spiral_program, "position");
   glEnableVertexAttribArray(loc);
-	glBindBuffer(GL_ARRAY_BUFFER, _quad_buffer);
-	glVertexAttribPointer(loc, 2, GL_FLOAT, false, 0, 0);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glDisableVertexAttribArray(loc);
+  glBindBuffer(GL_ARRAY_BUFFER, _quad_buffer);
+  glVertexAttribPointer(loc, 2, GL_FLOAT, false, 0, 0);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
+  glDisableVertexAttribArray(loc);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
@@ -576,5 +576,5 @@ void Director::render_texture(float l, float t, float r, float b,
               r / _width, b / _height);
   glUniform2f(glGetUniformLocation(_image_program, "flip"),
               flip_h ? 1.f : 0.f, flip_v ? 1.f : 0.f);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
 }
