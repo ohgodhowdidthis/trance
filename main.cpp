@@ -1,3 +1,4 @@
+#include <OVR_CAPI.h>
 #include <SFML/Window.hpp>
 #include <filesystem>
 #include <iostream>
@@ -155,6 +156,7 @@ void load_settings()
 
 int main(int argc, char** argv)
 {
+  static const bool oculus_rift = true;
   program_data data;
   search_data(data);
   load_settings();
@@ -162,6 +164,10 @@ int main(int argc, char** argv)
   if (data.images.empty()) {
     std::cerr << "no images found" << std::endl;
     return 1;
+  }
+
+  if (oculus_rift) {
+    ovr_Initialize();
   }
 
   sf::RenderWindow window;
@@ -176,7 +182,8 @@ int main(int argc, char** argv)
   images.initialise();
 
   auto video_mode = sf::VideoMode::getDesktopMode();
-  window.create(video_mode, "Ubtrance", sf::Style::Fullscreen);
+  window.create(video_mode, "Ubtrance",
+                oculus_rift ? sf::Style::None : sf::Style::Fullscreen);
   window.setVerticalSyncEnabled(false);
   window.setFramerateLimit(60);
   window.setVisible(true);
@@ -185,7 +192,7 @@ int main(int argc, char** argv)
 
   Director director(
       window, images, data.fonts,
-      video_mode.width, video_mode.height);
+      video_mode.width, video_mode.height, oculus_rift);
   const float frame_time = 1.f / 120;
   bool running = true;
 
@@ -220,12 +227,11 @@ int main(int argc, char** argv)
       director.update();
     }
     if (update) {
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       director.render();
-      window.display();
     }
   }
   window.close();
   image_load_thread.join();
+  ovr_Shutdown();
   return 0;
 }
