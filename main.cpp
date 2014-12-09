@@ -156,7 +156,7 @@ void load_settings()
 
 int main(int argc, char** argv)
 {
-  static const bool oculus_rift = true;
+  static const bool oculus_rift = false;
   program_data data;
   search_data(data);
   load_settings();
@@ -190,7 +190,7 @@ int main(int argc, char** argv)
   window.setActive();
   window.display();
 
-  Director director(
+  auto director = std::make_unique<Director>(
       window, images, data.fonts,
       video_mode.width, video_mode.height, oculus_rift);
   const float frame_time = 1.f / 120;
@@ -224,14 +224,15 @@ int main(int argc, char** argv)
     while (time >= frame_time) {
       update = true;
       time -= frame_time;
-      director.update();
+      director->update();
     }
     if (update) {
-      director.render();
+      director->render();
     }
   }
   window.close();
   image_load_thread.join();
+  director.reset();
   ovr_Shutdown();
   return 0;
 }

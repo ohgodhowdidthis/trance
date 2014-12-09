@@ -9,6 +9,31 @@
 Settings Settings::settings;
 static const unsigned int spiral_type_max = 7;
 
+static const std::string text_vertex = R"(
+uniform vec4 colour;
+attribute vec2 position;
+attribute vec2 texcoord;
+varying vec2 vtexcoord;
+varying vec4 vcolour;
+
+void main()
+{
+  gl_Position = vec4(position.x, -position.y, 0.0, 1.0);
+  vtexcoord = texcoord;
+  vcolour = colour;
+}
+)";
+static const std::string text_fragment = R"(
+uniform sampler2D texture;
+varying vec2 vtexcoord;
+varying vec4 vcolour;
+
+void main()
+{
+  gl_FragColor = vcolour * texture2D(texture, vtexcoord);
+}
+)";
+
 static const std::string image_vertex = R"(
 uniform vec2 min;
 uniform vec2 max;
@@ -21,7 +46,7 @@ varying float valpha;
 
 void main()
 {
-  vec2 pos = position.xy / 2.0 + 0.5;
+  vec2 pos = position / 2.0 + 0.5;
   pos = pos * (max - min) + min;
   pos = (pos - 0.5) * 2.0;
   gl_Position = vec4(pos, 0.0, 1.0);
@@ -239,6 +264,7 @@ Director::Director(sf::RenderWindow& window,
 
   _spiral_program = compile(spiral_vertex, spiral_fragment);
   _image_program = compile(image_vertex, image_fragment);
+  _text_program = compile(text_vertex, text_fragment);
 
   static const float quad_data[] = {
     -1.f, -1.f,
@@ -298,6 +324,7 @@ void Director::render() const
   Image::delete_textures();
   if (!_oculus.enabled) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    _oculus.rendering_right = false;
     _program->render();
     _window.display();
     return;
@@ -312,8 +339,9 @@ void Director::render() const
     auto eye = _oculus.hmd->EyeRenderOrder[i];
     pose[eye] = ovrHmd_GetHmdPosePerEye(_oculus.hmd, eye);
 		glViewport((eye != ovrEye_Left) * _width / 2, 0, _width / 2, _height);
+    _oculus.rendering_right = eye == ovrEye_Right;
     _program->render();
-	}
+  }
 
   ovrHmd_EndFrame(_oculus.hmd, pose, &_oculus.fb_ovr_tex[0].Texture);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -413,40 +441,26 @@ void Director::render_text(const std::string& text) const
     return;
   }
 
-  auto make_text = [&](const sf::Color& colour, std::size_t size)
+  auto w = _oculus.enabled ? _width / 2 : _width;
+  auto fit_text = [&](std::size_t size, bool fix)
   {
-    auto t = _fonts.get_text(text, _current_font, size);
-    t.setColor(colour);
-    return t;
-  };
+    auto r = get_text_size(text, _fonts.get_font(_current_font, size));
+    int new_size = size;
 
-  auto fit_text = [&](const sf::Color& colour, std::size_t size, bool fix)
-  {
-    auto t = make_text(colour, size);
-    auto r = t.getLocalBounds();
-
-    while (!fix && r.width > _width - border) {
-      int new_size = size * (_width - border);
-      new_size /= int(r.width);
-      t = make_text(colour, new_size);
-      r = t.getLocalBounds();
+    while (!fix && r.x > w - border) {
+      new_size = new_size * (w - border) / int(r.x);
+      r = get_text_size(text, _fonts.get_font(_current_font, new_size));
     }
-
-    t.setOrigin(r.left + r.width / 2, r.top + r.height / 2);
-    t.setPosition(_width / 2.f, _height / 2.f);
-    return t;
+    return new_size;
   };
 
-  auto main = fit_text(
-      Settings::settings.main_text_colour, default_size, false);
-  auto shadow = fit_text(
-      Settings::settings.shadow_text_colour,
-      default_size + shadow_extra, true);
+  auto main_size = fit_text(default_size, false);
+  auto shadow_size = fit_text(default_size + shadow_extra, true);
 
-  _window.pushGLStates();
-  _window.draw(shadow);
-  _window.draw(main);
-  _window.popGLStates();
+  render_raw_text(text, _fonts.get_font(_current_font, shadow_size),
+                  Settings::settings.shadow_text_colour);
+  render_raw_text(text, _fonts.get_font(_current_font, main_size),
+                  Settings::settings.main_text_colour);
 }
 
 void Director::render_subtext(float alpha) const
@@ -713,8 +727,10 @@ void Director::init_oculus_rift()
   }
   _window.setVerticalSyncEnabled(true);
   _window.setFramerateLimit(75);
+#ifndef DEBUG
   _window.setPosition(sf::Vector2i(_oculus.hmd->WindowsPos.x,
                                    _oculus.hmd->WindowsPos.y));
+#endif
 }
 
 void Director::render_texture(float l, float t, float r, float b,
@@ -727,4 +743,153 @@ void Director::render_texture(float l, float t, float r, float b,
   glUniform2f(glGetUniformLocation(_image_program, "flip"),
               flip_h ? 1.f : 0.f, flip_v ? 1.f : 0.f);
   glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
+void Director::render_raw_text(const std::string& text,
+                               const Font& font, const sf::Color& colour) const
+{
+  if (!text.length()) {
+    return;
+  }
+
+  struct vertex {
+    float x;
+    float y;
+    float u;
+    float v;
+  };
+  static std::vector<vertex> vertices;
+  vertices.clear();
+
+  auto hspace = font.font->getGlyph(' ', font.key.char_size, false).advance;
+  auto vspace = font.font->getLineSpacing(font.key.char_size);
+  float x = 0.f;
+  float y = 0.f;
+  const sf::Texture& texture = font.font->getTexture(font.key.char_size);
+
+  float xmin = 256.f;
+  float ymin = 256.f;
+  float xmax = -256.f;
+  float ymax = -256.f;
+
+  uint32_t prev = 0;
+  for (std::size_t i = 0; i < text.length(); ++i) {
+    uint32_t current = text[i];
+    x += font.font->getKerning(prev, current, font.key.char_size);
+    prev = current;
+
+    switch (current) {
+      case L' ':
+        x += hspace;
+        continue;
+      case L'\t':
+        x += hspace * 4;
+        continue;
+      case L'\n':
+        y += vspace;
+        x = 0;
+        continue;
+      case L'\v':
+        y += vspace * 4;
+        continue;
+    }
+
+    const auto& g = font.font->getGlyph(current, font.key.char_size, false);
+    float x1 = (x + g.bounds.left) / _width;
+    float y1 = (y + g.bounds.top) / _height;
+    float x2 = (x + g.bounds.left + g.bounds.width) / _width;
+    float y2 = (y + g.bounds.top + g.bounds.height) / _height;
+    float u1 = float(g.textureRect.left) / texture.getSize().x;
+    float v1 = float(g.textureRect.top) / texture.getSize().y;
+    float u2 =
+        float(g.textureRect.left + g.textureRect.width) / texture.getSize().x;
+    float v2 =
+        float(g.textureRect.top + g.textureRect.height) / texture.getSize().y;
+
+    vertices.push_back({x1, y1, u1, v1});
+    vertices.push_back({x2, y1, u2, v1});
+    vertices.push_back({x2, y2, u2, v2});
+    vertices.push_back({x1, y2, u1, v2});
+    xmin = std::min(xmin, std::min(x1, x2));
+    xmax = std::max(xmax, std::max(x1, x2));
+    ymin = std::min(ymin, std::min(y1, y2));
+    ymax = std::max(ymax, std::max(y1, y2));
+    x += g.advance;
+  }
+  for (auto& v : vertices) {
+    v.x -= xmin + (xmax - xmin) / 2;
+    v.y -= ymin + (ymax - ymin) / 2;
+  }
+
+  glEnable(GL_BLEND);
+  glDisable(GL_TEXTURE_2D);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glDisable(GL_DEPTH_TEST);
+  glDisable(GL_CULL_FACE);
+  glUseProgram(_text_program);
+
+  glActiveTexture(GL_TEXTURE0);
+  sf::Texture::bind(&texture);
+  glUniform4f(glGetUniformLocation(_text_program, "colour"),
+              colour.r / 255.f, colour.g / 255.f,
+              colour.b / 255.f, colour.a / 255.f);
+  const char* data = reinterpret_cast<const char*>(vertices.data());
+
+  GLuint ploc = glGetAttribLocation(_image_program, "position");
+  glEnableVertexAttribArray(ploc);
+  glVertexAttribPointer(ploc, 2, GL_FLOAT, false, sizeof(vertex), data);
+
+  GLuint tloc = glGetAttribLocation(_image_program, "texcoord");
+  glEnableVertexAttribArray(tloc);
+  glVertexAttribPointer(tloc, 2, GL_FLOAT, false, sizeof(vertex), data + 8);
+  glDrawArrays(GL_QUADS, 0, vertices.size());
+}
+
+sf::Vector2f Director::get_text_size(
+    const std::string& text, const Font& font) const
+{
+  auto hspace = font.font->getGlyph(' ', font.key.char_size, false).advance;
+  auto vspace = font.font->getLineSpacing(font.key.char_size);
+  float x = 0.f;
+  float y = 0.f;
+  float xmin = 256.f;
+  float ymin = 256.f;
+  float xmax = -256.f;
+  float ymax = -256.f;
+
+  uint32_t prev = 0;
+  for (std::size_t i = 0; i < text.length(); ++i) {
+    uint32_t current = text[i];
+    x += font.font->getKerning(prev, current, font.key.char_size);
+    prev = current;
+
+    switch (current) {
+      case L' ':
+        x += hspace;
+        continue;
+      case L'\t':
+        x += hspace * 4;
+        continue;
+      case L'\n':
+        y += vspace;
+        x = 0;
+        continue;
+      case L'\v':
+        y += vspace * 4;
+        continue;
+    }
+
+    const auto& g = font.font->getGlyph(current, font.key.char_size, false);
+    float x1 = x + g.bounds.left ;
+    float y1 = y + g.bounds.top;
+    float x2 = x + g.bounds.left + g.bounds.width;
+    float y2 = y + g.bounds.top + g.bounds.height;
+    xmin = std::min(xmin, std::min(x1, x2));
+    xmax = std::max(xmax, std::max(x1, x2));
+    ymin = std::min(ymin, std::min(y1, y2));
+    ymax = std::max(ymax, std::max(y1, y2));
+    x += g.advance;
+  }
+
+  return {xmax - xmin, ymax - ymin};
 }
