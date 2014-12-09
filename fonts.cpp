@@ -23,8 +23,7 @@ const std::string& FontCache::get_path(bool force_change) const
   return _paths[_last_id];
 }
 
-sf::Text FontCache::get_text(
-    const std::string& text,
+const Font& FontCache::get_font(
     const std::string& font_path, std::size_t char_size) const
 {
   char_size -= char_size % char_size_lock;
@@ -37,7 +36,7 @@ sf::Text FontCache::get_text(
       ++jt;
     }
     _list.splice(_list.begin(), _list, jt);
-    return sf::Text{text, *it->second->font, char_size};
+    return *it->second;
   }
 
   _list.emplace_front(font_path, char_size);
@@ -46,5 +45,12 @@ sf::Text FontCache::get_text(
     _map.erase(_list.back().key);
     _list.pop_back();
   }
-  return sf::Text{text, *_list.front().font, char_size};
+  return _list.front();
+}
+
+sf::Text FontCache::get_text(
+    const std::string& text,
+    const std::string& font_path, std::size_t char_size) const
+{
+  return sf::Text{text, *get_font(font_path, char_size).font, char_size};
 }

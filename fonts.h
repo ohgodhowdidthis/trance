@@ -62,6 +62,8 @@ public:
 
   static const std::size_t char_size_lock = 20;
   const std::string& get_path(bool force_change) const;
+  const Font& get_font(
+      const std::string& font_path, std::size_t char_size) const;
   sf::Text get_text(
       const std::string& text,
       const std::string& font_path, std::size_t char_size) const;

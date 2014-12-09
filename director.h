@@ -68,6 +68,9 @@ private:
   void init_oculus_rift();
   void render_texture(float l, float t, float r, float b,
                       bool flip_h, bool flip_v) const;
+  void render_raw_text(const std::string& text,
+                       const Font& font, const sf::Color& colour) const;
+  sf::Vector2f get_text_size(const std::string& text, const Font& font) const;
 
   sf::RenderWindow& _window;
   ImageBank& _images;
@@ -86,10 +89,13 @@ private:
     union ovrGLConfig gl_cfg;
     ovrGLTexture fb_ovr_tex[2];
     ovrEyeRenderDesc eye_desc[2];
+
+    mutable bool rendering_right;
   } _oculus;
 
   std::size_t _image_program;
   std::size_t _spiral_program;
+  std::size_t _text_program;
   std::size_t _quad_buffer;
   std::size_t _tex_buffer;
 
