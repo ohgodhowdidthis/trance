@@ -1,10 +1,16 @@
 #ifndef TRANCE_DIRECTOR_H
 #define TRANCE_DIRECTOR_H
 
+#include <windows.h>
+#undef min
+#undef max
+
 #include <cstddef>
 #include <memory>
 #include <vector>
 #include <GL/glew.h>
+#include <OVR_CAPI.h>
+#include <OVR_CAPI_GL.h>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 #include "fonts.h"
@@ -32,7 +38,7 @@ public:
 
   Director(sf::RenderWindow& window,
            ImageBank& images, const std::vector<std::string>& fonts,
-           std::size_t width, std::size_t height);
+           std::size_t width, std::size_t height, bool oculus_rift);
   ~Director();
 
   // Called from main().
@@ -59,6 +65,7 @@ public:
 
 private:
 
+  void init_oculus_rift();
   void render_texture(float l, float t, float r, float b,
                       bool flip_h, bool flip_v) const;
 
@@ -67,6 +74,19 @@ private:
   FontCache _fonts;
   unsigned int _width;
   unsigned int _height;
+
+  struct {
+    bool enabled;
+    ovrHmd hmd;
+
+    unsigned int fbo;
+    unsigned int fb_tex;
+    unsigned int fb_depth;
+
+    union ovrGLConfig gl_cfg;
+    ovrGLTexture fb_ovr_tex[2];
+    ovrEyeRenderDesc eye_desc[2];
+  } _oculus;
 
   std::size_t _image_program;
   std::size_t _spiral_program;
