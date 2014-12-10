@@ -68,8 +68,8 @@ private:
   void init_oculus_rift();
   void render_texture(float l, float t, float r, float b,
                       bool flip_h, bool flip_v) const;
-  void render_raw_text(const std::string& text,
-                       const Font& font, const sf::Color& colour) const;
+  void render_raw_text(const std::string& text, const Font& font,
+                       const sf::Color& colour, const sf::Vector2f& = {}) const;
   sf::Vector2f get_text_size(const std::string& text, const Font& font) const;
 
   sf::RenderWindow& _window;

@@ -18,7 +18,7 @@ varying vec4 vcolour;
 
 void main()
 {
-  gl_Position = vec4(position.x, -position.y, 0.0, 1.0);
+  gl_Position = vec4(2.0 * position.x, -2.0 * position.y, 0.0, 1.0);
   vtexcoord = texcoord;
   vcolour = colour;
 }
@@ -440,13 +440,11 @@ void Director::render_text(const std::string& text) const
   if (_current_font.empty()) {
     return;
   }
-
   auto w = _oculus.enabled ? _width / 2 : _width;
   auto fit_text = [&](std::size_t size, bool fix)
   {
     auto r = get_text_size(text, _fonts.get_font(_current_font, size));
     int new_size = size;
-
     while (!fix && r.x > w - border) {
       new_size = new_size * (w - border) / int(r.x);
       r = get_text_size(text, _fonts.get_font(_current_font, new_size));
@@ -471,44 +469,31 @@ void Director::render_subtext(float alpha) const
 
   static const unsigned int char_size = 100;
   std::size_t n = 0;
+  const auto& font = _fonts.get_font(_current_subfont, char_size);
 
   auto make_text = [&]
   {
-    auto t = _fonts.get_text("", _current_subfont, char_size);
-    t.setColor({0, 0, 0, sf::Uint8(alpha * 255)});
-
-    sf::FloatRect r;
+    std::string t;
     do {
-      t.setString(t.getString() + " " + _subtext[n]);
+      t += " " + _subtext[n];
       n = (n + 1) % _subtext.size();
-      r = t.getLocalBounds();
     }
-    while (r.width < _width);
-
-    t.setOrigin(r.left + r.width / 2, r.top + r.height / 2);
-    t.setPosition(_width / 2.f, _height / 2.f);
+    while (get_text_size(t, font).x < _width);
     return t;
   };
 
   auto text = make_text();
-  auto r = text.getLocalBounds();
-  r.left += text.getPosition().x;
-  r.top += text.getPosition().y;
-
-  _window.pushGLStates();
-  _window.draw(text);
-  int i = 1;
-  auto offset = r.height + 4;
-  for (; r.top + i * offset < _height; ++i) {
+  auto d = get_text_size(text, font);
+  auto colour = sf::Color(0, 0, 0, sf::Uint8(alpha * 255));
+  render_raw_text(text, font, colour);
+  auto offset = d.y + 4;
+  for (int i = 1; d.y / 2 + i * offset < _height; ++i) {
     text = make_text();
-    text.setPosition(text.getPosition().x, text.getPosition().y + i * offset);
-    _window.draw(text);
+    render_raw_text(text, font, colour, sf::Vector2f{0, i * offset});
 
     text = make_text();
-    text.setPosition(text.getPosition().x, text.getPosition().y - i * offset);
-    _window.draw(text);
+    render_raw_text(text, font, colour, -sf::Vector2f{0, i * offset});
   }
-  _window.popGLStates();
 }
 
 void Director::render_spiral() const
@@ -745,8 +730,9 @@ void Director::render_texture(float l, float t, float r, float b,
   glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
-void Director::render_raw_text(const std::string& text,
-                               const Font& font, const sf::Color& colour) const
+void Director::render_raw_text(const std::string& text, const Font& font,
+                               const sf::Color& colour,
+                               const sf::Vector2f& offset) const
 {
   if (!text.length()) {
     return;
@@ -817,8 +803,8 @@ void Director::render_raw_text(const std::string& text,
     x += g.advance;
   }
   for (auto& v : vertices) {
-    v.x -= xmin + (xmax - xmin) / 2;
-    v.y -= ymin + (ymax - ymin) / 2;
+    v.x -= xmin + (xmax - xmin) / 2 - offset.x / _width;
+    v.y -= ymin + (ymax - ymin) / 2 - offset.y / _height;
   }
 
   glEnable(GL_BLEND);
@@ -852,10 +838,10 @@ sf::Vector2f Director::get_text_size(
   auto vspace = font.font->getLineSpacing(font.key.char_size);
   float x = 0.f;
   float y = 0.f;
-  float xmin = 256.f;
-  float ymin = 256.f;
-  float xmax = -256.f;
-  float ymax = -256.f;
+  float xmin = 0.f;
+  float ymin = 0.f;
+  float xmax = 0.f;
+  float ymax = 0.f;
 
   uint32_t prev = 0;
   for (std::size_t i = 0; i < text.length(); ++i) {
@@ -880,7 +866,7 @@ sf::Vector2f Director::get_text_size(
     }
 
     const auto& g = font.font->getGlyph(current, font.key.char_size, false);
-    float x1 = x + g.bounds.left ;
+    float x1 = x + g.bounds.left;
     float y1 = y + g.bounds.top;
     float x2 = x + g.bounds.left + g.bounds.width;
     float y2 = y + g.bounds.top + g.bounds.height;
