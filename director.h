@@ -51,10 +51,11 @@ public:
   const std::string& get_text(bool alternate = false) const;
   void maybe_upload_next() const;
 
-  void render_image(const Image& image, float alpha) const;
-  void render_text(const std::string& text) const;
-  void render_subtext(float alpha) const;
-  void render_spiral() const;
+  void render_image(const Image& image, float alpha,
+                    float multiplier = 8.f) const;
+  void render_text(const std::string& text, float multiplier = 4.f) const;
+  void render_subtext(float alpha, float multiplier = 6.f) const;
+  void render_spiral(float multiplier = 0.f) const;
 
   void rotate_spiral(float amount);
   void change_spiral();
@@ -66,10 +67,14 @@ public:
 private:
 
   void init_oculus_rift();
+  sf::Vector2f off3d(float multiplier) const;
+  unsigned int view_width() const;
+
   void render_texture(float l, float t, float r, float b,
                       bool flip_h, bool flip_v) const;
   void render_raw_text(const std::string& text, const Font& font,
-                       const sf::Color& colour, const sf::Vector2f& = {}) const;
+                       const sf::Color& colour, const sf::Vector2f& offset = {},
+                       float scale = 1.f) const;
   sf::Vector2f get_text_size(const std::string& text, const Font& font) const;
 
   sf::RenderWindow& _window;

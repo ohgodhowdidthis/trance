@@ -94,7 +94,7 @@ void AccelerateProgram::update()
 
 void AccelerateProgram::render() const
 {
-  director().render_image(_current, 1);
+  director().render_image(_current, 1, 8.f + 48.f - _change_speed);
   director().render_spiral();
   if (_change_speed <= 16 || _text_on) {
     director().render_text(_current_text);
@@ -209,10 +209,13 @@ void SlowFlashProgram::update()
 
 void SlowFlashProgram::render() const
 {
-  director().render_image(_current, 1);
+  float extra = 32.f - 32.f * _image_count / (4 * cycle_length);
+  director().render_image(_current, 1, 8.f + extra);
   director().render_spiral();
   if (_change_timer < max_speed / 2 || _flash) {
-    director().render_text(_current_text);
+    director().render_text(
+        _current_text,
+        _flash ? 3.f + 8.f * (_image_count / (4.f * cycle_length)) : 4.f);
   }
 }
 
@@ -257,10 +260,12 @@ void FlashTextProgram::update()
 
 void FlashTextProgram::render() const
 {
-  director().render_image(_start, 1);
-  director().render_image(_end, 1.f - float(_timer) / length);
+  float extra = 32.f - 32.f * _timer / length;
+  director().render_image(_start, 1, (_cycle % 2 ? 10.f : 8.f) + extra);
+  director().render_image(_end, 1.f - float(_timer) / length,
+                          (_cycle % 2 ? 8.f : 10.f) + extra);
   director().render_spiral();
-  director().render_text(_current_text);
+  director().render_text(_current_text, 3.f + 8.f * _timer / length);
 }
 
 ParallelProgram::ParallelProgram(Director& director)
@@ -311,11 +316,12 @@ void ParallelProgram::update()
 
 void ParallelProgram::render() const
 {
-  director().render_image(_image, 1);
-  director().render_image(_alternate, .5f);
+  float extra = 32.f * _cycle / cycles;
+  director().render_image(_image, 1, 8 + extra);
+  director().render_image(_alternate, .5f, 8 + 32.f - extra);
   director().render_spiral();
   if (!_text_on) {
-    director().render_text(_current_text);
+    director().render_text(_current_text, 5.f);
   }
 }
 
@@ -365,9 +371,10 @@ void SuperParallelProgram::update()
 
 void SuperParallelProgram::render() const
 {
+  float extra = 16.f - 16.f * (_cycle % 128) / (cycles / 4);
   for (std::size_t i = 0; i < _images.size(); ++i) {
-    director().render_image(_images[i], 1.f / (1 + i));
+    director().render_image(_images[i], 1.f / (1 + i), 8.f + 4 * i + extra);
   }
   director().render_spiral();
-  director().render_text(_current_text);
+  director().render_text(_current_text, 5.f);
 }

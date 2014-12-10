@@ -156,7 +156,7 @@ void load_settings()
 
 int main(int argc, char** argv)
 {
-  static const bool oculus_rift = false;
+  static const bool oculus_rift = true;
   program_data data;
   search_data(data);
   load_settings();
@@ -165,7 +165,6 @@ int main(int argc, char** argv)
     std::cerr << "no images found" << std::endl;
     return 1;
   }
-
   if (oculus_rift) {
     ovr_Initialize();
   }
