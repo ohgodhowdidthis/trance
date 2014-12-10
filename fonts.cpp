@@ -47,10 +47,3 @@ const Font& FontCache::get_font(
   }
   return _list.front();
 }
-
-sf::Text FontCache::get_text(
-    const std::string& text,
-    const std::string& font_path, std::size_t char_size) const
-{
-  return sf::Text{text, *get_font(font_path, char_size).font, char_size};
-}
