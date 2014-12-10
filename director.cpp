@@ -76,6 +76,7 @@ void main() {
 static const std::string spiral_fragment = R"(
 uniform float time;
 uniform vec2 resolution;
+uniform float offset;
 
 // A divisor of 360 (determines the number of spiral arms).
 uniform float width;
@@ -123,8 +124,8 @@ float spiral7(float r)
 void main(void)
 {
   vec2 aspect = vec2(resolution.x / resolution.y, 1.0);
-  vec2 position =
-      -aspect.xy + 2.0 * gl_FragCoord.xy / resolution.xy * aspect.xy;
+  vec2 op = gl_FragCoord.xy - vec2(offset, 0.0);
+  vec2 position = -aspect.xy + 2.0 * op / resolution.xy * aspect.xy;
   float angle = 0.0;
   float radius = length(position);
   if (position.x != 0.0 && position.y != 0.0) {
@@ -338,7 +339,7 @@ void Director::render() const
   for (int i = 0; i < 2; ++i) {
     auto eye = _oculus.hmd->EyeRenderOrder[i];
     pose[eye] = ovrHmd_GetHmdPosePerEye(_oculus.hmd, eye);
-		glViewport((eye != ovrEye_Left) * _width / 2, 0, _width / 2, _height);
+		glViewport((eye != ovrEye_Left) * view_width(), 0, view_width(), _height);
     _oculus.rendering_right = eye == ovrEye_Right;
     _program->render();
   }
@@ -363,7 +364,8 @@ void Director::maybe_upload_next() const
   _images.maybe_upload_next();
 }
 
-void Director::render_image(const Image& image, float alpha) const
+void Director::render_image(const Image& image, float alpha,
+                            float multiplier) const
 {
   glEnable(GL_BLEND);
   glDisable(GL_TEXTURE_2D);
@@ -386,6 +388,7 @@ void Director::render_image(const Image& image, float alpha) const
   glBindBuffer(GL_ARRAY_BUFFER, _tex_buffer);
   glVertexAttribPointer(tloc, 2, GL_FLOAT, false, 0, 0);
 
+  float offx3d = off3d(multiplier).x;
   auto x = float(image.width);
   auto y = float(image.height);
   if (y * _width / x > _height) {
@@ -393,16 +396,16 @@ void Director::render_image(const Image& image, float alpha) const
     y = float(_height);
     x *= scale;
 
-    render_texture(_width / 2 - x / 2, 0.f,
-                   _width / 2 + x / 2, float(_height),
+    render_texture(offx3d + _width / 2 - x / 2, 0.f,
+                   offx3d + _width / 2 + x / 2, float(_height),
                    false, false);
     int i = 1;
     while (_width / 2 - i * x + x / 2 >= 0) {
-      render_texture(_width / 2 - i * x - x / 2, 0.f,
-                     _width / 2 - i * x + x / 2, float(_height),
+      render_texture(offx3d + _width / 2 - i * x - x / 2, 0.f,
+                     offx3d + _width / 2 - i * x + x / 2, float(_height),
                      i % 2 != 0, false);
-      render_texture(_width / 2 + i * x - x / 2, 0.f,
-                     _width / 2 + i * x + x / 2, float(_height),
+      render_texture(offx3d + _width / 2 + i * x - x / 2, 0.f,
+                     offx3d + _width / 2 + i * x + x / 2, float(_height),
                      i % 2 != 0, false);
       ++i;
     }
@@ -412,16 +415,16 @@ void Director::render_image(const Image& image, float alpha) const
     x = float(_width);
     y *= scale;
 
-    render_texture(0.f, _height / 2 - y / 2,
-                   float(_width), _height / 2 + y / 2,
+    render_texture(offx3d + 0.f, _height / 2 - y / 2,
+                   offx3d + float(_width), _height / 2 + y / 2,
                    false, false);
     int i = 1;
     while (_height / 2 - i * y + y / 2 >= 0) {
-      render_texture(0.f, _height / 2 - i * y - y / 2,
-                     float(_width), _height / 2 - i * y + y / 2,
+      render_texture(offx3d + 0.f, _height / 2 - i * y - y / 2,
+                     offx3d + float(_width), _height / 2 - i * y + y / 2,
                      false, i % 2 != 0);
-      render_texture(0.f, _height / 2 + i * y - y / 2,
-                     float(_width), _height / 2 + i * y + y / 2,
+      render_texture(offx3d + 0.f, _height / 2 + i * y - y / 2,
+                     offx3d + float(_width), _height / 2 + i * y + y / 2,
                      false, i % 2 != 0);
       ++i;
     }
@@ -432,7 +435,7 @@ void Director::render_image(const Image& image, float alpha) const
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void Director::render_text(const std::string& text) const
+void Director::render_text(const std::string& text, float multiplier) const
 {
   static const std::size_t default_size = 200;
   static const std::size_t border = 100;
@@ -440,13 +443,12 @@ void Director::render_text(const std::string& text) const
   if (_current_font.empty()) {
     return;
   }
-  auto w = _oculus.enabled ? _width / 2 : _width;
   auto fit_text = [&](std::size_t size, bool fix)
   {
     auto r = get_text_size(text, _fonts.get_font(_current_font, size));
     int new_size = size;
-    while (!fix && r.x > w - border) {
-      new_size = new_size * (w - border) / int(r.x);
+    while (!fix && r.x > view_width() - border) {
+      new_size = new_size * (view_width() - border) / int(r.x);
       r = get_text_size(text, _fonts.get_font(_current_font, new_size));
     }
     return new_size;
@@ -454,14 +456,15 @@ void Director::render_text(const std::string& text) const
 
   auto main_size = fit_text(default_size, false);
   auto shadow_size = fit_text(default_size + shadow_extra, true);
-
   render_raw_text(text, _fonts.get_font(_current_font, shadow_size),
-                  Settings::settings.shadow_text_colour);
+                  Settings::settings.shadow_text_colour, off3d(1.f + multiplier),
+                  std::exp((4.f - multiplier) / 16.f));
   render_raw_text(text, _fonts.get_font(_current_font, main_size),
-                  Settings::settings.main_text_colour);
+                  Settings::settings.main_text_colour, off3d(multiplier),
+                  std::exp((4.f - multiplier) / 16.f));
 }
 
-void Director::render_subtext(float alpha) const
+void Director::render_subtext(float alpha, float multiplier) const
 {
   if (_subtext.empty()) {
     return;
@@ -482,21 +485,22 @@ void Director::render_subtext(float alpha) const
     return t;
   };
 
+  float offx3d = off3d(multiplier).x;
   auto text = make_text();
   auto d = get_text_size(text, font);
   auto colour = sf::Color(0, 0, 0, sf::Uint8(alpha * 255));
-  render_raw_text(text, font, colour);
+  render_raw_text(text, font, colour, sf::Vector2f{offx3d, 0});
   auto offset = d.y + 4;
   for (int i = 1; d.y / 2 + i * offset < _height; ++i) {
     text = make_text();
-    render_raw_text(text, font, colour, sf::Vector2f{0, i * offset});
+    render_raw_text(text, font, colour, sf::Vector2f{offx3d, i * offset});
 
     text = make_text();
-    render_raw_text(text, font, colour, -sf::Vector2f{0, i * offset});
+    render_raw_text(text, font, colour, -sf::Vector2f{offx3d, i * offset});
   }
 }
 
-void Director::render_spiral() const
+void Director::render_spiral(float multiplier) const
 {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -507,7 +511,12 @@ void Director::render_spiral() const
   glUseProgram(_spiral_program);
   glUniform1f(glGetUniformLocation(_spiral_program, "time"), _spiral);
   glUniform2f(glGetUniformLocation(_spiral_program, "resolution"),
-              float(_width), float(_height));
+              float(view_width()), float(_height));
+
+  bool right_offset = _oculus.enabled && _oculus.rendering_right;
+  float offset = off3d(multiplier).x +
+      (right_offset ? float(view_width()) : 0.f);
+  glUniform1f(glGetUniformLocation(_spiral_program, "offset"), offset);
   glUniform1f(glGetUniformLocation(_spiral_program, "width"),
               float(_spiral_width));
   glUniform1f(glGetUniformLocation(_spiral_program, "spiral_type"),
@@ -674,9 +683,9 @@ void Director::init_oculus_rift()
     _oculus.fb_ovr_tex[i].OGL.Header.API = ovrRenderAPI_OpenGL;
     _oculus.fb_ovr_tex[i].OGL.Header.TextureSize.w = _width;
     _oculus.fb_ovr_tex[i].OGL.Header.TextureSize.h = _height;
-    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Pos.x = i * _width / 2;
+    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Pos.x = i * view_width();
     _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Pos.y = 0;
-    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Size.w = _width / 2;
+    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Size.w = view_width();
     _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Size.h = _height;
     _oculus.fb_ovr_tex[i].OGL.TexId = _oculus.fb_tex;
   }
@@ -718,6 +727,19 @@ void Director::init_oculus_rift()
 #endif
 }
 
+sf::Vector2f Director::off3d(float multiplier) const
+{
+  float x = !_oculus.enabled || !multiplier ? 0.f :
+      !_oculus.rendering_right ? _width / (8.f * multiplier) :
+                                 _width / -(8.f * multiplier);
+  return {x, 0};
+}
+
+unsigned int Director::view_width() const
+{
+  return _oculus.enabled ? _width / 2 : _width;
+}
+
 void Director::render_texture(float l, float t, float r, float b,
                               bool flip_h, bool flip_v) const
 {
@@ -732,7 +754,7 @@ void Director::render_texture(float l, float t, float r, float b,
 
 void Director::render_raw_text(const std::string& text, const Font& font,
                                const sf::Color& colour,
-                               const sf::Vector2f& offset) const
+                               const sf::Vector2f& offset, float scale) const
 {
   if (!text.length()) {
     return;
@@ -803,8 +825,12 @@ void Director::render_raw_text(const std::string& text, const Font& font,
     x += g.advance;
   }
   for (auto& v : vertices) {
-    v.x -= xmin + (xmax - xmin) / 2 - offset.x / _width;
-    v.y -= ymin + (ymax - ymin) / 2 - offset.y / _height;
+    v.x -= xmin + (xmax - xmin) / 2;
+    v.y -= ymin + (ymax - ymin) / 2;
+    v.x *= scale;
+    v.y *= scale;
+    v.x += offset.x / _width;
+    v.y += offset.y / _height;
   }
 
   glEnable(GL_BLEND);
