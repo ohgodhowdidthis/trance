@@ -43,7 +43,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\sfml_2_1\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\sfml_2_1\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -59,7 +59,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\sfml_2_1\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\sfml_2_1\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -75,6 +75,9 @@
   <ItemGroup>
     <ClCompile Include="director.cpp" />
     <ClCompile Include="fonts.cpp" />
+    <ClCompile Include="giflib_5_1_0\lib\dgif_lib.c" />
+    <ClCompile Include="giflib_5_1_0\lib\gifalloc.c" />
+    <ClCompile Include="giflib_5_1_0\lib\gif_err.c" />
     <ClCompile Include="images.cpp" />
     <ClCompile Include="jpeg\jpgd.cpp" />
     <ClCompile Include="main.cpp" />
