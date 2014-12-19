@@ -295,6 +295,7 @@ Director::Director(sf::RenderWindow& window,
   change_spiral();
   change_program();
   change_subtext();
+  _images.load_animations();
 }
 
 Director::~Director()
@@ -314,6 +315,9 @@ void Director::update()
     }
   }
   ++_switch_sets;
+  if (_switch_sets % 512 == 0) {
+    _images.load_animations();
+  }
   if (_old_program) {
     _old_program.reset(nullptr);
   }
@@ -327,6 +331,7 @@ void Director::render() const
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     _oculus.rendering_right = false;
     _program->render();
+    render_animation();
     _window.display();
     return;
   }
@@ -342,6 +347,7 @@ void Director::render() const
 		glViewport((eye != ovrEye_Left) * view_width(), 0, view_width(), _height);
     _oculus.rendering_right = eye == ovrEye_Right;
     _program->render();
+    render_animation();
   }
 
   ovrHmd_EndFrame(_oculus.hmd, pose, &_oculus.fb_ovr_tex[0].Texture);
@@ -513,10 +519,10 @@ void Director::render_spiral(float multiplier) const
   glUniform2f(glGetUniformLocation(_spiral_program, "resolution"),
               float(view_width()), float(_height));
 
-  bool right_offset = _oculus.enabled && _oculus.rendering_right;
   float offset = off3d(multiplier).x +
-      (right_offset ? float(view_width()) : 0.f);
-  glUniform1f(glGetUniformLocation(_spiral_program, "offset"), offset);
+      (_oculus.rendering_right ? float(view_width()) : 0.f);
+  glUniform1f(glGetUniformLocation(_spiral_program, "offset"),
+              _oculus.enabled ? offset : 0.f);
   glUniform1f(glGetUniformLocation(_spiral_program, "width"),
               float(_spiral_width));
   glUniform1f(glGetUniformLocation(_spiral_program, "spiral_type"),
@@ -649,8 +655,8 @@ void Director::init_oculus_rift()
       _oculus.hmd, ovrEye_Left, _oculus.hmd->DefaultEyeFov[0], 1.0);
   ovrSizei eye_right = ovrHmd_GetFovTextureSize(
       _oculus.hmd, ovrEye_Right, _oculus.hmd->DefaultEyeFov[0], 1.0);
-  _width = eye_left.w + eye_right.w;
-  _height = std::max(eye_left.h, eye_right.h);
+  int fw = eye_left.w + eye_right.w;
+  int fh = std::max(eye_left.h, eye_right.h);
 
   glGenFramebuffers(1, &_oculus.fbo);
   glGenTextures(1, &_oculus.fb_tex);
@@ -662,13 +668,13 @@ void Director::init_oculus_rift()
   glBindFramebuffer(GL_FRAMEBUFFER, _oculus.fbo);
 
   glBindTexture(GL_TEXTURE_2D, _oculus.fb_tex);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, _width, _height, 0,
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fw, fh, 0,
                GL_RGBA, GL_UNSIGNED_BYTE, 0);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                          GL_TEXTURE_2D, _oculus.fb_tex, 0);
 
   glBindRenderbuffer(GL_RENDERBUFFER, _oculus.fb_depth);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, _width, _height);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, fw, fh);
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
                             GL_RENDERBUFFER, _oculus.fb_depth);
 
@@ -681,12 +687,12 @@ void Director::init_oculus_rift()
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   for (int i = 0; i < 2; ++i) {
     _oculus.fb_ovr_tex[i].OGL.Header.API = ovrRenderAPI_OpenGL;
-    _oculus.fb_ovr_tex[i].OGL.Header.TextureSize.w = _width;
-    _oculus.fb_ovr_tex[i].OGL.Header.TextureSize.h = _height;
-    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Pos.x = i * view_width();
+    _oculus.fb_ovr_tex[i].OGL.Header.TextureSize.w = fw;
+    _oculus.fb_ovr_tex[i].OGL.Header.TextureSize.h = fh;
+    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Pos.x = i * fw / 2;
     _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Pos.y = 0;
-    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Size.w = view_width();
-    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Size.h = _height;
+    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Size.w = fw / 2;
+    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Size.h = fh;
     _oculus.fb_ovr_tex[i].OGL.TexId = _oculus.fb_tex;
   }
 
@@ -717,8 +723,11 @@ void Director::init_oculus_rift()
                                  distort_caps, _oculus.hmd->DefaultEyeFov,
                                  _oculus.eye_desc)) {
     std::cerr << "Oculus rendering failed" << std::endl;
+    _oculus.enabled = false;
     return;
   }
+  _width = fw;
+  _height = fh;
   _window.setVerticalSyncEnabled(true);
   _window.setFramerateLimit(75);
 #ifndef DEBUG
@@ -738,6 +747,12 @@ sf::Vector2f Director::off3d(float multiplier) const
 unsigned int Director::view_width() const
 {
   return _oculus.enabled ? _width / 2 : _width;
+}
+
+void Director::render_animation() const
+{
+  Image image = _images.get_animation(_switch_sets / 8);
+  render_image(image, .75f, 4.f);
 }
 
 void Director::render_texture(float l, float t, float r, float b,

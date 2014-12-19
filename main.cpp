@@ -29,16 +29,20 @@ main_text_colour 255 150 200 224
 shadow_text_color 0 0 0 192
 )";
 
+struct program_set {
+  std::vector<std::string> images;
+  std::vector<std::string> texts;
+  std::vector<std::string> animations;
+};
+
 struct program_data {
-  std::unordered_map<std::string, std::vector<std::string>> images;
-  std::unordered_map<std::string, std::vector<std::string>> texts;
+  std::unordered_map<std::string, program_set> sets;
   std::vector<std::string> fonts;
 };
 
 void search_data(program_data& data)
 {
-  std::vector<std::string> wildcards;
-  std::vector<std::string> text_wildcards;
+  static const std::string wildcards = "/wildcards/";
   std::tr2::sys::path path(".");
   for (auto it = std::tr2::sys::recursive_directory_iterator(path);
        it != std::tr2::sys::recursive_directory_iterator(); ++it) {
@@ -52,11 +56,12 @@ void search_data(program_data& data)
       if (jt == it->path().end()) {
         continue;
       }
+      auto set_name = jt == --it->path().end() ? wildcards : *jt;
 
       if (ext == ".ttf") {
         data.fonts.push_back(it->path());
       }
-      if (ext == ".txt") {
+      else if (ext == ".txt") {
         std::ifstream f(it->path());
         std::string line;
         while (std::getline(f, line)) {
@@ -66,41 +71,46 @@ void search_data(program_data& data)
           for (auto& c : line) {
             c = toupper(c);
           }
-          if (jt == --it->path().end()) {
-            text_wildcards.push_back(line);
-          }
-          else {
-            data.texts[*jt].push_back(line);
-          }
+          data.sets[set_name].texts.push_back(line);
         }
       }
-      if (ext != ".gif" && ext != ".png" && ext != ".bmp" &&
-          ext != ".jpg" && ext != ".jpeg") {
-        continue;
+      else if (ext == ".gif") {
+        data.sets[set_name].animations.push_back(it->path());
       }
-
-      if (jt == --it->path().end()) {
-        wildcards.push_back(it->path());
-      }
-      else {
-        data.images[*jt].push_back(it->path());
+      else if (ext == ".png" || ext == ".bmp" ||
+               ext == ".jpg" || ext == ".jpeg") {
+        data.sets[set_name].images.push_back(it->path());
       }
     }
   }
 
-  if (data.images.empty()) {
-    data.images["/default/"].begin();
-  }
-  for (auto& pair : data.images) {
-    for (const auto& s : wildcards) {
-      pair.second.push_back(s);
+  // Merge wildcards set into all others.
+  for (auto& pair : data.sets) {
+    if (pair.first == wildcards) {
+      continue;
     }
-    data.texts[pair.first].begin();
-  }
-  for (auto& pair : data.texts) {
-    for (const auto& s : text_wildcards) {
-      pair.second.push_back(s);
+    for (const auto& s : data.sets[wildcards].images) {
+      pair.second.images.push_back(s);
     }
+    for (const auto& s : data.sets[wildcards].texts) {
+      pair.second.texts.push_back(s);
+    }
+    for (const auto& s : data.sets[wildcards].animations) {
+      pair.second.animations.push_back(s);
+    }
+  }
+  // Erase any sets with no images.
+  for (auto it = data.sets.begin(); it != data.sets.end();) {
+    if (it->second.images.empty()) {
+      it = data.sets.erase(it);
+    }
+    else {
+      ++it;
+    }
+  }
+  // Leave wildcards set if there are no others.
+  if (data.sets.size() > 1) {
+    data.sets.erase(wildcards);
   }
 }
 
@@ -160,9 +170,9 @@ int main(int argc, char** argv)
   program_data data;
   search_data(data);
   load_settings();
-
-  if (data.images.empty()) {
-    std::cerr << "no images found" << std::endl;
+  // Currently there must be at least one set.
+  if (data.sets.empty()) {
+    std::cerr << "No images found." << std::endl;
     return 1;
   }
   if (oculus_rift) {
@@ -175,8 +185,8 @@ int main(int argc, char** argv)
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   ImageBank images;
-  for (const auto& p : data.images) {
-    images.add_set(p.second, data.texts[p.first]);
+  for (const auto& p : data.sets) {
+    images.add_set(p.second.images, p.second.texts, p.second.animations);
   }
   images.initialise();
 

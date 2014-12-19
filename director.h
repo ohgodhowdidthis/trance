@@ -70,6 +70,7 @@ private:
   sf::Vector2f off3d(float multiplier) const;
   unsigned int view_width() const;
 
+  void render_animation() const;
   void render_texture(float l, float t, float r, float b,
                       bool flip_h, bool flip_v) const;
   void render_raw_text(const std::string& text, const Font& font,

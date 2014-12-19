@@ -5,6 +5,7 @@
 #include <iostream>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
+#include <gif_lib.h>
 #include <jpgd.h>
 
 namespace {
@@ -34,9 +35,11 @@ Image::texture_deleter::~texture_deleter()
   textures_to_delete_mutex.unlock();
 }
 
-ImageSet::ImageSet(const std::vector<std::string>& paths,
-                   const std::vector<std::string>& texts)
-: _paths{paths}
+ImageSet::ImageSet(const std::vector<std::string>& images,
+                   const std::vector<std::string>& texts,
+                   const std::vector<std::string>& animations)
+: _paths{images}
+, _animation_paths{animations}
 , _target_load{0}
 , _last_id{0}
 , _last_text_id{0}
@@ -76,61 +79,15 @@ ImageSet::ImageSet(const std::vector<std::string>& paths,
 }
 
 ImageSet::ImageSet(const ImageSet& images)
-  : _paths(images._paths)
-  , _texts(images._texts)
-  , _target_load(images._target_load)
-  , _last_id(images._last_id)
+: _paths(images._paths)
+, _animation_paths(images._animation_paths)
+, _texts(images._texts)
+, _target_load(images._target_load)
+, _last_id(images._last_id)
 {
   for (const auto& t : images._images) {
     _paths.emplace_back(t.path);
   }
-}
-
-void ImageSet::set_target_load(std::size_t target_load)
-{
-  _target_load = target_load;
-}
-
-std::size_t ImageSet::get_target_load() const
-{
-  return _target_load;
-}
-
-void ImageSet::perform_swap()
-{
-  // Swap if there's definitely an image loaded beyond the one currently
-  // displayed.
-  if (_images.size() > 2 && !_paths.empty()) {
-    unload_internal();
-    load_internal();
-  }
-}
-
-void ImageSet::perform_load()
-{
-  if (_images.size() < _target_load && !_paths.empty()) {
-    load_internal();
-  }
-  else if (_images.size() > _target_load) {
-    unload_internal();
-  }
-}
-
-void ImageSet::perform_all_loads()
-{
-  while (!all_loaded()) {
-    perform_load();
-  }
-}
-
-bool ImageSet::all_loaded() const
-{
-  return _images.size() == _target_load || _paths.empty();
-}
-
-std::size_t ImageSet::loaded() const
-{
-  return _images.size();
 }
 
 Image ImageSet::get() const
@@ -181,6 +138,158 @@ const std::string& ImageSet::get_text() const
   }
   return _texts[
       _last_text_id = random_excluding(_texts.size(), _last_text_id)];
+}
+
+Image ImageSet::get_animation(std::size_t frame) const
+{
+  if (_animation_images.empty()) {
+    return Image("");
+  }
+  return _animation_images[frame % _animation_images.size()];
+}
+
+void ImageSet::set_target_load(std::size_t target_load)
+{
+  _target_load = target_load;
+}
+
+std::size_t ImageSet::get_target_load() const
+{
+  return _target_load;
+}
+
+void ImageSet::perform_swap()
+{
+  // Swap if there's definitely an image loaded beyond the one currently
+  // displayed.
+  if (_images.size() > 2 && !_paths.empty()) {
+    unload_internal();
+    load_internal();
+  }
+}
+
+void ImageSet::perform_load()
+{
+  if (_images.size() < _target_load && !_paths.empty()) {
+    load_internal();
+  }
+  else if (_images.size() > _target_load) {
+    unload_internal();
+  }
+}
+
+void ImageSet::perform_all_loads()
+{
+  while (!all_loaded()) {
+    perform_load();
+  }
+}
+
+bool ImageSet::all_loaded() const
+{
+  return _images.size() == _target_load || _paths.empty();
+}
+
+std::size_t ImageSet::loaded() const
+{
+  return _images.size();
+}
+
+void ImageSet::load_animation()
+{
+  if (_animation_paths.empty()) {
+    std::cerr << "empty" << std::endl;
+    return;
+  }
+  _animation_images.clear();
+  const std::string& path = _animation_paths[random(_animation_paths.size())];
+  int error_code = 0;
+  GifFileType* gif = DGifOpenFileName(path.c_str(), &error_code);
+  if (!gif) {
+    std::cerr << "couldn't load " << path <<
+        ": " << GifErrorString(error_code) << std::endl;
+    return;
+  }
+  if (DGifSlurp(gif) != GIF_OK) {
+    std::cerr << "couldn't load " << path <<
+        ": " << GifErrorString(gif->Error) << std::endl;
+  }
+
+  auto width = gif->SWidth;
+  auto height = gif->SHeight;
+  std::unique_ptr<uint32_t[]> pixels(new uint32_t[width * height]);
+  for (int i = 0; i < width * height; ++i) {
+    pixels[i] = gif->SBackGroundColor;
+  }
+
+  for (int i = 0; i < gif->ImageCount; ++i) {
+    const auto& frame = gif->SavedImages[i];
+    bool transparency = false;
+    unsigned char transparency_byte = 0;
+    // Delay time in hundredths of a second. Ignore it; it messes with the
+    // rhythm.
+    int delay_time = 1;
+    for (int j = 0; j < frame.ExtensionBlockCount; ++j) {
+      const auto& block = frame.ExtensionBlocks[j];
+      if (block.Function != GRAPHICS_EXT_FUNC_CODE) {
+        continue;
+      }
+
+      char dispose = (block.Bytes[0] >> 2) & 7;
+      transparency = block.Bytes[0] & 1;
+      delay_time = block.Bytes[1] + (block.Bytes[2] << 8);
+      transparency_byte = block.Bytes[3];
+
+      if (dispose == 2) {
+        for (int k = 0; k < width * height; ++k) {
+          pixels[k] = gif->SBackGroundColor;
+        }
+      }
+    }
+    std::cerr << delay_time << std::endl;
+    auto map = frame.ImageDesc.ColorMap ?
+        frame.ImageDesc.ColorMap : gif->SColorMap;
+
+    auto fw = frame.ImageDesc.Width;
+    auto fh = frame.ImageDesc.Height;
+    auto fl = frame.ImageDesc.Left;
+    auto ft = frame.ImageDesc.Top;
+
+    for (int y = 0; y < fh; ++y) {
+      for (int x = 0; x < fw; ++x) {
+        unsigned char byte = frame.RasterBits[x + y * fw];
+        if (transparency && byte == transparency_byte) {
+          continue;
+        }
+        const auto& c = map->Colors[byte];
+        pixels[fl + x + (ft + y) * fw] =
+            c.Red | (c.Green << 8) | (c.Blue << 16) | (0xff << 24);
+      }
+    }
+
+    _animation_images.emplace_back(path);
+    auto& image = _animation_images.back();
+    glGenTextures(1, &image.texture);
+    image.deleter.reset(
+        new Image::texture_deleter(image.texture));
+    image.width = width;
+    image.height = height;
+
+    glBindTexture(GL_TEXTURE_2D, image.texture);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height,
+        0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.get());
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    std::cout << ";";
+  }
+
+  if (DGifCloseFile(gif, &error_code) != GIF_OK) {
+    std::cerr << "couldn't close " << path <<
+        ": " << GifErrorString(error_code) << std::endl;
+  }
 }
 
 bool ImageSet::load_internal(Image* image, const std::string& path) const
@@ -267,10 +376,11 @@ void ImageSet::unload_internal()
   _mutex.unlock();
 }
 
-void ImageBank::add_set(const std::vector<std::string>& paths,
-                        const std::vector<std::string>& texts)
+void ImageBank::add_set(const std::vector<std::string>& images,
+                        const std::vector<std::string>& texts,
+                        const std::vector<std::string>& animations)
 {
-  _sets.emplace_back(paths, texts);
+  _sets.emplace_back(images, texts, animations);
 }
 
 void ImageBank::initialise()
@@ -343,6 +453,12 @@ const std::string& ImageBank::get_text(bool alternate) const
   return alternate ? _sets[_a].get_text() : _sets[_b].get_text();
 }
 
+Image ImageBank::get_animation(std::size_t frame, bool alternate) const
+{
+  return alternate ?
+      _sets[_a].get_animation(frame) : _sets[_b].get_animation(frame);
+}
+
 void ImageBank::maybe_upload_next()
 {
   if (_sets.size() > 3 && _sets[_next].loaded() > 0) {
@@ -385,6 +501,12 @@ bool ImageBank::change_sets()
   _sets[_prev].set_target_load(0);
   _sets[_next].set_target_load(image_cache_size() / 3);
   return true;
+}
+
+void ImageBank::load_animations()
+{
+  _sets[_a].load_animation();
+  _sets[_b].load_animation();
 }
 
 void ImageBank::async_update()

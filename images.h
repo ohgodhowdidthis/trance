@@ -42,8 +42,9 @@ struct Image {
 class ImageSet {
 public:
 
-  ImageSet(const std::vector<std::string>& paths,
-           const std::vector<std::string>& texts);
+  ImageSet(const std::vector<std::string>& images,
+           const std::vector<std::string>& texts,
+           const std::vector<std::string>& animations);
   ImageSet(const ImageSet& images);
 
   // Get a random loaded in-memory Image or text string.
@@ -54,6 +55,7 @@ public:
   // into RAM when requested.
   Image get() const;
   const std::string& get_text() const;
+  Image get_animation(std::size_t frame) const;
 
   // Set the target number of images this set should keep in memory.
   // Once changed, the asynchronous image-loading thread will gradually
@@ -72,6 +74,8 @@ public:
   bool all_loaded() const;
   std::size_t loaded() const;
 
+  void load_animation();
+
 private:
 
   bool load_internal(Image* image, const std::string& path) const;
@@ -86,6 +90,9 @@ private:
   mutable std::size_t _last_text_id;
   mutable std::mutex _mutex;
 
+  std::vector<std::string> _animation_paths;
+  std::vector<Image> _animation_images;
+
 };
 
 // ImageBank keeps two ImageSets active at all times with a number of images
@@ -97,13 +104,15 @@ public:
 
   // Add a bunch of sets with image paths and text strings, then call
   // initialise().
-  void add_set(const std::vector<std::string>& paths,
-               const std::vector<std::string>& texts);
+  void add_set(const std::vector<std::string>& images,
+               const std::vector<std::string>& texts,
+               const std::vector<std::string>& animations);
   void initialise();
 
   // Get Images/text strings from either of the two active sets.
   Image get(bool alternate = false) const;
   const std::string& get_text(bool alternate = false) const;
+  Image get_animation(std::size_t frame, bool alternate = false) const;
 
   // Call to upload a random image from the next set which has been loaded
   // into RAM but not video memory.
@@ -116,6 +125,7 @@ public:
   // If the next set has been fully loaded, swap it out for one of the two
   // active sets.
   bool change_sets();
+  void load_animations();
 
   // Called from separate update thread to perform async loading/unloading.
   void async_update();
