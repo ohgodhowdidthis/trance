@@ -131,7 +131,7 @@ void ImageSet::set_target_load(std::size_t target_load)
 
 void ImageSet::perform_swap()
 {
-  if (_animation_paths.size() > 2 && random_chance(8)) {
+  if (_animation_paths.size() > 2 && random_chance(4)) {
     load_animation_internal();
     return;
   }

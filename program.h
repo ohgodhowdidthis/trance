@@ -112,6 +112,7 @@ private:
   static const unsigned int font_length = 8;
   static const unsigned int cycles = 8;
 
+  bool _animated;
   Image _start;
   Image _end;
   std::string _current_text;
@@ -135,6 +136,8 @@ private:
 
   Image _image;
   Image _alternate;
+  unsigned int _anim_cycle;
+  unsigned int _alternate_anim_cycle;
   bool _switch_alt;
   bool _text_on;
   std::string _current_text;
