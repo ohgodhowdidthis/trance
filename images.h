@@ -54,14 +54,13 @@ public:
   // are called from the async_update thread and load images from files
   // into RAM when requested.
   Image get() const;
-  const std::string& get_text() const;
   Image get_animation(std::size_t frame) const;
+  const std::string& get_text() const;
 
   // Set the target number of images this set should keep in memory.
   // Once changed, the asynchronous image-loading thread will gradually
   // load/unload images until we're at the target.
   void set_target_load(std::size_t target_load);
-  std::size_t get_target_load() const;
 
   // Randomly swap out one in-memory image for another unloaded one.
   void perform_swap();
@@ -74,13 +73,19 @@ public:
   bool all_loaded() const;
   std::size_t loaded() const;
 
-  void load_animation();
-
 private:
 
+  bool load_animation_internal(std::vector<Image>& images,
+                               const std::string& path) const;
   bool load_internal(Image* image, const std::string& path) const;
+
+  void load_animation_internal();
+  void unload_animation_internal();
   void load_internal();
   void unload_internal();
+
+  Image get_internal(const std::vector<Image>& list, std::size_t index,
+                     std::mutex& unlock) const;
   
   std::vector<std::string> _paths;
   std::vector<std::string> _texts;
@@ -91,6 +96,8 @@ private:
   mutable std::mutex _mutex;
 
   std::vector<std::string> _animation_paths;
+  mutable std::size_t _animation_id;
+  mutable std::mutex _animation_mutex;
   std::vector<Image> _animation_images;
 
 };
@@ -125,7 +132,6 @@ public:
   // If the next set has been fully loaded, swap it out for one of the two
   // active sets.
   bool change_sets();
-  void load_animations();
 
   // Called from separate update thread to perform async loading/unloading.
   void async_update();

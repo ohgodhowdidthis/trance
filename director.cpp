@@ -295,7 +295,6 @@ Director::Director(sf::RenderWindow& window,
   change_spiral();
   change_program();
   change_subtext();
-  _images.load_animations();
 }
 
 Director::~Director()
@@ -315,9 +314,6 @@ void Director::update()
     }
   }
   ++_switch_sets;
-  if (_switch_sets % 512 == 0) {
-    _images.load_animations();
-  }
   if (_old_program) {
     _old_program.reset(nullptr);
   }
@@ -752,7 +748,7 @@ unsigned int Director::view_width() const
 void Director::render_animation() const
 {
   Image image = _images.get_animation(_switch_sets / 8);
-  render_image(image, .75f, 4.f);
+  render_image(image, .6f, 4.f);
 }
 
 void Director::render_texture(float l, float t, float r, float b,
