@@ -43,6 +43,7 @@ ImageSet::ImageSet(const std::vector<std::string>& images,
 , _target_load{0}
 , _last_id{0}
 , _last_text_id{0}
+, _animation_id{0}
 {
   // Split strings into two lines at the space closest to the middle. This is
   // sort of ad-hoc. There should probably be a better way that can judge length
@@ -84,6 +85,7 @@ ImageSet::ImageSet(const ImageSet& images)
 , _texts(images._texts)
 , _target_load(images._target_load)
 , _last_id(images._last_id)
+, _animation_id(images._animation_id)
 {
   for (const auto& t : images._images) {
     _paths.emplace_back(t.path);
@@ -95,39 +97,21 @@ Image ImageSet::get() const
   // Lock the mutex so we don't interfere with the thread calling
   // ImageBank::async_update().
   _mutex.lock();
-  auto index = _last_id = random_excluding(_images.size(), _last_id);
+  _last_id = random_excluding(_images.size(), _last_id);
+  return get_internal(_images, _last_id, _mutex);
+}
 
-  // Use a temporary object rather than reference into the vector so the mutex
-  // can be unlocked earlier.
-  Image image = _images[index];
-  if (_images[index].texture) {
-    // If the image has already been loaded into video memory, nothing needs
-    // to be done.
-    _mutex.unlock();
+Image ImageSet::get_animation(std::size_t frame) const
+{
+  _animation_mutex.lock();
+  if (_animation_images.empty()) {
+    _animation_mutex.unlock();
+    return Image("");
   }
-  else {
-    // Upload the texture to video memory and set its texture_deleter so that
-    // it's cleaned up when there are no more Image objects referencing it.
-    glGenTextures(1, &image.texture);
-    image.deleter.reset(
-        new Image::texture_deleter(image.texture));
-
-    _images[index].deleter = image.deleter;
-    _images[index].texture = image.texture;
-    _mutex.unlock();
-
-    glBindTexture(GL_TEXTURE_2D, image.texture);
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height,
-        0, GL_RGBA, GL_UNSIGNED_BYTE, image.sf_image->getPixelsPtr());
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    std::cout << ":";
-  }
-
-  return image;
+  auto len = _animation_images.size();
+  auto f = frame % (2 * len - 2);
+  f = f < len ? f : 2 * len - 2 - f;
+  return get_internal(_animation_images, f, _animation_mutex);
 }
 
 const std::string& ImageSet::get_text() const
@@ -140,26 +124,17 @@ const std::string& ImageSet::get_text() const
       _last_text_id = random_excluding(_texts.size(), _last_text_id)];
 }
 
-Image ImageSet::get_animation(std::size_t frame) const
-{
-  if (_animation_images.empty()) {
-    return Image("");
-  }
-  return _animation_images[frame % _animation_images.size()];
-}
-
 void ImageSet::set_target_load(std::size_t target_load)
 {
   _target_load = target_load;
 }
 
-std::size_t ImageSet::get_target_load() const
-{
-  return _target_load;
-}
-
 void ImageSet::perform_swap()
 {
+  if (_animation_paths.size() > 2 && random_chance(8)) {
+    load_animation_internal();
+    return;
+  }
   // Swap if there's definitely an image loaded beyond the one currently
   // displayed.
   if (_images.size() > 2 && !_paths.empty()) {
@@ -170,6 +145,15 @@ void ImageSet::perform_swap()
 
 void ImageSet::perform_load()
 {
+  if (!_animation_paths.empty()) {
+    if (_target_load && _animation_images.empty()) {
+      load_animation_internal();
+    }
+    else if (!_target_load && !_animation_images.empty()) {
+      unload_animation_internal();
+    }
+  }
+
   if (_images.size() < _target_load && !_paths.empty()) {
     load_internal();
   }
@@ -187,7 +171,8 @@ void ImageSet::perform_all_loads()
 
 bool ImageSet::all_loaded() const
 {
-  return _images.size() == _target_load || _paths.empty();
+  return (_images.size() == _target_load || _paths.empty()) &&
+      (_animation_images.empty() == !_target_load || _animation_paths.empty());
 }
 
 std::size_t ImageSet::loaded() const
@@ -195,24 +180,24 @@ std::size_t ImageSet::loaded() const
   return _images.size();
 }
 
-void ImageSet::load_animation()
+bool ImageSet::load_animation_internal(std::vector<Image>& images,
+                                       const std::string& path) const
 {
-  if (_animation_paths.empty()) {
-    std::cerr << "empty" << std::endl;
-    return;
-  }
-  _animation_images.clear();
-  const std::string& path = _animation_paths[random(_animation_paths.size())];
   int error_code = 0;
   GifFileType* gif = DGifOpenFileName(path.c_str(), &error_code);
   if (!gif) {
     std::cerr << "couldn't load " << path <<
         ": " << GifErrorString(error_code) << std::endl;
-    return;
+    return false;
   }
   if (DGifSlurp(gif) != GIF_OK) {
-    std::cerr << "couldn't load " << path <<
+    std::cerr << "couldn't slurp " << path <<
         ": " << GifErrorString(gif->Error) << std::endl;
+    if (DGifCloseFile(gif, &error_code) != GIF_OK) {
+      std::cerr << "couldn't close " << path <<
+          ": " << GifErrorString(error_code) << std::endl;
+    }
+    return false;
   }
 
   auto width = gif->SWidth;
@@ -246,7 +231,6 @@ void ImageSet::load_animation()
         }
       }
     }
-    std::cerr << delay_time << std::endl;
     auto map = frame.ImageDesc.ColorMap ?
         frame.ImageDesc.ColorMap : gif->SColorMap;
 
@@ -262,27 +246,19 @@ void ImageSet::load_animation()
           continue;
         }
         const auto& c = map->Colors[byte];
-        pixels[fl + x + (ft + y) * fw] =
+        pixels[fl + x + (ft + y) * width] =
             c.Red | (c.Green << 8) | (c.Blue << 16) | (0xff << 24);
       }
     }
 
-    _animation_images.emplace_back(path);
-    auto& image = _animation_images.back();
-    glGenTextures(1, &image.texture);
+    images.emplace_back(path);
+    auto& image = images.back();
+    image.sf_image.reset(new sf::Image);
     image.deleter.reset(
         new Image::texture_deleter(image.texture));
     image.width = width;
     image.height = height;
-
-    glBindTexture(GL_TEXTURE_2D, image.texture);
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height,
-        0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.get());
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    image.sf_image->create(width, height, (unsigned char*) pixels.get());
     std::cout << ";";
   }
 
@@ -290,6 +266,7 @@ void ImageSet::load_animation()
     std::cerr << "couldn't close " << path <<
         ": " << GifErrorString(error_code) << std::endl;
   }
+  return true;
 }
 
 bool ImageSet::load_internal(Image* image, const std::string& path) const
@@ -316,16 +293,7 @@ bool ImageSet::load_internal(Image* image, const std::string& path) const
 
     image->width = width;
     image->height = height;
-    image->sf_image->create(width, height);
-
-    std::size_t n = 0;
-    for (std::size_t y = 0; y < image->height; ++y) {
-        for (std::size_t x = 0; x < image->width; ++x) {
-        image->sf_image->setPixel(
-            x, y, sf::Color(data[n], data[1 + n], data[2 + n], data[3 + n]));
-        n += 4;
-      }
-    }
+    image->sf_image->create(width, height, data);
 
     free(data);
     std::cout << ".";
@@ -342,6 +310,33 @@ bool ImageSet::load_internal(Image* image, const std::string& path) const
 
   std::cout << ".";
   return true;
+}
+
+void ImageSet::load_animation_internal()
+{
+  auto id = random_excluding(_animation_paths.size(), _animation_id);
+  std::vector<Image> images;
+  bool loaded = load_animation_internal(images, _animation_paths[id]);
+  if (!loaded) {
+    _animation_paths.erase(_animation_paths.begin() + id);
+    if (_animation_id >= id) {
+      --_animation_id;
+    }
+    return;
+  }
+  _animation_id = id;
+
+  _animation_mutex.lock();
+  std::swap(images, _animation_images);
+  _animation_mutex.unlock();
+  images.clear();
+}
+
+void ImageSet::unload_animation_internal()
+{
+  _animation_mutex.lock();
+  _animation_images.clear();
+  _animation_mutex.unlock();
 }
 
 void ImageSet::load_internal()
@@ -374,6 +369,42 @@ void ImageSet::unload_internal()
   _paths.emplace_back(path);
   _images.erase(--_images.end());
   _mutex.unlock();
+}
+
+Image ImageSet::get_internal(const std::vector<Image>& list, std::size_t index,
+                             std::mutex& unlock) const
+{
+  // Use a temporary object rather than reference into the vector so the mutex
+  // can be unlocked earlier.
+  Image image = list[index];
+  if (image.texture) {
+    // If the image has already been loaded into video memory, nothing needs
+    // to be done.
+    unlock.unlock();
+  }
+  else {
+    // Upload the texture to video memory and set its texture_deleter so that
+    // it's cleaned up when there are no more Image objects referencing it.
+    glGenTextures(1, &image.texture);
+    image.deleter.reset(
+        new Image::texture_deleter(image.texture));
+
+    list[index].deleter = image.deleter;
+    list[index].texture = image.texture;
+    unlock.unlock();
+
+    glBindTexture(GL_TEXTURE_2D, image.texture);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height,
+        0, GL_RGBA, GL_UNSIGNED_BYTE, image.sf_image->getPixelsPtr());
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    std::cout << ":";
+  }
+
+  return image;
 }
 
 void ImageBank::add_set(const std::vector<std::string>& images,
@@ -501,12 +532,6 @@ bool ImageBank::change_sets()
   _sets[_prev].set_target_load(0);
   _sets[_next].set_target_load(image_cache_size() / 3);
   return true;
-}
-
-void ImageBank::load_animations()
-{
-  _sets[_a].load_animation();
-  _sets[_b].load_animation();
 }
 
 void ImageBank::async_update()
