@@ -24,11 +24,19 @@ struct Image {
     std::size_t texture;
   };
 
+  // Dummy values used to pass inject animations.
+  enum {
+    NONE,
+    ANIMATION,
+    ALTERNATE_ANIMATION
+  } anim_type;
+
   Image(const std::string& path)
   : path{path}
   , width{0}
   , height{0}
-  , texture{0} {}
+  , texture{0}
+  , anim_type{NONE} {}
 
   std::string path;
   unsigned int width;

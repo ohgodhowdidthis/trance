@@ -327,7 +327,6 @@ void Director::render() const
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     _oculus.rendering_right = false;
     _program->render();
-    render_animation();
     _window.display();
     return;
   }
@@ -343,7 +342,6 @@ void Director::render() const
 		glViewport((eye != ovrEye_Left) * view_width(), 0, view_width(), _height);
     _oculus.rendering_right = eye == ovrEye_Right;
     _program->render();
-    render_animation();
   }
 
   ovrHmd_EndFrame(_oculus.hmd, pose, &_oculus.fb_ovr_tex[0].Texture);
@@ -369,6 +367,14 @@ void Director::maybe_upload_next() const
 void Director::render_image(const Image& image, float alpha,
                             float multiplier) const
 {
+  if (image.anim_type != Image::NONE) {
+    bool alternate = image.anim_type == Image::ALTERNATE_ANIMATION;
+    Image anim = _images.get_animation(_switch_sets / 8, alternate);
+    if (anim.texture) {
+      render_image(anim, alpha, multiplier);
+      return;
+    }
+  }
   glEnable(GL_BLEND);
   glDisable(GL_TEXTURE_2D);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -743,12 +749,6 @@ sf::Vector2f Director::off3d(float multiplier) const
 unsigned int Director::view_width() const
 {
   return _oculus.enabled ? _width / 2 : _width;
-}
-
-void Director::render_animation() const
-{
-  Image image = _images.get_animation(_switch_sets / 8);
-  render_image(image, .6f, 4.f);
 }
 
 void Director::render_texture(float l, float t, float r, float b,
