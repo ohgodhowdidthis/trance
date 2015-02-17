@@ -25,6 +25,7 @@ AccelerateProgram::AccelerateProgram(Director& director, bool start_fast)
 , _change_timer{start_fast ? min_speed : max_speed}
 , _change_speed{start_fast ? min_speed : max_speed}
 , _change_speed_timer{0}
+, _text_timer{text_time}
 , _change_faster{!start_fast}
 {
 }
@@ -37,6 +38,9 @@ void AccelerateProgram::update()
   float spiral_d = 1 + float(d) / 8;
   director().rotate_spiral(_change_faster ? spiral_d : -spiral_d);
 
+  if (_text_timer) {
+    --_text_timer;
+  }
   if (_change_timer) {
     --_change_timer;
     if (_change_timer == _change_speed / 2 && _change_speed > max_speed / 2) {
@@ -48,8 +52,9 @@ void AccelerateProgram::update()
   _change_timer = _change_speed;
   _current = director().get();
   _text_on = !_text_on;
-  if (_change_speed > 4) {
+  if (_change_speed > 4 || _change_faster) {
     _current_text = director().get_text();
+    _text_timer = text_time;
   }
 
   if (_change_speed_timer) {
@@ -99,7 +104,8 @@ void AccelerateProgram::render() const
   anim.anim_type = Image::ANIMATION;
   director().render_image(anim, .2f, 6.f);
   director().render_spiral();
-  if (_change_speed <= 16 || _text_on) {
+  if (_change_faster && (_change_speed <= 4 || (_text_on && _text_timer)) ||
+      !_change_faster && (_change_speed <= 16 || _text_on)) {
     director().render_text(_current_text);
   }
 }
@@ -162,7 +168,7 @@ void SubTextProgram::render() const
   director().render_image(_current, .8f);
   director().render_subtext(1.f / 4);
   director().render_spiral();
-  if (_text_on) {
+  if (_text_on && _change_timer >= speed - 3) {
     director().render_text(_current_text);
   }
 }
@@ -279,12 +285,14 @@ void FlashTextProgram::update()
 
 void FlashTextProgram::render() const
 {
-  float extra = 32.f - 32.f * _timer / length;
-  director().render_image(_start, 1, (_cycle % 2 ? 10.f : 8.f) + extra);
-  director().render_image(_end, 1.f - float(_timer) / length,
-                          (_cycle % 2 ? 8.f : 10.f) + extra);
+  float extra = 32.f * _timer / length;
+
+  director().render_image(_start, 1, 8.f + extra);
+  director().render_image(_end, 1.f - float(_timer) / length, 40.f - extra);
   director().render_spiral();
-  director().render_text(_current_text, 3.f + 8.f * _timer / length);
+  if (_cycle % 2) {
+    director().render_text(_current_text, 3.f + 4.f * _timer / length);
+  }
 }
 
 ParallelProgram::ParallelProgram(Director& director)
@@ -337,8 +345,7 @@ void ParallelProgram::update()
       _image.anim_type = Image::ANIMATION;
     }
   }
-  _text_on = !_text_on;
-  if (_text_on) {
+  if (_cycle % 4 == 2) {
     _current_text = director().get_text(random_chance());
   }
 }
@@ -349,8 +356,8 @@ void ParallelProgram::render() const
   director().render_image(_image, 1, 8 + extra);
   director().render_image(_alternate, .5f, 8 + 32.f - extra);
   director().render_spiral();
-  if (!_text_on) {
-    director().render_text(_current_text, 5.f);
+  if (_cycle % 4 == 1 || _cycle % 4 == 2) {
+    director().render_text(_current_text);
   }
 }
 
@@ -372,7 +379,8 @@ void SuperParallelProgram::update()
 {
   director().rotate_spiral(3.5f);
   if (!--_font_timer) {
-    _current_text = director().get_text(random_chance());
+    _current_text = _current_text.empty() ?
+        director().get_text(random_chance()) : "";
     _font_timer = font_length;
   }
 
@@ -440,7 +448,7 @@ void AnimationProgram::update()
     director().change_sets();
     _cycle = cycles;
     _current_text = director().get_text();
-    if (random_chance()) {
+    if (random_chance(4)) {
       director().change_program();
     }
   }

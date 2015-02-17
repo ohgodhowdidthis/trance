@@ -40,6 +40,7 @@ private:
 
   static const unsigned int max_speed = 48;
   static const unsigned int min_speed = 0;
+  static const unsigned int text_time = 4;
 
   Image _current;
   std::string _current_text;
@@ -48,6 +49,7 @@ private:
   unsigned int _change_timer;
   unsigned int _change_speed;
   unsigned int _change_speed_timer;
+  unsigned int _text_timer;
   bool _change_faster;
 
 };
@@ -109,7 +111,7 @@ public:
 private:
 
   static const unsigned int length = 64;
-  static const unsigned int font_length = 8;
+  static const unsigned int font_length = 64;
   static const unsigned int cycles = 8;
 
   bool _animated;
@@ -156,7 +158,7 @@ public:
 private:
 
   static const std::size_t image_count = 4;
-  static const unsigned int font_length = 8;
+  static const unsigned int font_length = 64;
   static const unsigned int length = 2;
   static const unsigned int cycles = 512;
 
