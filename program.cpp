@@ -412,3 +412,50 @@ void SuperParallelProgram::render() const
   director().render_spiral();
   director().render_text(_current_text, 5.f);
 }
+
+AnimationProgram::AnimationProgram(Director& director)
+: Program{director}
+, _animation{director.get()}
+, _current{director.get(true)}
+, _current_text{director.get_text()}
+, _timer{length}
+, _cycle{cycles}
+{
+  _animation.anim_type = Image::ANIMATION;
+}
+
+void AnimationProgram::update()
+{
+  director().rotate_spiral(3.5f);
+  _current = director().get(true);
+
+  if (--_timer) {
+    return;
+  }
+  _timer = length;
+
+  if (!--_cycle) {
+    director().change_spiral();
+    director().change_font();
+    director().change_sets();
+    _cycle = cycles;
+    _current_text = director().get_text();
+    if (random_chance()) {
+      director().change_program();
+    }
+  }
+
+  if (_timer % 128 == 0) {
+    director().maybe_upload_next();
+  }
+}
+
+void AnimationProgram::render() const
+{
+  director().render_image(_animation, 1.f);
+  director().render_image(_current, .2f, 12.f);
+  director().render_spiral();
+  if (_timer % 128 < 64) {
+    director().render_text(_current_text, 5.f);
+  }
+}

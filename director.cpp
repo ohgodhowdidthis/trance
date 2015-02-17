@@ -399,42 +399,38 @@ void Director::render_image(const Image& image, float alpha,
   float offx3d = off3d(multiplier).x;
   auto x = float(image.width);
   auto y = float(image.height);
-  if (y * _width / x > _height) {
-    auto scale = float(_height) / y;
-    y = float(_height);
-    x *= scale;
 
-    render_texture(offx3d + _width / 2 - x / 2, 0.f,
-                   offx3d + _width / 2 + x / 2, float(_height),
-                   false, false);
-    int i = 1;
-    while (_width / 2 - i * x + x / 2 >= 0) {
-      render_texture(offx3d + _width / 2 - i * x - x / 2, 0.f,
-                     offx3d + _width / 2 - i * x + x / 2, float(_height),
-                     i % 2 != 0, false);
-      render_texture(offx3d + _width / 2 + i * x - x / 2, 0.f,
-                     offx3d + _width / 2 + i * x + x / 2, float(_height),
-                     i % 2 != 0, false);
-      ++i;
-    }
+  auto scale = std::min(float(_height) / y, float(_width) / x);
+  if (_oculus.enabled) {
+    scale *= 0.5f;
   }
-  else {
-    auto scale = float(_width) / x;
-    x = float(_width);
-    y *= scale;
+  x *= scale;
+  y *= scale;
 
-    render_texture(offx3d + 0.f, _height / 2 - y / 2,
-                   offx3d + float(_width), _height / 2 + y / 2,
-                   false, false);
-    int i = 1;
-    while (_height / 2 - i * y + y / 2 >= 0) {
-      render_texture(offx3d + 0.f, _height / 2 - i * y - y / 2,
-                     offx3d + float(_width), _height / 2 - i * y + y / 2,
-                     false, i % 2 != 0);
-      render_texture(offx3d + 0.f, _height / 2 + i * y - y / 2,
-                     offx3d + float(_width), _height / 2 + i * y + y / 2,
-                     false, i % 2 != 0);
-      ++i;
+  for (int i = 0; _width / 2 - i * x + x / 2 >= 0; ++i) {
+    for (int j = 0; _height / 2 - j * y + y / 2 >= 0; ++j) {
+      auto x1 = offx3d + _width / 2 - x / 2;
+      auto x2 = offx3d + _width / 2 + x / 2;
+      auto y1 = _height / 2 - y / 2;
+      auto y2 = _height / 2 + y / 2;
+      render_texture(x1 - i * x, y1 - j * y,
+                     x2 - i * x, y2 - j * y,
+                     i % 2 != 0, j % 2 != 0);
+      if (i != 0) {
+        render_texture(x1 + i * x, y1 - j * y,
+                       x2 + i * x, y2 - j * y,
+                       i % 2 != 0, j % 2 != 0);
+      }
+      if (j != 0) {
+        render_texture(x1 - i * x, y1 + j * y,
+                       x2 - i * x, y2 + j * y,
+                       i % 2 != 0, j % 2 != 0);
+      }
+      if (i != 0 && j != 0) {
+        render_texture(x1 + i * x, y1 + j * y,
+                       x2 + i * x, y2 + j * y,
+                       i % 2 != 0, j % 2 != 0);
+      }
     }
   }
 
@@ -446,11 +442,12 @@ void Director::render_image(const Image& image, float alpha,
 void Director::render_text(const std::string& text, float multiplier) const
 {
   static const std::size_t default_size = 200;
-  static const std::size_t border = 100;
   static const std::size_t shadow_extra = 60;
   if (_current_font.empty()) {
     return;
   }
+
+  std::size_t border = _oculus.enabled ? 250 : 100;
   auto fit_text = [&](std::size_t size, bool fix)
   {
     auto r = get_text_size(text, _fonts.get_font(_current_font, size));
@@ -601,7 +598,7 @@ void Director::change_program()
   _current_subfont = _fonts.get_path(false);
   _program.swap(_old_program);
 
-  auto r = random(10);
+  auto r = random(12);
   if (r == 0) {
     _program.reset(new AccelerateProgram{*this, random_chance()});
   }
@@ -617,8 +614,11 @@ void Director::change_program()
   else if (r == 6 || r == 7) {
     _program.reset(new SuperParallelProgram{*this});
   }
-  else {
+  else if (r == 8 || r == 9) {
     _program.reset(new FlashTextProgram{*this});
+  }
+  else {
+    _program.reset(new AnimationProgram{*this});
   }
 }
 
