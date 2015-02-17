@@ -169,4 +169,24 @@ private:
 
 };
 
+class AnimationProgram : public Program {
+public:
+
+  AnimationProgram(Director& director);
+  void update() override;
+  void render() const override;
+
+private:
+
+  static const unsigned int length = 256;
+  static const unsigned int cycles = 4;
+
+  Image _animation;
+  Image _current;
+  std::string _current_text;
+  unsigned int _timer;
+  unsigned int _cycle;
+
+};
+
 #endif
