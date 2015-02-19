@@ -167,6 +167,8 @@ void load_settings()
 int main(int argc, char** argv)
 {
   static const bool oculus_rift = true;
+  static const std::string bad_alloc =
+      "OUT OF MEMORY! TRY REDUCING USAGE IN SETTINGS...";
   program_data data;
   search_data(data);
   load_settings();
@@ -208,36 +210,50 @@ int main(int argc, char** argv)
   // Run the asynchronous load/unload thread.
   std::thread image_load_thread([&]{
     while (running) {
-      images.async_update();
+      try {
+        images.async_update();
+      }
+      catch (std::bad_alloc&) {
+        std::cerr << bad_alloc << std::endl;
+        running = false;
+        throw;
+      }
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   });
 
   float time = 0.f;
   sf::Clock clock;
-  while (running) {
-    sf::Event event;
-    while (window.pollEvent(event)) {
-      if (event.type == event.Closed ||
-          (event.type == event.KeyPressed && event.key.code == sf::Keyboard::Escape)) {
-        running = false;
+  try {
+    while (running) {
+      sf::Event event;
+      while (window.pollEvent(event)) {
+        if (event.type == event.Closed ||
+            (event.type == event.KeyPressed &&
+             event.key.code == sf::Keyboard::Escape)) {
+          running = false;
+        }
+        if (event.type == sf::Event::Resized) {
+          glViewport(0, 0, event.size.width, event.size.height);
+        }
       }
-      if (event.type == sf::Event::Resized) {
-        glViewport(0, 0, event.size.width, event.size.height);
-      }
-    }
 
-    time += clock.getElapsedTime().asSeconds();
-    clock.restart();
-    bool update = false;
-    while (time >= frame_time) {
-      update = true;
-      time -= frame_time;
-      director->update();
+      time += clock.getElapsedTime().asSeconds();
+      clock.restart();
+      bool update = false;
+      while (time >= frame_time) {
+        update = true;
+        time -= frame_time;
+        director->update();
+      }
+      if (update) {
+        director->render();
+      }
     }
-    if (update) {
-      director->render();
-    }
+  }
+  catch (std::bad_alloc&) {
+    std::cerr << bad_alloc << std::endl;
+    throw;
   }
   window.close();
   image_load_thread.join();
