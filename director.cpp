@@ -637,6 +637,10 @@ void Director::init_oculus_rift()
   _oculus.hmd = ovrHmd_Create(0);
   if (!_oculus.hmd) {
     std::cerr << "Oculus HMD failed" << std::endl;
+#ifndef DEBUG
+    _oculus.enabled = false;
+    return;
+#endif
     _oculus.hmd = ovrHmd_CreateDebug(ovrHmd_DK2);
     if (!_oculus.hmd) {
       std::cerr << "Oculus HMD debug mode failed" << std::endl;
