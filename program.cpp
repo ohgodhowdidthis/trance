@@ -448,7 +448,7 @@ void AnimationProgram::update()
     director().change_sets();
     _cycle = cycles;
     _current_text = director().get_text();
-    if (random_chance(4)) {
+    if (random_chance(3)) {
       director().change_program();
     }
   }
