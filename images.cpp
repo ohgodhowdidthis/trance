@@ -81,11 +81,12 @@ ImageSet::ImageSet(const std::vector<std::string>& images,
 
 ImageSet::ImageSet(const ImageSet& images)
 : _paths(images._paths)
-, _animation_paths(images._animation_paths)
 , _texts(images._texts)
 , _target_load(images._target_load)
 , _last_id(images._last_id)
+, _last_text_id(images._last_text_id)
 , _animation_id(images._animation_id)
+, _animation_paths(images._animation_paths)
 {
   for (const auto& t : images._images) {
     _paths.emplace_back(t.path);
@@ -423,12 +424,9 @@ void ImageBank::initialise()
     return;
   }
   if (_sets.size() == 1) {
-    // Only have one active set and no switching.
-    _a = 0;
-    _b = 0;
-    _sets[0].set_target_load(image_cache_size());
-    _sets[0].perform_all_loads();
-    return;
+    // Always have at least two sets.
+    ImageSet copy = _sets.back();
+    _sets.emplace_back(copy);
   }
   if (_sets.size() == 2) {
     // Two active sets and switching just swaps them.

@@ -109,9 +109,10 @@ void search_data(program_data& data)
     }
   }
   // Leave wildcards set if there are no others.
-  if (data.sets.size() > 1) {
-    data.sets.erase(wildcards);
+  if (data.sets.size() == 1) {
+    data.sets["default"] = data.sets[wildcards];
   }
+  data.sets.erase(wildcards);
 }
 
 void load_settings()
@@ -174,7 +175,7 @@ int main(int argc, char** argv)
   load_settings();
   // Currently there must be at least one set.
   if (data.sets.empty()) {
-    std::cerr << "No images found." << std::endl;
+    std::cerr << "NO IMAGES FOUND!" << std::endl;
     return 1;
   }
   if (oculus_rift) {
@@ -188,6 +189,10 @@ int main(int argc, char** argv)
 
   ImageBank images;
   for (const auto& p : data.sets) {
+    std::cout << "set " << p.first << " with " <<
+        p.second.images.size() << " image(s), " <<
+        p.second.animations.size() << " animation(s), and " <<
+        p.second.texts.size() << " line(s) of text" << std::endl;
     images.add_set(p.second.images, p.second.texts, p.second.animations);
   }
   images.initialise();
