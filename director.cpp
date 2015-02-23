@@ -159,7 +159,7 @@ void main(void)
 
 Director::Director(sf::RenderWindow& window,
                    ImageBank& images, const std::vector<std::string>& fonts,
-                   std::size_t width, std::size_t height, bool oculus_rift)
+                   unsigned int width, unsigned int height, bool oculus_rift)
 : _window{window}
 , _images{images}
 , _fonts{fonts}
@@ -447,8 +447,8 @@ void Director::render_text(const std::string& text, float multiplier) const
     return;
   }
 
-  std::size_t border = _oculus.enabled ? 250 : 100;
-  auto fit_text = [&](std::size_t size, bool fix)
+  unsigned int border = _oculus.enabled ? 250 : 100;
+  auto fit_text = [&](unsigned int size, bool fix)
   {
     auto r = get_text_size(text, _fonts.get_font(_current_font, size));
     int new_size = size;
@@ -869,7 +869,7 @@ void Director::render_raw_text(const std::string& text, const Font& font,
   GLuint tloc = glGetAttribLocation(_image_program, "texcoord");
   glEnableVertexAttribArray(tloc);
   glVertexAttribPointer(tloc, 2, GL_FLOAT, false, sizeof(vertex), data + 8);
-  glDrawArrays(GL_QUADS, 0, vertices.size());
+  glDrawArrays(GL_QUADS, 0, (GLsizei) vertices.size());
 }
 
 sf::Vector2f Director::get_text_size(

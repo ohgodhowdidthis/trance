@@ -10,7 +10,7 @@
 
 // Wrapper for an sf::Font that uses one character size only.
 struct Font {
-  Font(const std::string& path, std::size_t char_size)
+  Font(const std::string& path, unsigned int char_size)
   : font(new sf::Font)
   {
     key.path = path;
@@ -63,7 +63,7 @@ public:
   static const std::size_t char_size_lock = 20;
   const std::string& get_path(bool force_change) const;
   const Font& get_font(
-      const std::string& font_path, std::size_t char_size) const;
+      const std::string& font_path, unsigned int char_size) const;
 
 private:
 

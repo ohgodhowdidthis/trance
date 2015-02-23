@@ -13,15 +13,15 @@
 struct Image {
   // In order to ensure textures are deleted from the rendering thread, we
   // use a separate set.
-  static std::vector<std::size_t> textures_to_delete;
+  static std::vector<unsigned int> textures_to_delete;
   static std::mutex textures_to_delete_mutex;
   static void delete_textures();
 
   struct texture_deleter {
-    texture_deleter(std::size_t texture)
+    texture_deleter(unsigned int texture)
     : texture{texture} {}
     ~texture_deleter();
-    std::size_t texture;
+    unsigned int texture;
   };
 
   // Dummy values used to pass inject animations.
@@ -42,7 +42,7 @@ struct Image {
   unsigned int width;
   unsigned int height;
   std::shared_ptr<sf::Image> sf_image;
-  mutable std::size_t texture;
+  mutable unsigned int texture;
   mutable std::shared_ptr<texture_deleter> deleter;
 };
 
