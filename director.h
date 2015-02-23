@@ -38,7 +38,7 @@ public:
 
   Director(sf::RenderWindow& window,
            ImageBank& images, const std::vector<std::string>& fonts,
-           std::size_t width, std::size_t height, bool oculus_rift);
+           unsigned int width, unsigned int height, bool oculus_rift);
   ~Director();
 
   // Called from main().
@@ -98,11 +98,11 @@ private:
     mutable bool rendering_right;
   } _oculus;
 
-  std::size_t _image_program;
-  std::size_t _spiral_program;
-  std::size_t _text_program;
-  std::size_t _quad_buffer;
-  std::size_t _tex_buffer;
+  GLuint _image_program;
+  GLuint _spiral_program;
+  GLuint _text_program;
+  GLuint _quad_buffer;
+  GLuint _tex_buffer;
 
   float _spiral;
   unsigned int _spiral_type;

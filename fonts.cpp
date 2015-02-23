@@ -24,7 +24,7 @@ const std::string& FontCache::get_path(bool force_change) const
 }
 
 const Font& FontCache::get_font(
-    const std::string& font_path, std::size_t char_size) const
+    const std::string& font_path, unsigned int char_size) const
 {
   char_size -= char_size % char_size_lock;
   Font::key_t k{font_path, char_size};
@@ -41,7 +41,8 @@ const Font& FontCache::get_font(
 
   _list.emplace_front(font_path, char_size);
   _map.emplace(k, &_list.front());
-  if (_list.size() > std::max(2u, Settings::settings.font_cache_size)) {
+  if (_list.size() > std::max((std::size_t) 2,
+                              Settings::settings.font_cache_size)) {
     _map.erase(_list.back().key);
     _list.pop_back();
   }

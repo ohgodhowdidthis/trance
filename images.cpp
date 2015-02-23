@@ -11,7 +11,7 @@
 namespace {
   std::size_t image_cache_size()
   {
-    return std::max(6u, Settings::settings.image_cache_size);
+    return std::max((std::size_t) 6, Settings::settings.image_cache_size);
   }
 }
 
