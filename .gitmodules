@@ -1,3 +1,6 @@
 [submodule "sfml"]
 	path = sfml
 	url = http://github.com/LaurentGomila/SFML.git
+[submodule "libvpx"]
+	path = libvpx
+	url = https://chromium.googlesource.com/webm/libvpx
