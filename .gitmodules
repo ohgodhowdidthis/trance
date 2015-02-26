@@ -4,3 +4,6 @@
 [submodule "libvpx"]
 	path = libvpx
 	url = https://chromium.googlesource.com/webm/libvpx
+[submodule "libwebm"]
+	path = libwebm
+	url = https://chromium.googlesource.com/webm/libwebm
