@@ -77,14 +77,14 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)\sfml\Win32\lib\Debug;$(SolutionDir)\glew_1_10_0\lib\Debug\Win32;$(SolutionDir)\libovr_0_4_4\lib\Win32\VS2013</AdditionalLibraryDirectories>
-      <AdditionalDependencies>sfml-system-d.lib;sfml-window-d.lib;sfml-graphics-d.lib;opengl32.lib;glew32d.lib;libovrd.lib;ws2_32.lib;winmm.lib;gdi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)\sfml\$(Platform)\lib\$(Configuration);$(SolutionDir)\glew_1_10_0\lib\$(Configuration)\$(Platform);$(SolutionDir)\libovr_0_4_4\lib\$(Platform)\VS2013;$(SolutionDir)\libvpx\$(Platform)\$(Platform)\$(Configuration);$(SolutionDir)\libwebm\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libwebm.lib;vpxmdd.lib;sfml-system-d.lib;sfml-window-d.lib;sfml-graphics-d.lib;opengl32.lib;glew32d.lib;libovrd.lib;ws2_32.lib;winmm.lib;gdi32.lib</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -92,14 +92,14 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)\sfml\x64\lib\Debug;$(SolutionDir)\glew_1_10_0\lib\Debug\x64;$(SolutionDir)\libovr_0_4_4\lib\x64\VS2013</AdditionalLibraryDirectories>
-      <AdditionalDependencies>sfml-system-d.lib;sfml-window-d.lib;sfml-graphics-d.lib;opengl32.lib;glew32d.lib;libovr64d.lib;ws2_32.lib;winmm.lib;gdi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)\sfml\$(Platform)\lib\$(Configuration);$(SolutionDir)\glew_1_10_0\lib\$(Configuration)\$(Platform);$(SolutionDir)\libovr_0_4_4\lib\$(Platform)\VS2013;$(SolutionDir)\libvpx\$(Platform)\$(Platform)\$(Configuration);$(SolutionDir)\libwebm\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libwebm.lib;vpxmdd.lib;sfml-system-d.lib;sfml-window-d.lib;sfml-graphics-d.lib;opengl32.lib;glew32d.lib;libovr64d.lib;ws2_32.lib;winmm.lib;gdi32.lib</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -109,15 +109,15 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)\sfml\Win32\lib\Release;$(SolutionDir)\glew_1_10_0\lib\Release\Win32;$(SolutionDir)\libovr_0_4_4\lib\Win32\VS2013</AdditionalLibraryDirectories>
-      <AdditionalDependencies>sfml-system.lib;sfml-window.lib;sfml-graphics.lib;opengl32.lib;glew32.lib;libovr.lib;ws2_32.lib;winmm.lib;gdi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)\sfml\$(Platform)\lib\$(Configuration);$(SolutionDir)\glew_1_10_0\lib\$(Configuration)\$(Platform);$(SolutionDir)\libovr_0_4_4\lib\$(Platform)\VS2013;$(SolutionDir)\libvpx\$(Platform)\$(Platform)\$(Configuration);$(SolutionDir)\libwebm\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libwebm.lib;vpxmd.lib;sfml-system.lib;sfml-window.lib;sfml-graphics.lib;opengl32.lib;glew32.lib;libovr.lib;ws2_32.lib;winmm.lib;gdi32.lib</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
       <SubSystem>Console</SubSystem>
@@ -129,15 +129,15 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)\sfml\x64\lib\Release;$(SolutionDir)\glew_1_10_0\lib\Release\x64;$(SolutionDir)\libovr_0_4_4\lib\x64\VS2013</AdditionalLibraryDirectories>
-      <AdditionalDependencies>sfml-system.lib;sfml-window.lib;sfml-graphics.lib;opengl32.lib;glew32.lib;libovr64.lib;ws2_32.lib;winmm.lib;gdi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)\sfml\$(Platform)\lib\$(Configuration);$(SolutionDir)\glew_1_10_0\lib\$(Configuration)\$(Platform);$(SolutionDir)\libovr_0_4_4\lib\$(Platform)\VS2013;$(SolutionDir)\libvpx\$(Platform)\$(Platform)\$(Configuration);$(SolutionDir)\libwebm\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libwebm.lib;vpxmd.lib;sfml-system.lib;sfml-window.lib;sfml-graphics.lib;opengl32.lib;glew32.lib;libovr64.lib;ws2_32.lib;winmm.lib;gdi32.lib</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
       <SubSystem>Console</SubSystem>
