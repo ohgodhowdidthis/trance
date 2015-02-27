@@ -74,7 +74,7 @@ void search_data(program_data& data)
           data.sets[set_name].texts.push_back(line);
         }
       }
-      else if (ext == ".gif") {
+      else if (ext == ".gif" || ext == ".webm") {
         data.sets[set_name].animations.push_back(it->path());
       }
       else if (ext == ".png" || ext == ".bmp" ||
