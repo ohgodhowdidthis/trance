@@ -7,6 +7,12 @@
 #include <SFML/OpenGL.hpp>
 #include <gif_lib.h>
 #include <jpgd.h>
+#include <mkvreader.hpp>
+#include <mkvparser.hpp>
+
+#define VPX_CODEC_DISABLE_COMPAT 1
+#include <vpx/vpx_decoder.h>
+#include <vpx/vp8dx.h>
 
 namespace {
   std::size_t image_cache_size()
@@ -181,8 +187,8 @@ std::size_t ImageSet::loaded() const
   return _images.size();
 }
 
-bool ImageSet::load_animation_internal(std::vector<Image>& images,
-                                       const std::string& path) const
+bool ImageSet::load_animation_gif_internal(std::vector<Image>& images,
+                                           const std::string& path) const
 {
   int error_code = 0;
   GifFileType* gif = DGifOpenFileName(path.c_str(), &error_code);
@@ -270,6 +276,142 @@ bool ImageSet::load_animation_internal(std::vector<Image>& images,
   return true;
 }
 
+bool ImageSet::load_animation_webm_internal(std::vector<Image>& images,
+                                            const std::string& path) const
+{
+  mkvparser::MkvReader reader;
+  if (reader.Open(path.c_str())) {
+    std::cerr << "couldn't open " << path << std::endl;
+    return false;
+  }
+
+  long long pos = 0;
+  mkvparser::EBMLHeader ebmlHeader;
+  ebmlHeader.Parse(&reader, pos);
+
+  mkvparser::Segment* segment_tmp;
+  if (mkvparser::Segment::CreateInstance(&reader, pos, segment_tmp)) {
+    std::cerr << "couldn't load " << path <<
+        ": segment create failed" << std::endl;
+    return false;
+  }
+
+  std::unique_ptr<mkvparser::Segment> segment(segment_tmp);
+  if (segment->Load() < 0) {
+    std::cerr << "couldn't load " << path <<
+        ": segment load failed" << std::endl;
+    return false;
+  }
+
+  const mkvparser::VideoTrack* video_track = nullptr;
+  for (unsigned long i = 0; i < segment->GetTracks()->GetTracksCount(); ++i) {
+    const auto& track = segment->GetTracks()->GetTrackByIndex(i);
+    if (track && track->GetType() && mkvparser::Track::kVideo ||
+        track->GetCodecNameAsUTF8() == std::string("VP8")) {
+      video_track = (const mkvparser::VideoTrack*) track;
+      break;
+    }
+  }
+
+  if (!video_track) {
+    std::cerr << "couldn't load " << path <<
+        ": no VP8 video track found" << std::endl;
+    return false;
+  }
+
+  vpx_codec_ctx_t codec;
+  auto codec_error = [&](const std::string& s) {
+    auto detail = vpx_codec_error_detail(&codec);
+    std::cerr << "couldn't load " << path <<
+        ": " << s << ": " << vpx_codec_error(&codec);
+    if (detail) {
+      std::cerr << ": " << detail;
+    }
+    std::cerr << std::endl;
+  };
+
+  if (vpx_codec_dec_init(&codec, vpx_codec_vp8_dx(), nullptr, 0)) {
+    codec_error("initialising codec");
+    return false;
+  }
+
+  for (auto cluster = segment->GetFirst(); cluster && !cluster->EOS();
+       cluster = segment->GetNext(cluster)) {
+    const mkvparser::BlockEntry* block;
+    if (cluster->GetFirst(block) < 0) {
+      std::cerr << "couldn't load " << path <<
+          ": couldn't parse first block of cluster" << std::endl;
+      return false;
+    }
+
+    while (block && !block->EOS()) {
+      const auto& b = block->GetBlock();
+      if (b->GetTrackNumber() == video_track->GetNumber()) {
+        for (int i = 0; i < b->GetFrameCount(); ++i) {
+          const auto& frame = b->GetFrame(i);
+          std::unique_ptr<unsigned char[]> data(new unsigned char[frame.len]);
+          reader.Read(frame.pos, frame.len, data.get());
+
+          if (vpx_codec_decode(&codec, data.get(), frame.len, nullptr, 0)) {
+            codec_error("decoding frame");
+            return false;
+          }
+
+          vpx_codec_iter_t it = nullptr;
+          while (auto img = vpx_codec_get_frame(&codec, &it)) {
+            // Convert I420 (YUV with NxN Y-plane and (N/2)x(N/2) U- and V-
+            // planes) to RGB.
+            std::unique_ptr<uint32_t[]> data(
+                new uint32_t[32 * img->d_w * img->d_h]);
+            auto w = img->d_w;
+            auto h = img->d_h;
+            for (unsigned int y = 0; y < h; ++y) {
+              for (unsigned int x = 0; x < w; ++x) {
+                int Y = img->planes[0][x + y * img->stride[0]];
+                int U = img->planes[1][x / 2 + (y / 2) * img->stride[1]];
+                int V = img->planes[2][x / 2 + (y / 2) * img->stride[2]];
+
+                auto cl = [](float f) {
+                  return (unsigned char) std::max(0, std::min(255, (int) f));
+                };
+                auto R = cl(1.164f * (Y - 16.f) + 1.596f * (V - 128.f));
+                auto G = cl(1.164f * (Y - 16.f) -
+                    0.813f * (V - 128.f) - 0.391f * (U - 128.f));
+                auto B = cl(1.164f * (Y - 16.f) + 2.018f * (U - 128.f));
+                data[x + y * w] =
+                    R | (G << 8) | (B << 16) | (0xff << 24);
+              }
+            }
+
+            images.emplace_back(path);
+            auto& image = images.back();
+            image.sf_image.reset(new sf::Image);
+            image.deleter.reset(
+                new Image::texture_deleter(image.texture));
+            image.width = w;
+            image.height = h;
+            image.sf_image->create(w, h, (unsigned char*) data.get());
+            std::cout << ";";
+          }
+        }
+      }
+
+      if (cluster->GetNext(block, block) < 0) {
+        std::cerr << "couldn't load " << path <<
+            ": couldn't parse next block of cluster" << std::endl;
+        return false;
+      }
+    }
+  }
+
+  if (vpx_codec_destroy(&codec)) {
+    codec_error("destroying codec");
+    return false;
+  }
+
+  return true;
+}
+
 bool ImageSet::load_internal(Image* image, const std::string& path) const
 {
   image->sf_image.reset(new sf::Image);
@@ -317,7 +459,10 @@ void ImageSet::load_animation_internal()
 {
   auto id = random_excluding(_animation_paths.size(), _animation_id);
   std::vector<Image> images;
-  bool loaded = load_animation_internal(images, _animation_paths[id]);
+  const auto& path = _animation_paths[id];
+  bool loaded = path.substr(path.length() - 4) == ".gif" ?
+      load_animation_gif_internal(images, _animation_paths[id]) :
+      load_animation_webm_internal(images, _animation_paths[id]);
   if (!loaded) {
     _animation_paths.erase(_animation_paths.begin() + id);
     if (_animation_id >= id) {

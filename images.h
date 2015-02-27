@@ -83,8 +83,10 @@ public:
 
 private:
 
-  bool load_animation_internal(std::vector<Image>& images,
-                               const std::string& path) const;
+  bool load_animation_gif_internal(std::vector<Image>& images,
+                                   const std::string& path) const;
+  bool load_animation_webm_internal(std::vector<Image>& images,
+                                    const std::string& path) const;
   bool load_internal(Image* image, const std::string& path) const;
 
   void load_animation_internal();
