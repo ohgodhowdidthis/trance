@@ -39,6 +39,7 @@ uniform vec2 min;
 uniform vec2 max;
 uniform vec2 flip;
 uniform float alpha;
+uniform float zoom;
 attribute vec2 position;
 attribute vec2 texcoord;
 varying vec2 vtexcoord;
@@ -50,8 +51,11 @@ void main()
   pos = pos * (max - min) + min;
   pos = (pos - 0.5) * 2.0;
   gl_Position = vec4(pos, 0.0, 1.0);
-  vtexcoord = vec2(flip.x != 0.0 ? 1.0 - texcoord.x : texcoord.x,
-                   flip.y != 0.0 ? 1.0 - texcoord.y : texcoord.y);
+  float z = 0.1 * zoom + 0.005;
+  vtexcoord = vec2(texcoord.x > 0.5 ? 1.0 - z : z,
+                   texcoord.y > 0.5 ? 1.0 - z : z);
+  vtexcoord = vec2(flip.x != 0.0 ? 1.0 - vtexcoord.x : vtexcoord.x,
+                   flip.y != 0.0 ? 1.0 - vtexcoord.y : vtexcoord.y);
   valpha = alpha;
 }
 )";
@@ -280,12 +284,12 @@ Director::Director(sf::RenderWindow& window,
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   static const float tex_data[] = {
-    0.005f, 0.995f,
-    0.995f, 0.995f,
-    0.005f, 0.005f,
-    0.995f, 0.995f,
-    0.995f, 0.005f,
-    0.005f, 0.005f};
+    0.f, 1.f,
+    1.f, 1.f,
+    0.f, 0.f,
+    1.f, 1.f,
+    1.f, 0.f,
+    0.f, 0.f};
   glGenBuffers(1, &_tex_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, _tex_buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, tex_data, GL_STATIC_DRAW);
@@ -365,13 +369,13 @@ void Director::maybe_upload_next() const
 }
 
 void Director::render_image(const Image& image, float alpha,
-                            float multiplier) const
+                            float multiplier, float zoom) const
 {
   if (image.anim_type != Image::NONE) {
     bool alternate = image.anim_type == Image::ALTERNATE_ANIMATION;
     Image anim = _images.get_animation(_switch_sets / 8, alternate);
     if (anim.texture) {
-      render_image(anim, alpha, multiplier);
+      render_image(anim, alpha, multiplier, zoom);
       return;
     }
   }
@@ -385,6 +389,7 @@ void Director::render_image(const Image& image, float alpha,
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, image.texture);
   glUniform1f(glGetUniformLocation(_image_program, "alpha"), alpha);
+  glUniform1f(glGetUniformLocation(_image_program, "zoom"), zoom);
 
   GLuint ploc = glGetAttribLocation(_image_program, "position");
   glEnableVertexAttribArray(ploc);
