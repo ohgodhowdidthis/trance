@@ -99,7 +99,10 @@ void AccelerateProgram::update()
 
 void AccelerateProgram::render() const
 {
-  director().render_image(_current, 1, 8.f + 48.f - _change_speed);
+  director().render_image(
+      _current, 1, 8.f + 48.f - _change_speed,
+      _change_faster ? .5f - float(_change_timer) / (2 * _change_speed) :
+      float(_change_timer) / (2 * _change_speed));
   Image anim("");
   anim.anim_type = Image::ANIMATION;
   director().render_image(anim, .2f, 6.f);
@@ -165,7 +168,8 @@ void SubTextProgram::render() const
   Image anim("");
   anim.anim_type = Image::ANIMATION;
   director().render_image(anim, 1, 10.f);
-  director().render_image(_current, .8f);
+  director().render_image(_current, .8f, 8.f,
+                          1.f - float(_change_timer) / speed);
   director().render_subtext(1.f / 4);
   director().render_spiral();
   if (_text_on && _change_timer >= speed - 3) {
@@ -226,7 +230,9 @@ void SlowFlashProgram::update()
 void SlowFlashProgram::render() const
 {
   float extra = 32.f - 32.f * _image_count / (4 * cycle_length);
-  director().render_image(_current, 1, 8.f + extra);
+  director().render_image(
+      _current, 1, 8.f + extra,
+      .5f - float(_change_timer) / (_flash ? 2 * min_speed : 2 * max_speed));
   director().render_spiral();
   if (_change_timer < max_speed / 2 || _flash) {
     director().render_text(
@@ -287,8 +293,10 @@ void FlashTextProgram::render() const
 {
   float extra = 32.f * _timer / length;
 
-  director().render_image(_start, 1, 8.f + extra);
-  director().render_image(_end, 1.f - float(_timer) / length, 40.f - extra);
+  director().render_image(_start, 1, 8.f + extra,
+                          1.f - .5f * float(_timer) / length);
+  director().render_image(_end, 1.f - float(_timer) / length, 40.f - extra,
+                          .5f - .5f * float(_timer) / length);
   director().render_spiral();
   if (_cycle % 2) {
     director().render_text(_current_text, 3.f + 4.f * _timer / length);
@@ -301,6 +309,8 @@ ParallelProgram::ParallelProgram(Director& director)
 , _alternate{director.get(true)}
 , _anim_cycle{0}
 , _alternate_anim_cycle{0}
+, _length{0}
+, _alternate_length{length / 2}
 , _switch_alt{false}
 , _text_on{true}
 , _current_text{director.get_text(random_chance())}
@@ -311,6 +321,8 @@ ParallelProgram::ParallelProgram(Director& director)
 
 void ParallelProgram::update()
 {
+  ++_length;
+  ++_alternate_length;
   director().rotate_spiral(3.f);
   if (--_timer) {
     if (_timer == length / 2) {
@@ -334,6 +346,7 @@ void ParallelProgram::update()
   if (_switch_alt) {
     _alternate = director().get(true);
     ++_alternate_anim_cycle;
+    _alternate_length = 0;
     if (_alternate_anim_cycle % 3 == 1) {
       _alternate.anim_type = Image::ALTERNATE_ANIMATION;
     }
@@ -341,6 +354,7 @@ void ParallelProgram::update()
   else {
     _image = director().get(false);
     ++_anim_cycle;
+    _length = 0;
     if (_anim_cycle % 3 == 2) {
       _image.anim_type = Image::ANIMATION;
     }
@@ -353,8 +367,10 @@ void ParallelProgram::update()
 void ParallelProgram::render() const
 {
   float extra = 32.f * _cycle / cycles;
-  director().render_image(_image, 1, 8 + extra);
-  director().render_image(_alternate, .5f, 8 + 32.f - extra);
+  director().render_image(_image, 1, 8 + extra,
+                          float(_length) / (2 * length));
+  director().render_image(_alternate, .5f, 8 + 32.f - extra,
+                          float(_alternate_length) / (2 * length));
   director().render_spiral();
   if (_cycle % 4 == 1 || _cycle % 4 == 2) {
     director().render_text(_current_text);
@@ -371,12 +387,17 @@ SuperParallelProgram::SuperParallelProgram(Director& director)
 {
   for (std::size_t i = 0; i < image_count; ++i) {
     _images.push_back(director.get(i % 2 == 0));
+    _lengths.push_back(
+        ((image_count * length) - i * length) % (image_count * length));
   }
   _images.back().anim_type = Image::ANIMATION;
 }
 
 void SuperParallelProgram::update()
 {
+  for (std::size_t i = 0; i < image_count; ++i) {
+    ++_lengths[i];
+  }
   director().rotate_spiral(3.5f);
   if (!--_font_timer) {
     _current_text = _current_text.empty() ?
@@ -403,19 +424,22 @@ void SuperParallelProgram::update()
     director().maybe_upload_next();
   }
 
+  _index = (_index + 1) % _images.size();
   _images[_index] = director().get(_index % 2 == 0);
+  _lengths[_index] = 0;
   if (_index < _images.size() / 2) {
     _images[_index].anim_type = _index % 2 == 0 ?
         Image::ALTERNATE_ANIMATION : Image::ANIMATION;
   }
-  _index = (_index + 1) % _images.size();
 }
 
 void SuperParallelProgram::render() const
 {
   float extra = 16.f - 16.f * (_cycle % 128) / (cycles / 4);
   for (std::size_t i = 0; i < _images.size(); ++i) {
-    director().render_image(_images[i], 1.f / (1 + i), 8.f + 4 * i + extra);
+    director().render_image(_images[i], 1.f / (1 + i), 8.f + 4 * i + extra,
+                            i < _images.size() / 2 ? 0.f :
+                            float(_lengths[i]) / (4 * image_count * length));
   }
   director().render_spiral();
   director().render_text(_current_text, 5.f);

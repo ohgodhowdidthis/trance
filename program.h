@@ -140,6 +140,8 @@ private:
   Image _alternate;
   unsigned int _anim_cycle;
   unsigned int _alternate_anim_cycle;
+  unsigned int _length;
+  unsigned int _alternate_length;
   bool _switch_alt;
   bool _text_on;
   std::string _current_text;
@@ -163,6 +165,7 @@ private:
   static const unsigned int cycles = 512;
 
   std::vector<Image> _images;
+  std::vector<unsigned int> _lengths;
   std::size_t _index;
   std::string _current_text;
   unsigned int _timer;
