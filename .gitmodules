@@ -7,3 +7,6 @@
 [submodule "libwebm"]
 	path = libwebm
 	url = https://chromium.googlesource.com/webm/libwebm
+[submodule "protobuf"]
+	path = protobuf
+	url = http://github.com/google/protobuf
