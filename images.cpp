@@ -246,8 +246,8 @@ bool ImageSet::load_animation_gif_internal(std::vector<Image>& images,
     auto fl = frame.ImageDesc.Left;
     auto ft = frame.ImageDesc.Top;
 
-    for (int y = 0; y < fh; ++y) {
-      for (int x = 0; x < fw; ++x) {
+    for (int y = 0; y < std::min(height, fh); ++y) {
+      for (int x = 0; x < std::min(width, fw); ++x) {
         unsigned char byte = frame.RasterBits[x + y * fw];
         if (transparency && byte == transparency_byte) {
           continue;
