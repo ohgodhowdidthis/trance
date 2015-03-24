@@ -1,11 +1,12 @@
 #include "fonts.h"
 #include "director.h"
 #include "util.h"
-#include <algorithm>
 
-FontCache::FontCache(const std::vector<std::string>& paths)
-: _last_id{random(paths.size())}
-, _paths{paths}
+FontCache::FontCache(const std::vector<std::string>& paths,
+                     unsigned int font_cache_size)
+: _paths{paths}
+, _font_cache_size{font_cache_size}
+, _last_id{random(paths.size())}
 {
 }
 
@@ -41,8 +42,7 @@ const Font& FontCache::get_font(
 
   _list.emplace_front(font_path, char_size);
   _map.emplace(k, &_list.front());
-  if (_list.size() > std::max((std::size_t) 2,
-                              Settings::settings.font_cache_size)) {
+  if (_list.size() > _font_cache_size) {
     _map.erase(_list.back().key);
     _list.pop_back();
   }
