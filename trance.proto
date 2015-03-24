@@ -1,0 +1,89 @@
+syntax = "proto3";
+package trance_pb;
+
+message Colour {
+  float r = 1;
+  float g = 2;
+  float b = 3;
+  float a = 4;
+}
+
+// General system-wide configuration.
+message SystemConfiguration {
+  // Whether to enable oculus rift support, if possible.
+  bool enable_oculus_rift = 1;
+
+  // Number of images to keep in memory at a time. Uses up both RAM and video
+  // memory.
+  uint32 image_cache_size = 2;
+
+  // Number of font sizes to keep in memory at a time. Each character size of a
+  // single font uses up another slot in the cache. Uses up video card memory.
+  uint32 font_cache_size = 3;
+}
+
+// Configuration of the various programs, visual effects and so on.
+message ProgramConfiguration {
+  // The different implemented programs.
+  enum Type {
+    NONE = 0;
+    ACCELERATE = 1;
+    SLOW_FLASH = 2;
+    SUB_TEXT = 3;
+    FLASH_TEXT = 4;
+    PARALLEL = 5;
+    SUPER_PARALLEL = 6;
+    ANIMATION = 7;
+  }
+
+  // Controls settings for individual programs.
+  message TypeConfiguration {
+    Type type = 1;
+
+    // Controls how frequently this program will be randomly selected relative
+    // to others.
+    uint32 random_weight = 2;
+  }
+  repeated TypeConfiguration type = 1;
+
+  // Ticks per second. Controls the global speed of everything; lower is faster,
+  // default is 120.
+  uint32 global_fps = 2;
+
+  // Intensity of the zoom effect (0 being no zoom, 1 being the maximum).
+  float zoom_intensity = 3;
+
+  // Settings for spiral colour.
+  Colour spiral_colour_a = 4;
+  Colour spiral_colour_b = 5;
+
+  // Font settings for displayed text.
+  Colour main_text_colour = 6;
+  Colour shadow_text_colour = 7;
+}
+
+// Which resources we're currently using.
+message ResourceConfiguration {
+  // References names of image sets contained in the Session.
+  repeated string enabled_image_set_name = 1;
+  // Fonts to use.
+  repeated string enabled_font_path = 2;
+}
+
+message ImageSet {
+  // Name of the set (referenced by ResourceConfiguration).
+  string image_set_name = 1;
+  // Paths to be used as images.
+  repeated string image_path = 2;
+  // Paths to be used as animations.
+  repeated string animation_path = 3;
+  // Lines of text.
+  repeated string text_line = 4;
+}
+
+message Session {
+  SystemConfiguration system = 1;
+  ProgramConfiguration program = 2;
+  ResourceConfiguration resource = 3;
+  repeated ImageSet image_set = 4;
+}

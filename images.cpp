@@ -2,6 +2,7 @@
 #include "director.h"
 #include "util.h"
 #include <iostream>
+#include <trance.pb.h>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 #include <gif_lib.h>
@@ -33,20 +34,23 @@ Image::texture_deleter::~texture_deleter()
   textures_to_delete_mutex.unlock();
 }
 
-ImageSet::ImageSet(const std::vector<std::string>& images,
-                   const std::vector<std::string>& texts,
-                   const std::vector<std::string>& animations)
-: _paths{images}
-, _animation_paths{animations}
-, _target_load{0}
+ImageSet::ImageSet(const trance_pb::ImageSet& proto)
+: _target_load{0}
 , _last_id{0}
 , _last_text_id{0}
 , _animation_id{0}
 {
+  for (const auto& p : proto.image_path()) {
+    _paths.emplace_back(p);
+  }
+  for (const auto& p : proto.animation_path()) {
+    _animation_paths.emplace_back(p);
+  }
+
   // Split strings into two lines at the space closest to the middle. This is
   // sort of ad-hoc. There should probably be a better way that can judge length
   // and split over more than two lines.
-  for (const auto& t : texts) {
+  for (const auto& t : proto.text_line()) {
     auto mid = t.length() / 2;
     auto l = mid;
     auto r = mid;
@@ -96,6 +100,10 @@ Image ImageSet::get() const
   // Lock the mutex so we don't interfere with the thread calling
   // ImageBank::async_update().
   _mutex.lock();
+  if (_images.empty()) {
+    _mutex.unlock();
+    return get_animation(random(2 << 16));
+  }
   _last_id = random_excluding(_images.size(), _last_id);
   return get_internal(_images, _last_id, _mutex);
 }
@@ -245,6 +253,7 @@ bool ImageSet::load_animation_gif_internal(std::vector<Image>& images,
           continue;
         }
         const auto& c = map->Colors[byte];
+        // Still get segfaults here sometimes...
         pixels[fl + x + (ft + y) * width] =
             c.Red | (c.Green << 8) | (c.Blue << 16) | (0xff << 24);
       }
@@ -545,27 +554,19 @@ Image ImageSet::get_internal(const std::vector<Image>& list, std::size_t index,
   return image;
 }
 
-void ImageBank::add_set(const std::vector<std::string>& images,
-                        const std::vector<std::string>& texts,
-                        const std::vector<std::string>& animations)
-{
-  _sets.emplace_back(images, texts, animations);
-}
-
-ImageBank::ImageBank(unsigned int image_cache_size)
+ImageBank::ImageBank(const std::vector<trance_pb::ImageSet>& sets,
+                     unsigned int image_cache_size)
 : _image_cache_size{image_cache_size}
+, _updates{0}
+, _cooldown{switch_cooldown}
 {
-
-}
-
-void ImageBank::initialise()
-{
-  _updates = 0;
-  _cooldown = switch_cooldown;
-  if (_sets.size() == 0) {
-    // Nothing to do.
-    return;
+  for (const auto& set : sets) {
+    _sets.emplace_back(set);
   }
+  if (sets.empty()) {
+    _sets.push_back(ImageSet({}));
+  }
+
   if (_sets.size() == 1) {
     // Always have at least two sets.
     ImageSet copy = _sets.back();

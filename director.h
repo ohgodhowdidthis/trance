@@ -17,6 +17,7 @@
 
 namespace trance_pb {
   class Session;
+  class ProgramConfiguration;
 }
 
 struct Image;
@@ -31,6 +32,7 @@ public:
   ~Director();
 
   // Called from main().
+  float get_frame_time() const;
   void update();
   void render() const;
 
@@ -55,6 +57,7 @@ public:
 
 private:
 
+  const trance_pb::ProgramConfiguration& program() const;
   void init_oculus_rift();
   sf::Vector2f off3d(float multiplier) const;
   unsigned int view_width() const;
