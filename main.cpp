@@ -4,9 +4,10 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <unordered_set>
 #include "director.h"
-#include "images.h"
 #include "session.h"
+#include "theme.h"
 
 int main(int argc, char** argv)
 {
@@ -25,11 +26,13 @@ int main(int argc, char** argv)
   glClearColor(0.f, 0.f, 0.f, 0.f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  std::vector<trance_pb::ImageSet> sets;
-  for (const auto& set : session.image_set()) {
+  std::vector<trance_pb::Theme> themes;
+  // TODO: handle fonts properly.
+  std::unordered_set<std::string> font_set;
+  for (const auto& theme : session.theme()) {
     bool enabled = false;
-    for (const auto& name : session.resource().enabled_image_set_name()) {
-      if (name == set.image_set_name()) {
+    for (const auto& name : session.program().enabled_theme_name()) {
+      if (name == theme.theme_name()) {
         enabled = true;
         break;
       }
@@ -38,13 +41,16 @@ int main(int argc, char** argv)
       continue;
     }
 
-    std::cout << "set " << set.image_set_name() << " with " <<
-        set.image_path_size() << " image(s), " <<
-        set.animation_path_size() << " animation(s), and " <<
-        set.text_line_size() << " line(s) of text" << std::endl;
-    sets.push_back(set);
+    std::cout << "set " << theme.theme_name() << " with " <<
+        theme.image_path_size() << " image(s), " <<
+        theme.animation_path_size() << " animation(s), and " <<
+        theme.text_line_size() << " line(s) of text" << std::endl;
+    themes.push_back(theme);
+    for (const auto& font : theme.font_path()) {
+      font_set.emplace(font);
+    }
   }
-  ImageBank images{sets, session.system().image_cache_size()};
+  ThemeBank theme_bank{themes, session.system().image_cache_size()};
 
   auto video_mode = sf::VideoMode::getDesktopMode();
   window.create(video_mode, "Ubtrance",
@@ -56,11 +62,9 @@ int main(int argc, char** argv)
   window.setActive();
   window.display();
 
-  std::vector<std::string> font_paths{
-      session.resource().enabled_font_path().begin(),
-      session.resource().enabled_font_path().end()};
   auto director = std::make_unique<Director>(
-      window, session, images, font_paths,
+      window, session, theme_bank,
+      std::vector<std::string>{font_set.begin(), font_set.end()},
       video_mode.width, video_mode.height);
   bool running = true;
 
@@ -68,7 +72,7 @@ int main(int argc, char** argv)
   std::thread image_load_thread([&]{
     while (running) {
       try {
-        images.async_update();
+        theme_bank.async_update();
       }
       catch (std::bad_alloc&) {
         std::cerr << bad_alloc << std::endl;

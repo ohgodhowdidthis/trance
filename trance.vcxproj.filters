@@ -3,9 +3,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="director.cpp" />
-    <ClCompile Include="program.cpp" />
     <ClCompile Include="fonts.cpp" />
-    <ClCompile Include="images.cpp" />
     <ClCompile Include="jpeg\jpgd.cpp">
       <Filter>jpeg</Filter>
     </ClCompile>
@@ -19,14 +17,16 @@
       <Filter>gif</Filter>
     </ClCompile>
     <ClCompile Include="session.cpp" />
+    <ClCompile Include="visual.cpp" />
+    <ClCompile Include="theme.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="director.h" />
-    <ClInclude Include="program.h" />
     <ClInclude Include="fonts.h" />
     <ClInclude Include="util.h" />
-    <ClInclude Include="images.h" />
     <ClInclude Include="session.h" />
+    <ClInclude Include="visual.h" />
+    <ClInclude Include="theme.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="jpeg">

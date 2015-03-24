@@ -1,8 +1,8 @@
 ﻿#include "director.h"
-#include "images.h"
-#include "program.h"
 #include "session.h"
+#include "theme.h"
 #include "util.h"
+#include "visual.h"
 #include <iostream>
 #include <GL/glew.h>
 #include <SFML/OpenGL.hpp>
@@ -164,11 +164,11 @@ void main(void)
 )";
 
 Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
-                   ImageBank& images, const std::vector<std::string>& fonts,
+                   ThemeBank& themes, const std::vector<std::string>& fonts,
                    unsigned int width, unsigned int height)
 : _window{window}
 , _session{session}
-, _images{images}
+, _themes{themes}
 , _fonts{fonts, session.system().font_cache_size()}
 , _width{width}
 , _height{height}
@@ -179,7 +179,7 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 , _spiral{0}
 , _spiral_type{0}
 , _spiral_width{60}
-, _switch_sets{0}
+, _switch_themes{0}
 {
   _oculus.enabled = session.system().enable_oculus_rift();
   _oculus.hmd = nullptr;
@@ -210,8 +210,8 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 
   static const std::size_t gl_preload = 1000;
   for (std::size_t i = 0; i < gl_preload; ++i) {
-    images.get();
-    images.get(true);
+    themes.get();
+    themes.get(true);
   }
 
   auto compile_shader = [&](GLuint shader)
@@ -300,7 +300,7 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 
   change_font();
   change_spiral();
-  change_program();
+  change_visual();
   change_subtext();
 }
 
@@ -325,11 +325,11 @@ void Director::update()
       ovrHmd_DismissHSWDisplay(_oculus.hmd);
     }
   }
-  ++_switch_sets;
-  if (_old_program) {
-    _old_program.reset(nullptr);
+  ++_switch_themes;
+  if (_old_visual) {
+    _old_visual.reset(nullptr);
   }
-  _program->update();
+  _visual->update();
 }
 
 void Director::render() const
@@ -338,7 +338,7 @@ void Director::render() const
   if (!_oculus.enabled) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     _oculus.rendering_right = false;
-    _program->render();
+    _visual->render();
     _window.display();
     return;
   }
@@ -353,7 +353,7 @@ void Director::render() const
     pose[eye] = ovrHmd_GetHmdPosePerEye(_oculus.hmd, eye);
 		glViewport((eye != ovrEye_Left) * view_width(), 0, view_width(), _height);
     _oculus.rendering_right = eye == ovrEye_Right;
-    _program->render();
+    _visual->render();
   }
 
   ovrHmd_EndFrame(_oculus.hmd, pose, &_oculus.fb_ovr_tex[0].Texture);
@@ -363,17 +363,17 @@ void Director::render() const
 
 Image Director::get(bool alternate) const
 {
-  return _images.get(alternate);
+  return _themes.get(alternate);
 }
 
 const std::string& Director::get_text(bool alternate) const
 {
-  return _images.get_text(alternate);
+  return _themes.get_text(alternate);
 }
 
 void Director::maybe_upload_next() const
 {
-  _images.maybe_upload_next();
+  _themes.maybe_upload_next();
 }
 
 void Director::render_image(const Image& image, float alpha,
@@ -381,8 +381,8 @@ void Director::render_image(const Image& image, float alpha,
 {
   if (image.anim_type != Image::NONE) {
     bool alternate = image.anim_type == Image::ALTERNATE_ANIMATION;
-    Image anim = _images.get_animation(
-        std::size_t(120.f * get_frame_time() * _switch_sets / 8), alternate);
+    Image anim = _themes.get_animation(
+        std::size_t(120.f * get_frame_time() * _switch_themes / 8), alternate);
     if (anim.texture) {
       render_image(anim, alpha, multiplier, zoom);
       return;
@@ -589,7 +589,7 @@ void Director::change_subtext(bool alternate)
   static const unsigned int count = 16;
   _subtext.clear();
   for (unsigned int i = 0; i < 16; ++i) {
-    auto s = _images.get_text(alternate);
+    auto s = _themes.get_text(alternate);
     for (auto& c : s) {
       if (c == '\n') {
         c = ' ';
@@ -601,64 +601,64 @@ void Director::change_subtext(bool alternate)
   }
 }
 
-bool Director::change_sets()
+bool Director::change_themes()
 {
-  if (_switch_sets < 2048 || random_chance(4)) {
+  if (_switch_themes < 2048 || random_chance(4)) {
     return false;
   }
-  if (_images.change_sets()) {
-    _switch_sets = 0;
+  if (_themes.change_themes()) {
+    _switch_themes = 0;
     return true;
   }
   return false;
 }
 
-void Director::change_program()
+void Director::change_visual()
 {
-  if (_old_program) {
+  if (_old_visual) {
     return;
   }
   _current_subfont = _fonts.get_path(false);
-  _program.swap(_old_program);
+  _visual.swap(_old_visual);
 
   unsigned int total = 0;
-  for (const auto& type : program().type()) {
+  for (const auto& type : program().visual_type()) {
     total += type.random_weight();
   }
   auto r = random(total);
   total = 0;
-  trance_pb::ProgramConfiguration_Type t;
-  for (const auto& type : program().type()) {
+  trance_pb::Program_VisualType t;
+  for (const auto& type : program().visual_type()) {
     if (r < (total += type.random_weight())) {
       t = type.type();
       break;
     }
   }
 
-  if (t == trance_pb::ProgramConfiguration_Type_ACCELERATE) {
-    _program.reset(new AccelerateProgram{*this, random_chance()});
+  if (t == trance_pb::Program_VisualType_ACCELERATE) {
+    _visual.reset(new AccelerateVisual{*this, random_chance()});
   }
-  if (t == trance_pb::ProgramConfiguration_Type_SLOW_FLASH) {
-    _program.reset(new SlowFlashProgram{*this});
+  if (t == trance_pb::Program_VisualType_SLOW_FLASH) {
+    _visual.reset(new SlowFlashVisual{*this});
   }
-  if (t == trance_pb::ProgramConfiguration_Type_SUB_TEXT) {
-    _program.reset(new SubTextProgram{*this});
+  if (t == trance_pb::Program_VisualType_SUB_TEXT) {
+    _visual.reset(new SubTextVisual{*this});
   }
-  if (t == trance_pb::ProgramConfiguration_Type_FLASH_TEXT) {
-    _program.reset(new FlashTextProgram{*this});
+  if (t == trance_pb::Program_VisualType_FLASH_TEXT) {
+    _visual.reset(new FlashTextVisual{*this});
   }
-  if (t == trance_pb::ProgramConfiguration_Type_PARALLEL) {
-    _program.reset(new ParallelProgram{*this});
+  if (t == trance_pb::Program_VisualType_PARALLEL) {
+    _visual.reset(new ParallelVisual{*this});
   }
-  if (t == trance_pb::ProgramConfiguration_Type_SUPER_PARALLEL) {
-    _program.reset(new SuperParallelProgram{*this});
+  if (t == trance_pb::Program_VisualType_SUPER_PARALLEL) {
+    _visual.reset(new SuperParallelVisual{*this});
   }
-  if (t == trance_pb::ProgramConfiguration_Type_ANIMATION) {
-    _program.reset(new AnimationProgram{*this});
+  if (t == trance_pb::Program_VisualType_ANIMATION) {
+    _visual.reset(new AnimationVisual{*this});
   }
 }
 
-const trance_pb::ProgramConfiguration& Director::program() const
+const trance_pb::Program& Director::program() const
 {
   return _session.program();
 }

@@ -1,19 +1,19 @@
-#ifndef TRANCE_PROGRAM_H
-#define TRANCE_PROGRAM_H
+#ifndef TRANCE_VISUAL_H
+#define TRANCE_VISUAL_H
 
 #include <cstddef>
-#include "images.h"
+#include "theme.h"
 
 class Director;
 
-// Interface to an object which can render and control the program state.
-// These programs are swapped out by the Director every so often for different
+// Interface to an object which can render and control the visual state.
+// These visuals are swapped out by the Director every so often for different
 // styles.
-class Program {
+class Visual {
 public:
 
-  Program(Director& director);
-  virtual ~Program() {}
+  Visual(Director& director);
+  virtual ~Visual() {}
 
   virtual void update() = 0;
   virtual void render() const = 0;
@@ -29,10 +29,10 @@ private:
 
 };
 
-class AccelerateProgram : public Program {
+class AccelerateVisual : public Visual {
 public:
 
-  AccelerateProgram(Director& director, bool start_fast);
+  AccelerateVisual(Director& director, bool start_fast);
   void update() override;
   void render() const override;
 
@@ -54,10 +54,10 @@ private:
 
 };
 
-class SubTextProgram : public Program {
+class SubTextVisual : public Visual {
 public:
 
-  SubTextProgram(Director& director);
+  SubTextVisual(Director& director);
   void update() override;
   void render() const override;
 
@@ -77,10 +77,10 @@ private:
 
 };
 
-class SlowFlashProgram : public Program {
+class SlowFlashVisual : public Visual {
 public:
 
-  SlowFlashProgram(Director& director);
+  SlowFlashVisual(Director& director);
   void update() override;
   void render() const override;
 
@@ -101,10 +101,10 @@ private:
 
 };
 
-class FlashTextProgram : public Program {
+class FlashTextVisual : public Visual {
 public:
 
-  FlashTextProgram(Director& director);
+  FlashTextVisual(Director& director);
   void update() override;
   void render() const override;
 
@@ -124,10 +124,10 @@ private:
 
 };
 
-class ParallelProgram : public Program {
+class ParallelVisual : public Visual {
 public:
 
-  ParallelProgram(Director& director);
+  ParallelVisual(Director& director);
   void update() override;
   void render() const override;
 
@@ -150,10 +150,10 @@ private:
 
 };
 
-class SuperParallelProgram : public Program {
+class SuperParallelVisual : public Visual {
 public:
 
-  SuperParallelProgram(Director& director);
+  SuperParallelVisual(Director& director);
   void update() override;
   void render() const override;
 
@@ -174,10 +174,10 @@ private:
 
 };
 
-class AnimationProgram : public Program {
+class AnimationVisual : public Visual {
 public:
 
-  AnimationProgram(Director& director);
+  AnimationVisual(Director& director);
   void update() override;
   void render() const override;
 

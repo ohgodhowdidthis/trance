@@ -17,17 +17,17 @@
 
 namespace trance_pb {
   class Session;
-  class ProgramConfiguration;
+  class Program;
 }
 
 struct Image;
-class ImageBank;
-class Program;
+class ThemeBank;
+class Visual;
 class Director {
 public:
 
   Director(sf::RenderWindow& window, const trance_pb::Session& session,
-           ImageBank& images, const std::vector<std::string>& fonts,
+           ThemeBank& themes, const std::vector<std::string>& fonts,
            unsigned int width, unsigned int height);
   ~Director();
 
@@ -36,7 +36,7 @@ public:
   void update();
   void render() const;
 
-  // Program API: called from Program objects to render and control the
+  // Visual API: called from Visual objects to render and control the
   // various elements.
   Image get(bool alternate = false) const;
   const std::string& get_text(bool alternate = false) const;
@@ -52,12 +52,12 @@ public:
   void change_spiral();
   void change_font(bool force = false);
   void change_subtext(bool alternate = false);
-  bool change_sets();
-  void change_program();
+  bool change_themes();
+  void change_visual();
 
 private:
 
-  const trance_pb::ProgramConfiguration& program() const;
+  const trance_pb::Program& program() const;
   void init_oculus_rift();
   sf::Vector2f off3d(float multiplier) const;
   unsigned int view_width() const;
@@ -71,7 +71,7 @@ private:
 
   sf::RenderWindow& _window;
   const trance_pb::Session& _session;
-  ImageBank& _images;
+  ThemeBank& _themes;
   FontCache _fonts;
   unsigned int _width;
   unsigned int _height;
@@ -104,9 +104,9 @@ private:
   std::string _current_subfont;
   std::vector<std::string> _subtext;
 
-  unsigned int _switch_sets;
-  std::unique_ptr<Program> _program;
-  std::unique_ptr<Program> _old_program;
+  unsigned int _switch_themes;
+  std::unique_ptr<Visual> _visual;
+  std::unique_ptr<Visual> _old_visual;
 
 };
 
