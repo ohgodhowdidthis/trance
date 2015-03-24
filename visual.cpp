@@ -1,24 +1,24 @@
-#include "program.h"
+#include "visual.h"
 #include "director.h"
 #include "util.h"
 
-Program::Program(Director& director)
+Visual::Visual(Director& director)
 : _director{director}
 {
 }
 
-const Director& Program::director() const
+const Director& Visual::director() const
 {
   return _director;
 }
 
-Director& Program::director()
+Director& Visual::director()
 {
   return _director;
 }
 
-AccelerateProgram::AccelerateProgram(Director& director, bool start_fast)
-: Program{director}
+AccelerateVisual::AccelerateVisual(Director& director, bool start_fast)
+: Visual{director}
 , _current{director.get()}
 , _current_text{director.get_text()}
 , _text_on{true}
@@ -30,7 +30,7 @@ AccelerateProgram::AccelerateProgram(Director& director, bool start_fast)
 {
 }
 
-void AccelerateProgram::update()
+void AccelerateVisual::update()
 {
   unsigned long d = max_speed - _change_speed;
   unsigned long m = max_speed;
@@ -86,18 +86,18 @@ void AccelerateProgram::update()
   if (changed) {
     if (!_change_faster) {
       director().change_spiral();
-      if (director().change_sets()) {
+      if (director().change_themes()) {
         _current_text = director().get_text();
       }
     }
     director().change_font();
     if (random_chance()) {
-      director().change_program();
+      director().change_visual();
     }
   }
 }
 
-void AccelerateProgram::render() const
+void AccelerateVisual::render() const
 {
   director().render_image(
       _current, 1, 8.f + 48.f - _change_speed,
@@ -113,8 +113,8 @@ void AccelerateProgram::render() const
   }
 }
 
-SubTextProgram::SubTextProgram(Director& director)
-: Program{director}
+SubTextVisual::SubTextVisual(Director& director)
+: Visual{director}
 , _current{director.get()}
 , _current_text{director.get_text()}
 , _text_on{true}
@@ -125,7 +125,7 @@ SubTextProgram::SubTextProgram(Director& director)
 {
 }
 
-void SubTextProgram::update()
+void SubTextVisual::update()
 {
   director().rotate_spiral(4.f);
 
@@ -151,19 +151,19 @@ void SubTextProgram::update()
 
   if (!--_cycle) {
     _cycle = cycles;
-    if (director().change_sets()) {
+    if (director().change_themes()) {
       _current_text = director().get_text();
     }
     director().change_font();
     if (random_chance()) {
-      director().change_program();
+      director().change_visual();
       director().change_spiral();
     }
     ++_sub_speed_multiplier;
   }
 }
 
-void SubTextProgram::render() const
+void SubTextVisual::render() const
 {
   Image anim("");
   anim.anim_type = Image::ANIMATION;
@@ -177,8 +177,8 @@ void SubTextProgram::render() const
   }
 }
 
-SlowFlashProgram::SlowFlashProgram(Director& director)
-: Program{director}
+SlowFlashVisual::SlowFlashVisual(Director& director)
+: Visual{director}
 , _current{director.get()}
 , _current_text{director.get_text()}
 , _change_timer{max_speed}
@@ -188,7 +188,7 @@ SlowFlashProgram::SlowFlashProgram(Director& director)
 {
 }
 
-void SlowFlashProgram::update()
+void SlowFlashVisual::update()
 {
   director().rotate_spiral(_flash ? -2.f : 2.f);
 
@@ -209,9 +209,9 @@ void SlowFlashProgram::update()
     director().change_font();
     if (!--_cycle_count) {
       _cycle_count = set_length;
-      director().change_sets();
+      director().change_themes();
       if (random_chance()) {
-        director().change_program();
+        director().change_visual();
       }
     }
   }
@@ -227,7 +227,7 @@ void SlowFlashProgram::update()
   }
 }
 
-void SlowFlashProgram::render() const
+void SlowFlashVisual::render() const
 {
   float extra = 32.f - 32.f * _image_count / (4 * cycle_length);
   director().render_image(
@@ -241,8 +241,8 @@ void SlowFlashProgram::render() const
   }
 }
 
-FlashTextProgram::FlashTextProgram(Director& director)
-: Program{director}
+FlashTextVisual::FlashTextVisual(Director& director)
+: Visual{director}
 , _animated{random_chance()}
 , _start{director.get()}
 , _end{director.get()}
@@ -257,7 +257,7 @@ FlashTextProgram::FlashTextProgram(Director& director)
   }
 }
 
-void FlashTextProgram::update()
+void FlashTextVisual::update()
 {
   director().rotate_spiral(2.5f);
 
@@ -269,10 +269,10 @@ void FlashTextProgram::update()
   if (!--_timer) {
     if (!--_cycle) {
       _cycle = cycles;
-      director().change_sets();
+      director().change_themes();
       _current_text = director().get_text();
       if (random_chance(4)) {
-        director().change_program();
+        director().change_visual();
       }
     }
     _start = _end;
@@ -289,7 +289,7 @@ void FlashTextProgram::update()
   }
 }
 
-void FlashTextProgram::render() const
+void FlashTextVisual::render() const
 {
   float extra = 32.f * _timer / length;
 
@@ -303,8 +303,8 @@ void FlashTextProgram::render() const
   }
 }
 
-ParallelProgram::ParallelProgram(Director& director)
-: Program{director}
+ParallelVisual::ParallelVisual(Director& director)
+: Visual{director}
 , _image{director.get()}
 , _alternate{director.get(true)}
 , _anim_cycle{0}
@@ -319,7 +319,7 @@ ParallelProgram::ParallelProgram(Director& director)
 {
 }
 
-void ParallelProgram::update()
+void ParallelVisual::update()
 {
   ++_length;
   ++_alternate_length;
@@ -335,10 +335,10 @@ void ParallelProgram::update()
   if (!--_cycle) {
     director().change_spiral();
     director().change_font();
-    director().change_sets();
+    director().change_themes();
     _cycle = cycles;
     if (random_chance()) {
-      director().change_program();
+      director().change_visual();
     }
   }
 
@@ -364,7 +364,7 @@ void ParallelProgram::update()
   }
 }
 
-void ParallelProgram::render() const
+void ParallelVisual::render() const
 {
   float extra = 32.f * _cycle / cycles;
   director().render_image(_image, 1, 8 + extra,
@@ -377,8 +377,8 @@ void ParallelProgram::render() const
   }
 }
 
-SuperParallelProgram::SuperParallelProgram(Director& director)
-: Program{director}
+SuperParallelVisual::SuperParallelVisual(Director& director)
+: Visual{director}
 , _index{0}
 , _current_text{director.get_text(random_chance())}
 , _timer{length}
@@ -393,7 +393,7 @@ SuperParallelProgram::SuperParallelProgram(Director& director)
   _images.back().anim_type = Image::ANIMATION;
 }
 
-void SuperParallelProgram::update()
+void SuperParallelVisual::update()
 {
   for (std::size_t i = 0; i < image_count; ++i) {
     ++_lengths[i];
@@ -413,10 +413,10 @@ void SuperParallelProgram::update()
   if (!--_cycle) {
     director().change_spiral();
     director().change_font();
-    director().change_sets();
+    director().change_themes();
     _cycle = cycles;
     if (random_chance()) {
-      director().change_program();
+      director().change_visual();
     }
   }
 
@@ -433,7 +433,7 @@ void SuperParallelProgram::update()
   }
 }
 
-void SuperParallelProgram::render() const
+void SuperParallelVisual::render() const
 {
   float extra = 16.f - 16.f * (_cycle % 128) / (cycles / 4);
   for (std::size_t i = 0; i < _images.size(); ++i) {
@@ -445,8 +445,8 @@ void SuperParallelProgram::render() const
   director().render_text(_current_text, 5.f);
 }
 
-AnimationProgram::AnimationProgram(Director& director)
-: Program{director}
+AnimationVisual::AnimationVisual(Director& director)
+: Visual{director}
 , _animation{director.get()}
 , _current{director.get(true)}
 , _current_text{director.get_text()}
@@ -456,7 +456,7 @@ AnimationProgram::AnimationProgram(Director& director)
   _animation.anim_type = Image::ANIMATION;
 }
 
-void AnimationProgram::update()
+void AnimationVisual::update()
 {
   director().rotate_spiral(3.5f);
   _current = director().get(true);
@@ -469,11 +469,11 @@ void AnimationProgram::update()
   if (!--_cycle) {
     director().change_spiral();
     director().change_font();
-    director().change_sets();
+    director().change_themes();
     _cycle = cycles;
     _current_text = director().get_text();
     if (random_chance(3)) {
-      director().change_program();
+      director().change_visual();
     }
   }
 
@@ -482,7 +482,7 @@ void AnimationProgram::update()
   }
 }
 
-void AnimationProgram::render() const
+void AnimationVisual::render() const
 {
   director().render_image(_animation, 1.f);
   director().render_image(_current, .2f, 12.f);

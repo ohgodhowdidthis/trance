@@ -11,36 +11,36 @@
 
 namespace {
 
-void set_default_program_types(trance_pb::ProgramConfiguration* program)
+void set_default_visual_types(trance_pb::Program* program)
 {
-  program->clear_type();
+  program->clear_visual_type();
 
-  auto type = program->add_type();
-  type->set_type(trance_pb::ProgramConfiguration_Type_ACCELERATE);
+  auto type = program->add_visual_type();
+  type->set_type(trance_pb::Program_VisualType_ACCELERATE);
   type->set_random_weight(1);
 
-  type = program->add_type();
-  type->set_type(trance_pb::ProgramConfiguration_Type_SLOW_FLASH);
+  type = program->add_visual_type();
+  type->set_type(trance_pb::Program_VisualType_SLOW_FLASH);
   type->set_random_weight(1);
 
-  type = program->add_type();
-  type->set_type(trance_pb::ProgramConfiguration_Type_SUB_TEXT);
+  type = program->add_visual_type();
+  type->set_type(trance_pb::Program_VisualType_SUB_TEXT);
   type->set_random_weight(2);
 
-  type = program->add_type();
-  type->set_type(trance_pb::ProgramConfiguration_Type_FLASH_TEXT);
+  type = program->add_visual_type();
+  type->set_type(trance_pb::Program_VisualType_FLASH_TEXT);
   type->set_random_weight(2);
 
-  type = program->add_type();
-  type->set_type(trance_pb::ProgramConfiguration_Type_PARALLEL);
+  type = program->add_visual_type();
+  type->set_type(trance_pb::Program_VisualType_PARALLEL);
   type->set_random_weight(2);
 
-  type = program->add_type();
-  type->set_type(trance_pb::ProgramConfiguration_Type_SUPER_PARALLEL);
+  type = program->add_visual_type();
+  type->set_type(trance_pb::Program_VisualType_SUPER_PARALLEL);
   type->set_random_weight(2);
 
-  type = program->add_type();
-  type->set_type(trance_pb::ProgramConfiguration_Type_ANIMATION);
+  type = program->add_visual_type();
+  type->set_type(trance_pb::Program_VisualType_ANIMATION);
   type->set_random_weight(2);
 }
 
@@ -55,7 +55,7 @@ void validate_colour(trance_pb::Colour* colour)
 void search_resources(trance_pb::Session& session)
 {
   static const std::string wildcards = "/wildcards/";
-  std::unordered_map<std::string, trance_pb::ImageSet> sets;
+  std::unordered_map<std::string, trance_pb::Theme> themes;
 
   std::tr2::sys::path path(".");
   for (auto it = std::tr2::sys::recursive_directory_iterator(path);
@@ -70,10 +70,10 @@ void search_resources(trance_pb::Session& session)
       if (jt == it->path().end()) {
         continue;
       }
-      auto set_name = jt == --it->path().end() ? wildcards : *jt;
+      auto theme_name = jt == --it->path().end() ? wildcards : *jt;
 
       if (ext == ".ttf") {
-        session.mutable_resource()->add_enabled_font_path(it->path());
+        themes[theme_name].add_font_path(it->path());
       }
       else if (ext == ".txt") {
         std::ifstream f(it->path());
@@ -85,44 +85,44 @@ void search_resources(trance_pb::Session& session)
           for (auto& c : line) {
             c = toupper(c);
           }
-          sets[set_name].add_text_line(line);
+          themes[theme_name].add_text_line(line);
         }
       }
       else if (ext == ".gif" || ext == ".webm") {
-        sets[set_name].add_animation_path(it->path());
+        themes[theme_name].add_animation_path(it->path());
       }
       else if (ext == ".png" || ext == ".bmp" ||
                ext == ".jpg" || ext == ".jpeg") {
-        sets[set_name].add_image_path(it->path());
+        themes[theme_name].add_image_path(it->path());
       }
     }
   }
 
-  // Merge wildcards set into all others.
-  for (auto& pair : sets) {
+  // Merge wildcards theme into all others.
+  for (auto& pair : themes) {
     if (pair.first == wildcards) {
       continue;
     }
-    for (const auto& s : sets[wildcards].image_path()) {
+    for (const auto& s : themes[wildcards].image_path()) {
       pair.second.add_image_path(s);
     }
-    for (const auto& s : sets[wildcards].text_line()) {
+    for (const auto& s : themes[wildcards].text_line()) {
       pair.second.add_text_line(s);
     }
-    for (const auto& s : sets[wildcards].animation_path()) {
+    for (const auto& s : themes[wildcards].animation_path()) {
       pair.second.add_animation_path(s);
     }
   }
 
-  // Leave wildcards set if there are no others.
-  if (sets.size() == 1) {
-    sets["default"] = sets[wildcards];
+  // Leave wildcards theme if there are no others.
+  if (themes.size() == 1) {
+    themes["default"] = themes[wildcards];
   }
-  sets.erase(wildcards);
-  for (auto& pair : sets) {
-    pair.second.set_image_set_name(pair.first);
-    *session.add_image_set() = pair.second;
-    session.mutable_resource()->add_enabled_image_set_name(pair.first);
+  themes.erase(wildcards);
+  for (auto& pair : themes) {
+    pair.second.set_theme_name(pair.first);
+    *session.add_theme() = pair.second;
+    session.mutable_program()->add_enabled_theme_name(pair.first);
   }
 }
 
@@ -183,7 +183,7 @@ trance_pb::Session get_default_session()
   system->set_font_cache_size(8);
 
   auto program = session.mutable_program();
-  set_default_program_types(program);
+  set_default_visual_types(program);
   program->set_global_fps(120);
   program->set_zoom_intensity(.2f);
   *program->mutable_spiral_colour_a() = sf2colour({255, 255, 255, 50});
@@ -204,11 +204,11 @@ void validate_session(trance_pb::Session& session)
 
   auto program = session.mutable_program();
   unsigned int count = 0;
-  for (const auto& type : program->type()) {
+  for (const auto& type : program->visual_type()) {
     count += type.random_weight();
   }
   if (!count) {
-    set_default_program_types(program);
+    set_default_visual_types(program);
   }
   program->set_global_fps(std::max(1u, std::min(240u, program->global_fps())));
   program->set_zoom_intensity(
@@ -217,9 +217,4 @@ void validate_session(trance_pb::Session& session)
   validate_colour(program->mutable_spiral_colour_b());
   validate_colour(program->mutable_main_text_colour());
   validate_colour(program->mutable_shadow_text_colour());
-
-  std::unordered_set<std::string> image_set_names;
-  for (const auto& image_set : session.image_set()) {
-    image_set_names.emplace(image_set.image_set_name());
-  }
 }

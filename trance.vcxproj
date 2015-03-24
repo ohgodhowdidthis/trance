@@ -161,19 +161,19 @@
     <ClCompile Include="giflib_5_1_0\lib\dgif_lib.c" />
     <ClCompile Include="giflib_5_1_0\lib\gifalloc.c" />
     <ClCompile Include="giflib_5_1_0\lib\gif_err.c" />
-    <ClCompile Include="images.cpp" />
     <ClCompile Include="jpeg\jpgd.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="program.cpp" />
     <ClCompile Include="session.cpp" />
+    <ClCompile Include="theme.cpp" />
+    <ClCompile Include="visual.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="director.h" />
     <ClInclude Include="fonts.h" />
-    <ClInclude Include="images.h" />
-    <ClInclude Include="program.h" />
     <ClInclude Include="session.h" />
+    <ClInclude Include="theme.h" />
     <ClInclude Include="util.h" />
+    <ClInclude Include="visual.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="trance.proto" />

@@ -1,4 +1,4 @@
-#include "images.h"
+#include "theme.h"
 #include "director.h"
 #include "util.h"
 #include <iostream>
@@ -34,7 +34,7 @@ Image::texture_deleter::~texture_deleter()
   textures_to_delete_mutex.unlock();
 }
 
-ImageSet::ImageSet(const trance_pb::ImageSet& proto)
+Theme::Theme(const trance_pb::Theme& proto)
 : _target_load{0}
 , _last_id{0}
 , _last_text_id{0}
@@ -81,24 +81,24 @@ ImageSet::ImageSet(const trance_pb::ImageSet& proto)
   }
 }
 
-ImageSet::ImageSet(const ImageSet& images)
-: _paths(images._paths)
-, _texts(images._texts)
-, _target_load(images._target_load)
-, _last_id(images._last_id)
-, _last_text_id(images._last_text_id)
-, _animation_id(images._animation_id)
-, _animation_paths(images._animation_paths)
+Theme::Theme(const Theme& theme)
+: _paths(theme._paths)
+, _texts(theme._texts)
+, _target_load(theme._target_load)
+, _last_id(theme._last_id)
+, _last_text_id(theme._last_text_id)
+, _animation_id(theme._animation_id)
+, _animation_paths(theme._animation_paths)
 {
-  for (const auto& t : images._images) {
+  for (const auto& t : theme._images) {
     _paths.emplace_back(t.path);
   }
 }
 
-Image ImageSet::get() const
+Image Theme::get() const
 {
   // Lock the mutex so we don't interfere with the thread calling
-  // ImageBank::async_update().
+  // ThemeBank::async_update().
   _mutex.lock();
   if (_images.empty()) {
     _mutex.unlock();
@@ -108,7 +108,7 @@ Image ImageSet::get() const
   return get_internal(_images, _last_id, _mutex);
 }
 
-Image ImageSet::get_animation(std::size_t frame) const
+Image Theme::get_animation(std::size_t frame) const
 {
   _animation_mutex.lock();
   if (_animation_images.empty()) {
@@ -121,7 +121,7 @@ Image ImageSet::get_animation(std::size_t frame) const
   return get_internal(_animation_images, f, _animation_mutex);
 }
 
-const std::string& ImageSet::get_text() const
+const std::string& Theme::get_text() const
 {
   static const std::string empty;
   if (_texts.empty()) {
@@ -131,12 +131,12 @@ const std::string& ImageSet::get_text() const
       _last_text_id = random_excluding(_texts.size(), _last_text_id)];
 }
 
-void ImageSet::set_target_load(std::size_t target_load)
+void Theme::set_target_load(std::size_t target_load)
 {
   _target_load = target_load;
 }
 
-void ImageSet::perform_swap()
+void Theme::perform_swap()
 {
   if (_animation_paths.size() > 2 && random_chance(4)) {
     load_animation_internal();
@@ -150,7 +150,7 @@ void ImageSet::perform_swap()
   }
 }
 
-void ImageSet::perform_load()
+void Theme::perform_load()
 {
   if (!_animation_paths.empty()) {
     if (_target_load && _animation_images.empty()) {
@@ -169,26 +169,26 @@ void ImageSet::perform_load()
   }
 }
 
-void ImageSet::perform_all_loads()
+void Theme::perform_all_loads()
 {
   while (!all_loaded()) {
     perform_load();
   }
 }
 
-bool ImageSet::all_loaded() const
+bool Theme::all_loaded() const
 {
   return (_images.size() == _target_load || _paths.empty()) &&
       (_animation_images.empty() == !_target_load || _animation_paths.empty());
 }
 
-std::size_t ImageSet::loaded() const
+std::size_t Theme::loaded() const
 {
   return _images.size();
 }
 
-bool ImageSet::load_animation_gif_internal(std::vector<Image>& images,
-                                           const std::string& path) const
+bool Theme::load_animation_gif_internal(std::vector<Image>& images,
+                                        const std::string& path) const
 {
   int error_code = 0;
   GifFileType* gif = DGifOpenFileName(path.c_str(), &error_code);
@@ -277,8 +277,8 @@ bool ImageSet::load_animation_gif_internal(std::vector<Image>& images,
   return true;
 }
 
-bool ImageSet::load_animation_webm_internal(std::vector<Image>& images,
-                                            const std::string& path) const
+bool Theme::load_animation_webm_internal(std::vector<Image>& images,
+                                         const std::string& path) const
 {
   mkvparser::MkvReader reader;
   if (reader.Open(path.c_str())) {
@@ -413,7 +413,7 @@ bool ImageSet::load_animation_webm_internal(std::vector<Image>& images,
   return true;
 }
 
-bool ImageSet::load_internal(Image* image, const std::string& path) const
+bool Theme::load_internal(Image* image, const std::string& path) const
 {
   image->sf_image.reset(new sf::Image);
   std::string lower = path;
@@ -456,7 +456,7 @@ bool ImageSet::load_internal(Image* image, const std::string& path) const
   return true;
 }
 
-void ImageSet::load_animation_internal()
+void Theme::load_animation_internal()
 {
   auto id = random_excluding(_animation_paths.size(), _animation_id);
   std::vector<Image> images;
@@ -479,14 +479,14 @@ void ImageSet::load_animation_internal()
   images.clear();
 }
 
-void ImageSet::unload_animation_internal()
+void Theme::unload_animation_internal()
 {
   _animation_mutex.lock();
   _animation_images.clear();
   _animation_mutex.unlock();
 }
 
-void ImageSet::load_internal()
+void Theme::load_internal()
 {
   // Take a random image path from the vector of paths, remove it and load it
   // into the Images vector instead.
@@ -505,7 +505,7 @@ void ImageSet::load_internal()
   _mutex.unlock();
 }
 
-void ImageSet::unload_internal()
+void Theme::unload_internal()
 {
   // Opposite of load_internal(): pick a loaded image at random, unload it,
   // and add its path back to the pool of unloaded paths.
@@ -518,8 +518,8 @@ void ImageSet::unload_internal()
   _mutex.unlock();
 }
 
-Image ImageSet::get_internal(const std::vector<Image>& list, std::size_t index,
-                             std::mutex& unlock) const
+Image Theme::get_internal(const std::vector<Image>& list, std::size_t index,
+                          std::mutex& unlock) const
 {
   // Use a temporary object rather than reference into the vector so the mutex
   // can be unlocked earlier.
@@ -554,58 +554,58 @@ Image ImageSet::get_internal(const std::vector<Image>& list, std::size_t index,
   return image;
 }
 
-ImageBank::ImageBank(const std::vector<trance_pb::ImageSet>& sets,
+ThemeBank::ThemeBank(const std::vector<trance_pb::Theme>& themes,
                      unsigned int image_cache_size)
 : _image_cache_size{image_cache_size}
 , _updates{0}
 , _cooldown{switch_cooldown}
 {
-  for (const auto& set : sets) {
-    _sets.emplace_back(set);
+  for (const auto& theme : themes) {
+    _themes.emplace_back(theme);
   }
-  if (sets.empty()) {
-    _sets.push_back(ImageSet({}));
+  if (themes.empty()) {
+    _themes.push_back(Theme({}));
   }
 
-  if (_sets.size() == 1) {
-    // Always have at least two sets.
-    ImageSet copy = _sets.back();
-    _sets.emplace_back(copy);
+  if (_themes.size() == 1) {
+    // Always have at least two themes.
+    Theme copy = _themes.back();
+    _themes.emplace_back(copy);
   }
-  if (_sets.size() == 2) {
-    // Two active sets and switching just swaps them.
+  if (_themes.size() == 2) {
+    // Two active themes and switching just swaps them.
     _a = 0;
     _b = 1;
-    _sets[0].set_target_load(_image_cache_size / 2);
-    _sets[1].set_target_load(_image_cache_size / 2);
-    _sets[0].perform_all_loads();
-    _sets[1].perform_all_loads();
+    _themes[0].set_target_load(_image_cache_size / 2);
+    _themes[1].set_target_load(_image_cache_size / 2);
+    _themes[0].perform_all_loads();
+    _themes[1].perform_all_loads();
     return;
   }
 
-  // For three sets, we keep every set loaded at all times but swap the two
+  // For three themes, we keep every theme loaded at all times but swap the two
   // active ones.
   //
-  // Four four or more sets, we have:
-  // - 2 active sets (_a, _b)
+  // Four four or more themes, we have:
+  // - 2 active themes (_a, _b)
   // - 1 loading in (_next)
   // - 1 being unloaded (_prev)
   // - some others
-  _a = random(_sets.size());
-  _b = random_excluding(_sets.size(), _a);
+  _a = random(_themes.size());
+  _b = random_excluding(_themes.size(), _a);
   do {
-    _next = random_excluding(_sets.size(), _a);
+    _next = random_excluding(_themes.size(), _a);
   }
   while (_next == _b);
 
-  _sets[_a].set_target_load(_image_cache_size / 3);
-  _sets[_b].set_target_load(_image_cache_size / 3);
-  _sets[_next].set_target_load(_image_cache_size / 3);
-  _sets[_a].perform_all_loads();
-  _sets[_b].perform_all_loads();
+  _themes[_a].set_target_load(_image_cache_size / 3);
+  _themes[_b].set_target_load(_image_cache_size / 3);
+  _themes[_next].set_target_load(_image_cache_size / 3);
+  _themes[_a].perform_all_loads();
+  _themes[_b].perform_all_loads();
 
-  if (_sets.size() == 3) {
-    _sets[_next].perform_all_loads();
+  if (_themes.size() == 3) {
+    _themes[_next].perform_all_loads();
   }
   else {
     // _prev just needs to be some unused index.
@@ -616,38 +616,38 @@ ImageBank::ImageBank(const std::vector<trance_pb::ImageSet>& sets,
   }
 }
 
-Image ImageBank::get(bool alternate) const
+Image ThemeBank::get(bool alternate) const
 {
-  return alternate ? _sets[_a].get() : _sets[_b].get();
+  return alternate ? _themes[_a].get() : _themes[_b].get();
 }
 
-const std::string& ImageBank::get_text(bool alternate) const
+const std::string& ThemeBank::get_text(bool alternate) const
 {
-  return alternate ? _sets[_a].get_text() : _sets[_b].get_text();
+  return alternate ? _themes[_a].get_text() : _themes[_b].get_text();
 }
 
-Image ImageBank::get_animation(std::size_t frame, bool alternate) const
+Image ThemeBank::get_animation(std::size_t frame, bool alternate) const
 {
   return alternate ?
-      _sets[_a].get_animation(frame) : _sets[_b].get_animation(frame);
+      _themes[_a].get_animation(frame) : _themes[_b].get_animation(frame);
 }
 
-void ImageBank::maybe_upload_next()
+void ThemeBank::maybe_upload_next()
 {
-  if (_sets.size() > 3 && _sets[_next].loaded() > 0) {
-    _sets[_next].get();
+  if (_themes.size() > 3 && _themes[_next].loaded() > 0) {
+    _themes[_next].get();
   }
 }
 
-bool ImageBank::change_sets()
+bool ThemeBank::change_themes()
 {
   _cooldown = switch_cooldown;
-  if (_sets.size() < 3) {
+  if (_themes.size() < 3) {
     // Only indexes need to be swapped.
     std::swap(_a, _b);
     return true;
   }
-  if (_sets.size() == 3) {
+  if (_themes.size() == 3) {
     // Indexes need to be cycled.
     std::size_t t = _a;
     _a = _b;
@@ -656,9 +656,9 @@ bool ImageBank::change_sets()
     return true;
   }
 
-  // For four or more sets, we need to wait until the next one has loaded in
+  // For four or more themes, we need to wait until the next one has loaded in
   // sufficiently.
-  if (!_sets[_prev].all_loaded() || !_sets[_next].all_loaded()) {
+  if (!_themes[_prev].all_loaded() || !_themes[_next].all_loaded()) {
     return false;
   }
 
@@ -666,17 +666,17 @@ bool ImageBank::change_sets()
   _a = _b;
   _b = _next;
   do {
-    _next = random_excluding(_sets.size(), _prev);
+    _next = random_excluding(_themes.size(), _prev);
   }
   while (_next == _a || _next == _b);
 
   // Update target loads.
-  _sets[_prev].set_target_load(0);
-  _sets[_next].set_target_load(_image_cache_size / 3);
+  _themes[_prev].set_target_load(0);
+  _themes[_next].set_target_load(_image_cache_size / 3);
   return true;
 }
 
-void ImageBank::async_update()
+void ThemeBank::async_update()
 {
   if (_cooldown) {
     --_cooldown;
@@ -684,17 +684,17 @@ void ImageBank::async_update()
   }
 
   ++_updates;
-  // Swap some images from the active sets in and out every so often.
+  // Swap some images from the active themes in and out every so often.
   if (_updates > 128) {
-    _sets[_a].perform_swap();
-    _sets[_b].perform_swap();
+    _themes[_a].perform_swap();
+    _themes[_b].perform_swap();
     _updates = 0;
   }
-  if (_sets.size() == 3) {
-    _sets[_next].perform_swap();
+  if (_themes.size() == 3) {
+    _themes[_next].perform_swap();
   }
-  else if (_sets.size() >= 4) {
-    _sets[_prev].perform_load();
-    _sets[_next].perform_load();
+  else if (_themes.size() >= 4) {
+    _themes[_prev].perform_load();
+    _themes[_next].perform_load();
   }
 }

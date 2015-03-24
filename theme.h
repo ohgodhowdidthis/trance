@@ -1,5 +1,5 @@
-#ifndef TRANCE_IMAGES_H
-#define TRANCE_IMAGES_H
+#ifndef TRANCE_THEME_H
+#define TRANCE_THEME_H
 
 #include <atomic>
 #include <memory>
@@ -9,7 +9,7 @@
 #include <SFML/Graphics.hpp>
 
 namespace trance_pb {
-  class ImageSet;
+  class Theme;
 }
 
 // In-memory image with load-on-request OpenGL texture which is ref-counted
@@ -50,12 +50,12 @@ struct Image {
   mutable std::shared_ptr<texture_deleter> deleter;
 };
 
-// Set of Images and associated text strings.
-class ImageSet {
+// Theme consists of images, animations, and associated text strings.
+class Theme {
 public:
 
-  ImageSet(const trance_pb::ImageSet& proto);
-  ImageSet(const ImageSet& images);
+  Theme(const trance_pb::Theme& proto);
+  Theme(const Theme& theme);
 
   // Get a random loaded in-memory Image or text string.
   //
@@ -114,32 +114,31 @@ private:
 
 };
 
-// ImageBank keeps two ImageSets active at all times with a number of images
+// ThemeBank keeps two Themes active at all times with a number of images
 // in memory each so that a variety of these images can be displayed with no
-// load delay. It also asynchronously loads a third set into memory so that
-// the active sets can be swapped out.
-class ImageBank {
+// load delay. It also asynchronously loads a third theme into memory so that
+// the active themes can be swapped out.
+class ThemeBank {
 public:
 
-  ImageBank(const std::vector<trance_pb::ImageSet>& sets,
+  ThemeBank(const std::vector<trance_pb::Theme>& sets,
             unsigned int image_cache_size);
 
-  // Get Images/text strings from either of the two active sets.
+  // Get Images/text strings from either of the two active themes.
   Image get(bool alternate = false) const;
   const std::string& get_text(bool alternate = false) const;
   Image get_animation(std::size_t frame, bool alternate = false) const;
 
-  // Call to upload a random image from the next set which has been loaded
+  // Call to upload a random image from the next theme which has been loaded
   // into RAM but not video memory.
-  
   // This has to happen on the main rendering thread since OpenGL contexts
   // are single-threaded by default, but this function call can be timed to
-  // mitigate the upload cost of switching active sets.
+  // mitigate the upload cost of switching active themes.
   void maybe_upload_next();
 
-  // If the next set has been fully loaded, swap it out for one of the two
-  // active sets.
-  bool change_sets();
+  // If the next theme has been fully loaded, swap it out for one of the two
+  // active themes.
+  bool change_themes();
 
   // Called from separate update thread to perform async loading/unloading.
   void async_update();
@@ -153,7 +152,7 @@ private:
   std::size_t _b;
   std::size_t _next;
 
-  std::vector<ImageSet> _sets;
+  std::vector<Theme> _themes;
   unsigned int _image_cache_size;
   unsigned int _updates;
   std::atomic<unsigned int> _cooldown;
