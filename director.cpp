@@ -164,12 +164,11 @@ void main(void)
 )";
 
 Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
-                   ThemeBank& themes, const std::vector<std::string>& fonts,
-                   unsigned int width, unsigned int height)
+                   ThemeBank& themes, unsigned int width, unsigned int height)
 : _window{window}
 , _session{session}
 , _themes{themes}
-, _fonts{fonts, session.system().font_cache_size()}
+, _fonts{session.system().font_cache_size()}
 , _width{width}
 , _height{height}
 , _image_program{0}
@@ -210,8 +209,8 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 
   static const std::size_t gl_preload = 1000;
   for (std::size_t i = 0; i < gl_preload; ++i) {
-    themes.get();
-    themes.get(true);
+    themes.get().get_image();
+    themes.get(true).get_image();
   }
 
   auto compile_shader = [&](GLuint shader)
@@ -298,7 +297,7 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, tex_data, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  change_font();
+  change_font(true);
   change_spiral();
   change_visual();
   change_subtext();
@@ -361,14 +360,14 @@ void Director::render() const
   glUseProgram(0);
 }
 
-Image Director::get(bool alternate) const
+Image Director::get_image(bool alternate) const
 {
-  return _themes.get(alternate);
+  return _themes.get(alternate).get_image();
 }
 
 const std::string& Director::get_text(bool alternate) const
 {
-  return _themes.get_text(alternate);
+  return _themes.get(alternate).get_text();
 }
 
 void Director::maybe_upload_next() const
@@ -381,8 +380,8 @@ void Director::render_image(const Image& image, float alpha,
 {
   if (image.anim_type != Image::NONE) {
     bool alternate = image.anim_type == Image::ALTERNATE_ANIMATION;
-    Image anim = _themes.get_animation(
-        std::size_t(120.f * get_frame_time() * _switch_themes / 8), alternate);
+    Image anim = _themes.get(alternate).get_animation(
+        std::size_t(120.f * get_frame_time() * _switch_themes / 8));
     if (anim.texture) {
       render_image(anim, alpha, multiplier, zoom);
       return;
@@ -581,7 +580,9 @@ void Director::change_spiral()
 
 void Director::change_font(bool force)
 {
-  _current_font = _fonts.get_path(force);
+  if (force || random_chance(4)) {
+    _current_font = _themes.get().get_font();
+  }
 }
 
 void Director::change_subtext(bool alternate)
@@ -589,7 +590,7 @@ void Director::change_subtext(bool alternate)
   static const unsigned int count = 16;
   _subtext.clear();
   for (unsigned int i = 0; i < 16; ++i) {
-    auto s = _themes.get_text(alternate);
+    auto s = _themes.get(alternate).get_text();
     for (auto& c : s) {
       if (c == '\n') {
         c = ' ';
@@ -618,7 +619,7 @@ void Director::change_visual()
   if (_old_visual) {
     return;
   }
-  _current_subfont = _fonts.get_path(false);
+  _current_subfont = _themes.get().get_font();
   _visual.swap(_old_visual);
 
   unsigned int total = 0;

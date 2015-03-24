@@ -19,7 +19,7 @@ Director& Visual::director()
 
 AccelerateVisual::AccelerateVisual(Director& director, bool start_fast)
 : Visual{director}
-, _current{director.get()}
+, _current{director.get_image()}
 , _current_text{director.get_text()}
 , _text_on{true}
 , _change_timer{start_fast ? min_speed : max_speed}
@@ -50,7 +50,7 @@ void AccelerateVisual::update()
   }
 
   _change_timer = _change_speed;
-  _current = director().get();
+  _current = director().get_image();
   _text_on = !_text_on;
   if (_change_speed > 4 || _change_faster) {
     _current_text = director().get_text();
@@ -115,7 +115,7 @@ void AccelerateVisual::render() const
 
 SubTextVisual::SubTextVisual(Director& director)
 : Visual{director}
-, _current{director.get()}
+, _current{director.get_image()}
 , _current_text{director.get_text()}
 , _text_on{true}
 , _change_timer{speed}
@@ -143,7 +143,7 @@ void SubTextVisual::update()
   }
 
   _change_timer = speed;
-  _current = director().get();
+  _current = director().get_image();
   _text_on = !_text_on;
   if (_text_on) {
     _current_text = director().get_text();
@@ -179,7 +179,7 @@ void SubTextVisual::render() const
 
 SlowFlashVisual::SlowFlashVisual(Director& director)
 : Visual{director}
-, _current{director.get()}
+, _current{director.get_image()}
 , _current_text{director.get_text()}
 , _change_timer{max_speed}
 , _flash{false}
@@ -218,7 +218,7 @@ void SlowFlashVisual::update()
 
   _change_timer = _flash ? min_speed : max_speed;
   bool anim = _current.anim_type != Image::NONE;
-  _current = director().get(_flash);
+  _current = director().get_image(_flash);
   if (!_flash && !anim) {
     _current.anim_type = Image::ANIMATION;
   }
@@ -244,8 +244,8 @@ void SlowFlashVisual::render() const
 FlashTextVisual::FlashTextVisual(Director& director)
 : Visual{director}
 , _animated{random_chance()}
-, _start{director.get()}
-, _end{director.get()}
+, _start{director.get_image()}
+, _end{director.get_image()}
 , _current_text{director.get_text()}
 , _timer{length}
 , _font_timer{font_length}
@@ -276,7 +276,7 @@ void FlashTextVisual::update()
       }
     }
     _start = _end;
-    _end = director().get();
+    _end = director().get_image();
     if (_animated) {
       _end.anim_type = _start.anim_type == Image::ANIMATION ?
           Image::ALTERNATE_ANIMATION : Image::ANIMATION;
@@ -305,8 +305,8 @@ void FlashTextVisual::render() const
 
 ParallelVisual::ParallelVisual(Director& director)
 : Visual{director}
-, _image{director.get()}
-, _alternate{director.get(true)}
+, _image{director.get_image()}
+, _alternate{director.get_image(true)}
 , _anim_cycle{0}
 , _alternate_anim_cycle{0}
 , _length{0}
@@ -344,7 +344,7 @@ void ParallelVisual::update()
 
   _switch_alt = !_switch_alt;
   if (_switch_alt) {
-    _alternate = director().get(true);
+    _alternate = director().get_image(true);
     ++_alternate_anim_cycle;
     _alternate_length = 0;
     if (_alternate_anim_cycle % 3 == 1) {
@@ -352,7 +352,7 @@ void ParallelVisual::update()
     }
   }
   else {
-    _image = director().get(false);
+    _image = director().get_image(false);
     ++_anim_cycle;
     _length = 0;
     if (_anim_cycle % 3 == 2) {
@@ -386,7 +386,7 @@ SuperParallelVisual::SuperParallelVisual(Director& director)
 , _cycle{cycles}
 {
   for (std::size_t i = 0; i < image_count; ++i) {
-    _images.push_back(director.get(i % 2 == 0));
+    _images.push_back(director.get_image(i % 2 == 0));
     _lengths.push_back(
         ((image_count * length) - i * length) % (image_count * length));
   }
@@ -425,7 +425,7 @@ void SuperParallelVisual::update()
   }
 
   _index = (_index + 1) % _images.size();
-  _images[_index] = director().get(_index % 2 == 0);
+  _images[_index] = director().get_image(_index % 2 == 0);
   _lengths[_index] = 0;
   if (_index < _images.size() / 2) {
     _images[_index].anim_type = _index % 2 == 0 ?
@@ -447,8 +447,8 @@ void SuperParallelVisual::render() const
 
 AnimationVisual::AnimationVisual(Director& director)
 : Visual{director}
-, _animation{director.get()}
-, _current{director.get(true)}
+, _animation{director.get_image()}
+, _current{director.get_image(true)}
 , _current_text{director.get_text()}
 , _timer{length}
 , _cycle{cycles}
@@ -459,7 +459,7 @@ AnimationVisual::AnimationVisual(Director& director)
 void AnimationVisual::update()
 {
   director().rotate_spiral(3.5f);
-  _current = director().get(true);
+  _current = director().get_image(true);
 
   if (--_timer) {
     return;

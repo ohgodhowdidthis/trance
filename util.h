@@ -42,4 +42,42 @@ inline bool random_chance()
   return random_chance(2);
 }
 
+template<typename T>
+class Shuffler {
+public:
+  Shuffler(const T& data)
+    : _data(data)
+    , _last_id(random(data.size())) {}
+
+  std::size_t size() const
+  {
+    return _data.size();
+  }
+
+  bool empty() const
+  {
+    return _data.empty();
+  }
+
+  // Get some value, but not the same one as last time.
+  const typename T::value_type& next() const
+  {
+    static T::value_type empty;
+    if (_data.empty()) {
+      return empty;
+    }
+    if (_data.size() == 1) {
+      return *_data.begin();
+    }
+    _last_id = random_excluding(std::size_t(_data.size()), _last_id);
+    return *(_data.begin() + _last_id);
+  }
+
+private:
+
+  const T& _data;
+  mutable std::size_t _last_id;
+  
+};
+
 #endif

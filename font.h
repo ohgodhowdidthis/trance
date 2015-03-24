@@ -1,5 +1,5 @@
-#ifndef TRANCE_FONTS_H
-#define TRANCE_FONTS_H
+#ifndef TRANCE_FONT_H
+#define TRANCE_FONT_H
 
 #include <string>
 #include <list>
@@ -15,7 +15,9 @@ struct Font {
   {
     key.path = path;
     key.char_size = char_size;
-    font->loadFromFile(path);
+    if (!path.empty()) {
+      font->loadFromFile(path);
+    }
   }
 
   struct key_t {
@@ -58,11 +60,9 @@ namespace std {
 class FontCache {
 public:
 
-  FontCache(const std::vector<std::string>& paths,
-            unsigned int font_cache_size);
+  FontCache(unsigned int font_cache_size);
 
   static const std::size_t char_size_lock = 20;
-  const std::string& get_path(bool force_change) const;
   const Font& get_font(
       const std::string& font_path, unsigned int char_size) const;
 

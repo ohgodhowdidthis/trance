@@ -7,8 +7,11 @@
 #include <string>
 #include <vector>
 #include <SFML/Graphics.hpp>
+#include <google/protobuf/repeated_field.h>
+#include "util.h"
 
 namespace trance_pb {
+  class SystemConfiguration;
   class Theme;
 }
 
@@ -57,15 +60,16 @@ public:
   Theme(const trance_pb::Theme& proto);
   Theme(const Theme& theme);
 
-  // Get a random loaded in-memory Image or text string.
+  // Get a random loaded in-memory Image, text string, etc.
   //
-  // Note: get() is called from the main rendering thread and can upload
+  // Note: these are called from the main rendering thread and can upload
   // images from RAM to video memory on-demand. The other loading functions
   // are called from the async_update thread and load images from files
   // into RAM when requested.
-  Image get() const;
+  Image get_image() const;
   Image get_animation(std::size_t frame) const;
   const std::string& get_text() const;
+  const std::string& get_font() const;
 
   // Set the target number of images this set should keep in memory.
   // Once changed, the asynchronous image-loading thread will gradually
@@ -98,17 +102,19 @@ private:
 
   Image get_internal(const std::vector<Image>& list, std::size_t index,
                      std::mutex& unlock) const;
+
+  using StringShuffler =
+      Shuffler<google::protobuf::RepeatedPtrField<std::string>>;
+  const StringShuffler _animation_paths;
+  const StringShuffler _font_paths;
+  const StringShuffler _text_lines;
   
   std::vector<std::string> _paths;
-  std::vector<std::string> _texts;
   std::vector<Image> _images;
   std::size_t _target_load;
   mutable std::size_t _last_id;
-  mutable std::size_t _last_text_id;
   mutable std::mutex _mutex;
-
-  std::vector<std::string> _animation_paths;
-  mutable std::size_t _animation_id;
+  
   mutable std::mutex _animation_mutex;
   std::vector<Image> _animation_images;
 
@@ -121,13 +127,10 @@ private:
 class ThemeBank {
 public:
 
-  ThemeBank(const std::vector<trance_pb::Theme>& sets,
-            unsigned int image_cache_size);
-
-  // Get Images/text strings from either of the two active themes.
-  Image get(bool alternate = false) const;
-  const std::string& get_text(bool alternate = false) const;
-  Image get_animation(std::size_t frame, bool alternate = false) const;
+  ThemeBank(const std::vector<trance_pb::Theme>& themes,
+            const trance_pb::SystemConfiguration& system);
+  // Get the main or alternate theme.
+  const Theme& get(bool alternate = false) const;
 
   // Call to upload a random image from the next theme which has been loaded
   // into RAM but not video memory.

@@ -35,67 +35,32 @@ Image::texture_deleter::~texture_deleter()
 }
 
 Theme::Theme(const trance_pb::Theme& proto)
-: _target_load{0}
-, _last_id{0}
-, _last_text_id{0}
-, _animation_id{0}
+: _animation_paths{proto.animation_path()}
+, _font_paths{proto.font_path()}
+, _text_lines{proto.text_line()}
+, _target_load{0}
+, _last_id{random(proto.image_path_size())}
 {
+  proto.font_path().begin();
   for (const auto& p : proto.image_path()) {
     _paths.emplace_back(p);
-  }
-  for (const auto& p : proto.animation_path()) {
-    _animation_paths.emplace_back(p);
-  }
-
-  // Split strings into two lines at the space closest to the middle. This is
-  // sort of ad-hoc. There should probably be a better way that can judge length
-  // and split over more than two lines.
-  for (const auto& t : proto.text_line()) {
-    auto mid = t.length() / 2;
-    auto l = mid;
-    auto r = mid;
-    bool found = false;
-    while (true) {
-      if (t[r] == ' ') {
-        found = true;
-        _texts.push_back(t.substr(0, r) + '\n' + t.substr(r + 1));
-        break;
-      }
-
-      if (t[l] == ' ') {
-        found = true;
-        _texts.push_back(t.substr(0, l) + '\n' + t.substr(l + 1));
-        break;
-      }
-
-      if (l == 0 || r == t.length() - 1) {
-        break;
-      }
-      --l;
-      ++r;
-    }
-
-    if (!found) {
-      _texts.push_back(t);
-    }
   }
 }
 
 Theme::Theme(const Theme& theme)
-: _paths(theme._paths)
-, _texts(theme._texts)
+: _animation_paths{theme._animation_paths}
+, _font_paths{theme._font_paths}
+, _text_lines{theme._text_lines}
+, _paths(theme._paths)
 , _target_load(theme._target_load)
 , _last_id(theme._last_id)
-, _last_text_id(theme._last_text_id)
-, _animation_id(theme._animation_id)
-, _animation_paths(theme._animation_paths)
 {
   for (const auto& t : theme._images) {
     _paths.emplace_back(t.path);
   }
 }
 
-Image Theme::get() const
+Image Theme::get_image() const
 {
   // Lock the mutex so we don't interfere with the thread calling
   // ThemeBank::async_update().
@@ -123,12 +88,12 @@ Image Theme::get_animation(std::size_t frame) const
 
 const std::string& Theme::get_text() const
 {
-  static const std::string empty;
-  if (_texts.empty()) {
-    return empty;
-  }
-  return _texts[
-      _last_text_id = random_excluding(_texts.size(), _last_text_id)];
+  return _text_lines.next();
+}
+
+const std::string& Theme::get_font() const
+{
+  return _font_paths.next();
 }
 
 void Theme::set_target_load(std::size_t target_load)
@@ -458,20 +423,14 @@ bool Theme::load_internal(Image* image, const std::string& path) const
 
 void Theme::load_animation_internal()
 {
-  auto id = random_excluding(_animation_paths.size(), _animation_id);
   std::vector<Image> images;
-  const auto& path = _animation_paths[id];
+  std::string path = _animation_paths.next();
   bool loaded = path.substr(path.length() - 4) == ".gif" ?
-      load_animation_gif_internal(images, _animation_paths[id]) :
-      load_animation_webm_internal(images, _animation_paths[id]);
+      load_animation_gif_internal(images, path) :
+      load_animation_webm_internal(images, path);
   if (!loaded) {
-    _animation_paths.erase(_animation_paths.begin() + id);
-    if (_animation_id >= id) {
-      --_animation_id;
-    }
     return;
   }
-  _animation_id = id;
 
   _animation_mutex.lock();
   std::swap(images, _animation_images);
@@ -555,8 +514,8 @@ Image Theme::get_internal(const std::vector<Image>& list, std::size_t index,
 }
 
 ThemeBank::ThemeBank(const std::vector<trance_pb::Theme>& themes,
-                     unsigned int image_cache_size)
-: _image_cache_size{image_cache_size}
+                     const trance_pb::SystemConfiguration& system)
+: _image_cache_size{system.image_cache_size()}
 , _updates{0}
 , _cooldown{switch_cooldown}
 {
@@ -616,26 +575,15 @@ ThemeBank::ThemeBank(const std::vector<trance_pb::Theme>& themes,
   }
 }
 
-Image ThemeBank::get(bool alternate) const
+const Theme& ThemeBank::get(bool alternate) const
 {
-  return alternate ? _themes[_a].get() : _themes[_b].get();
-}
-
-const std::string& ThemeBank::get_text(bool alternate) const
-{
-  return alternate ? _themes[_a].get_text() : _themes[_b].get_text();
-}
-
-Image ThemeBank::get_animation(std::size_t frame, bool alternate) const
-{
-  return alternate ?
-      _themes[_a].get_animation(frame) : _themes[_b].get_animation(frame);
+  return alternate ? _themes[_a] : _themes[_b];
 }
 
 void ThemeBank::maybe_upload_next()
 {
   if (_themes.size() > 3 && _themes[_next].loaded() > 0) {
-    _themes[_next].get();
+    _themes[_next].get_image();
   }
 }
 

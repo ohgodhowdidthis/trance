@@ -13,13 +13,14 @@
 #include <OVR_CAPI_GL.h>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
-#include "fonts.h"
+#include "font.h"
 
 namespace trance_pb {
   class Session;
   class Program;
 }
 
+struct Font;
 struct Image;
 class ThemeBank;
 class Visual;
@@ -27,8 +28,7 @@ class Director {
 public:
 
   Director(sf::RenderWindow& window, const trance_pb::Session& session,
-           ThemeBank& themes, const std::vector<std::string>& fonts,
-           unsigned int width, unsigned int height);
+           ThemeBank& themes, unsigned int width, unsigned int height);
   ~Director();
 
   // Called from main().
@@ -38,7 +38,7 @@ public:
 
   // Visual API: called from Visual objects to render and control the
   // various elements.
-  Image get(bool alternate = false) const;
+  Image get_image(bool alternate = false) const;
   const std::string& get_text(bool alternate = false) const;
   void maybe_upload_next() const;
 
