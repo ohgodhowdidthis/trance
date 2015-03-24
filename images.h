@@ -119,6 +119,8 @@ private:
 class ImageBank {
 public:
 
+  ImageBank(unsigned int image_cache_size);
+
   // Add a bunch of sets with image paths and text strings, then call
   // initialise().
   void add_set(const std::vector<std::string>& images,
@@ -156,6 +158,7 @@ private:
   std::size_t _next;
 
   std::vector<ImageSet> _sets;
+  unsigned int _image_cache_size;
   unsigned int _updates;
   std::atomic<unsigned int> _cooldown;
 

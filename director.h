@@ -15,20 +15,9 @@
 #include <SFML/OpenGL.hpp>
 #include "fonts.h"
 
-struct Settings {
-  Settings()
-  : main_text_colour(255, 150, 200, 224)
-  , shadow_text_colour(0, 0, 0, 192)
-  , image_cache_size(150)
-  , font_cache_size(10)
-  {}
-  sf::Color main_text_colour;
-  sf::Color shadow_text_colour;
-  std::size_t image_cache_size;
-  std::size_t font_cache_size;
-
-  static Settings settings;
-};
+namespace trance_pb {
+  class Session;
+}
 
 struct Image;
 class ImageBank;
@@ -36,9 +25,9 @@ class Program;
 class Director {
 public:
 
-  Director(sf::RenderWindow& window,
+  Director(sf::RenderWindow& window, const trance_pb::Session& session,
            ImageBank& images, const std::vector<std::string>& fonts,
-           unsigned int width, unsigned int height, bool oculus_rift);
+           unsigned int width, unsigned int height);
   ~Director();
 
   // Called from main().
@@ -78,6 +67,7 @@ private:
   sf::Vector2f get_text_size(const std::string& text, const Font& font) const;
 
   sf::RenderWindow& _window;
+  const trance_pb::Session& _session;
   ImageBank& _images;
   FontCache _fonts;
   unsigned int _width;

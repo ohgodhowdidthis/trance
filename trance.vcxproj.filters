@@ -18,6 +18,7 @@
     <ClCompile Include="giflib_5_1_0\lib\gifalloc.c">
       <Filter>gif</Filter>
     </ClCompile>
+    <ClCompile Include="session.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="director.h" />
@@ -25,6 +26,7 @@
     <ClInclude Include="fonts.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="images.h" />
+    <ClInclude Include="session.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="jpeg">
@@ -33,5 +35,8 @@
     <Filter Include="gif">
       <UniqueIdentifier>{3dba2b5a-f5ac-4326-b9fe-a815d386d3e5}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="trance.proto" />
   </ItemGroup>
 </Project>

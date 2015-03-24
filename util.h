@@ -3,7 +3,7 @@
 
 #include <random>
 
-inline std::mt19937& mersenne_twister()
+inline std::mt19937& get_mersenne_twister()
 {
   static std::random_device rd;
   static std::mt19937 mt{rd()};
@@ -15,7 +15,7 @@ T random(const T& max)
 {
   static_assert(std::is_integral<T>::value, "random<T> needs integral type T");
   std::uniform_int_distribution<T> dist{0, max - 1};
-  return dist(mersenne_twister());
+  return dist(get_mersenne_twister());
 }
 
 template<typename T>

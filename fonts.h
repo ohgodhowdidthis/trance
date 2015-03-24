@@ -58,7 +58,8 @@ namespace std {
 class FontCache {
 public:
 
-  FontCache(const std::vector<std::string>& paths);
+  FontCache(const std::vector<std::string>& paths,
+            unsigned int font_cache_size);
 
   static const std::size_t char_size_lock = 20;
   const std::string& get_path(bool force_change) const;
@@ -68,6 +69,7 @@ public:
 private:
 
   std::vector<std::string> _paths;
+  unsigned int _font_cache_size;
   mutable std::size_t _last_id;
   mutable std::list<Font> _list;
   mutable std::unordered_map<Font::key_t, Font*> _map;

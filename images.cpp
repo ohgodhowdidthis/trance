@@ -1,7 +1,6 @@
 #include "images.h"
 #include "director.h"
 #include "util.h"
-#include <algorithm>
 #include <iostream>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
@@ -13,13 +12,6 @@
 #define VPX_CODEC_DISABLE_COMPAT 1
 #include <vpx/vpx_decoder.h>
 #include <vpx/vp8dx.h>
-
-namespace {
-  std::size_t image_cache_size()
-  {
-    return std::max((std::size_t) 6, Settings::settings.image_cache_size);
-  }
-}
 
 std::vector<GLuint> Image::textures_to_delete;
 std::mutex Image::textures_to_delete_mutex;
@@ -560,6 +552,12 @@ void ImageBank::add_set(const std::vector<std::string>& images,
   _sets.emplace_back(images, texts, animations);
 }
 
+ImageBank::ImageBank(unsigned int image_cache_size)
+: _image_cache_size{image_cache_size}
+{
+
+}
+
 void ImageBank::initialise()
 {
   _updates = 0;
@@ -577,8 +575,8 @@ void ImageBank::initialise()
     // Two active sets and switching just swaps them.
     _a = 0;
     _b = 1;
-    _sets[0].set_target_load(image_cache_size() / 2);
-    _sets[1].set_target_load(image_cache_size() / 2);
+    _sets[0].set_target_load(_image_cache_size / 2);
+    _sets[1].set_target_load(_image_cache_size / 2);
     _sets[0].perform_all_loads();
     _sets[1].perform_all_loads();
     return;
@@ -599,9 +597,9 @@ void ImageBank::initialise()
   }
   while (_next == _b);
 
-  _sets[_a].set_target_load(image_cache_size() / 3);
-  _sets[_b].set_target_load(image_cache_size() / 3);
-  _sets[_next].set_target_load(image_cache_size() / 3);
+  _sets[_a].set_target_load(_image_cache_size / 3);
+  _sets[_b].set_target_load(_image_cache_size / 3);
+  _sets[_next].set_target_load(_image_cache_size / 3);
   _sets[_a].perform_all_loads();
   _sets[_b].perform_all_loads();
 
@@ -673,7 +671,7 @@ bool ImageBank::change_sets()
 
   // Update target loads.
   _sets[_prev].set_target_load(0);
-  _sets[_next].set_target_load(image_cache_size() / 3);
+  _sets[_next].set_target_load(_image_cache_size / 3);
   return true;
 }
 

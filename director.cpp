@@ -1,12 +1,13 @@
 ﻿#include "director.h"
 #include "images.h"
 #include "program.h"
+#include "session.h"
 #include "util.h"
 #include <iostream>
 #include <GL/glew.h>
 #include <SFML/OpenGL.hpp>
+#include <trance.pb.h>
 
-Settings Settings::settings;
 static const unsigned int spiral_type_max = 7;
 
 static const std::string text_vertex = R"(
@@ -161,12 +162,13 @@ void main(void)
 }
 )";
 
-Director::Director(sf::RenderWindow& window,
+Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
                    ImageBank& images, const std::vector<std::string>& fonts,
-                   unsigned int width, unsigned int height, bool oculus_rift)
+                   unsigned int width, unsigned int height)
 : _window{window}
+, _session{session}
 , _images{images}
-, _fonts{fonts}
+, _fonts{fonts, session.system().font_cache_size()}
 , _width{width}
 , _height{height}
 , _image_program{0}
@@ -178,7 +180,7 @@ Director::Director(sf::RenderWindow& window,
 , _spiral_width{60}
 , _switch_sets{0}
 {
-  _oculus.enabled = oculus_rift;
+  _oculus.enabled = session.system().enable_oculus_rift();
   _oculus.hmd = nullptr;
   _oculus.fbo = 0;
   _oculus.fb_tex = 0;
@@ -466,12 +468,14 @@ void Director::render_text(const std::string& text, float multiplier) const
 
   auto main_size = fit_text(default_size, false);
   auto shadow_size = fit_text(default_size + shadow_extra, true);
-  render_raw_text(text, _fonts.get_font(_current_font, shadow_size),
-                  Settings::settings.shadow_text_colour, off3d(1.f + multiplier),
-                  std::exp((4.f - multiplier) / 16.f));
-  render_raw_text(text, _fonts.get_font(_current_font, main_size),
-                  Settings::settings.main_text_colour, off3d(multiplier),
-                  std::exp((4.f - multiplier) / 16.f));
+  render_raw_text(
+      text, _fonts.get_font(_current_font, shadow_size),
+      colour2sf(_session.program().shadow_text_colour()), off3d(1.f + multiplier),
+      std::exp((4.f - multiplier) / 16.f));
+  render_raw_text(
+      text, _fonts.get_font(_current_font, main_size),
+      colour2sf(_session.program().main_text_colour()), off3d(multiplier),
+      std::exp((4.f - multiplier) / 16.f));
 }
 
 void Director::render_subtext(float alpha, float multiplier) const
@@ -603,26 +607,39 @@ void Director::change_program()
   _current_subfont = _fonts.get_path(false);
   _program.swap(_old_program);
 
-  auto r = random(12);
-  if (r == 0) {
+  unsigned int total = 0;
+  for (const auto& type : _session.program().type()) {
+    total += type.random_weight();
+  }
+  auto r = random(total);
+  total = 0;
+  trance_pb::ProgramConfiguration_Type t;
+  for (const auto& type : _session.program().type()) {
+    if (r < (total += type.random_weight())) {
+      t = type.type();
+      break;
+    }
+  }
+
+  if (t == trance_pb::ProgramConfiguration_Type_ACCELERATE) {
     _program.reset(new AccelerateProgram{*this, random_chance()});
   }
-  else if (r == 1) {
+  if (t == trance_pb::ProgramConfiguration_Type_SLOW_FLASH) {
     _program.reset(new SlowFlashProgram{*this});
   }
-  else if (r == 2 || r == 3) {
+  if (t == trance_pb::ProgramConfiguration_Type_SUB_TEXT) {
     _program.reset(new SubTextProgram{*this});
   }
-  else if (r == 4 || r == 5) {
-    _program.reset(new ParallelProgram{*this});
-  }
-  else if (r == 6 || r == 7) {
-    _program.reset(new SuperParallelProgram{*this});
-  }
-  else if (r == 8 || r == 9) {
+  if (t == trance_pb::ProgramConfiguration_Type_FLASH_TEXT) {
     _program.reset(new FlashTextProgram{*this});
   }
-  else {
+  if (t == trance_pb::ProgramConfiguration_Type_PARALLEL) {
+    _program.reset(new ParallelProgram{*this});
+  }
+  if (t == trance_pb::ProgramConfiguration_Type_SUPER_PARALLEL) {
+    _program.reset(new SuperParallelProgram{*this});
+  }
+  if (t == trance_pb::ProgramConfiguration_Type_ANIMATION) {
     _program.reset(new AnimationProgram{*this});
   }
 }

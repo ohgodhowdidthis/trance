@@ -1,5 +1,6 @@
 #include <OVR_CAPI.h>
 #include <SFML/Window.hpp>
+#include <trance.pb.h>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
@@ -7,27 +8,9 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include "images.h"
 #include "director.h"
-
-static const std::string settings_cfg_path = "./settings.cfg";
-static const std::string settings_cfg_contents = R"(\
-# number of images to keep in memory at a time
-# (uses up both RAM and video card memory)
-image_cache_size 120
-
-# number of font sizes to keep in memory at a time
-# each character size of a single font uses another
-# slot in the cache
-# (uses up video card memory)
-font_cache_size 10
-
-# rgba of the main text
-main_text_colour 255 150 200 224
-
-# rgba of the drop shadow
-shadow_text_color 0 0 0 192
-)";
+#include "images.h"
+#include "session.h"
 
 struct program_set {
   std::vector<std::string> images;
@@ -115,70 +98,22 @@ void search_data(program_data& data)
   data.sets.erase(wildcards);
 }
 
-void load_settings()
-{
-  std::ifstream f(settings_cfg_path);
-  if (!f) {
-    // Write default file.
-    std::ofstream f(settings_cfg_path);
-    f << settings_cfg_contents;
-    f.close();
-    return;
-  }
-
-  std::string line;
-  while (std::getline(f, line)) {
-    if (!line.length()) {
-      continue;
-    }
-
-    std::stringstream ss(line);
-    std::string str;
-    unsigned int val;
-    ss >> str;
-    if (str == "image_cache_size") {
-      ss >> Settings::settings.image_cache_size;
-    }
-    if (str == "font_cache_size") {
-      ss >> Settings::settings.font_cache_size;
-    }
-    if (str == "main_text_colour") {
-      ss >> val;
-      Settings::settings.main_text_colour.r = val;
-      ss >> val;
-      Settings::settings.main_text_colour.g = val;
-      ss >> val;
-      Settings::settings.main_text_colour.b = val;
-      ss >> val;
-      Settings::settings.main_text_colour.a = val;
-    }
-    if (str == "shadow_text_colour") {
-      ss >> val;
-      Settings::settings.shadow_text_colour.r = val;
-      ss >> val;
-      Settings::settings.shadow_text_colour.g = val;
-      ss >> val;
-      Settings::settings.shadow_text_colour.b = val;
-      ss >> val;
-      Settings::settings.shadow_text_colour.a = val;
-    }
-  }
-}
-
 int main(int argc, char** argv)
 {
-  static const bool oculus_rift = true;
   static const std::string bad_alloc =
       "OUT OF MEMORY! TRY REDUCING USAGE IN SETTINGS...";
   program_data data;
   search_data(data);
-  load_settings();
   // Currently there must be at least one set.
   if (data.sets.empty()) {
     std::cerr << "NO IMAGES FOUND!" << std::endl;
     return 1;
   }
-  if (oculus_rift) {
+
+  static const std::string session_cfg_path = "./session.cfg";
+  trance_pb::Session session = load_session(session_cfg_path);
+  save_session(session, session_cfg_path);
+  if (session.system().enable_oculus_rift()) {
     ovr_Initialize();
   }
 
@@ -187,7 +122,7 @@ int main(int argc, char** argv)
   glClearColor(0.f, 0.f, 0.f, 0.f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  ImageBank images;
+  ImageBank images{session.system().image_cache_size()};
   for (const auto& p : data.sets) {
     std::cout << "set " << p.first << " with " <<
         p.second.images.size() << " image(s), " <<
@@ -199,7 +134,8 @@ int main(int argc, char** argv)
 
   auto video_mode = sf::VideoMode::getDesktopMode();
   window.create(video_mode, "Ubtrance",
-                oculus_rift ? sf::Style::None : sf::Style::Fullscreen);
+                session.system().enable_oculus_rift() ?
+                sf::Style::None : sf::Style::Fullscreen);
   window.setVerticalSyncEnabled(false);
   window.setFramerateLimit(60);
   window.setVisible(true);
@@ -207,8 +143,8 @@ int main(int argc, char** argv)
   window.display();
 
   auto director = std::make_unique<Director>(
-      window, images, data.fonts,
-      video_mode.width, video_mode.height, oculus_rift);
+      window, session, images, data.fonts,
+      video_mode.width, video_mode.height);
   const float frame_time = 1.f / 120;
   bool running = true;
 
