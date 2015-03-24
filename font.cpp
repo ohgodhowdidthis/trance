@@ -1,27 +1,10 @@
-#include "fonts.h"
+#include "font.h"
 #include "director.h"
 #include "util.h"
 
-FontCache::FontCache(const std::vector<std::string>& paths,
-                     unsigned int font_cache_size)
-: _paths{paths}
-, _font_cache_size{font_cache_size}
-, _last_id{random(paths.size())}
+FontCache::FontCache(unsigned int font_cache_size)
+: _font_cache_size{font_cache_size}
 {
-}
-
-const std::string& FontCache::get_path(bool force_change) const
-{
-  const static std::string empty;
-  if (!_paths.size()) {
-    return empty;
-  }
-  if (_paths.size() == 1) {
-    return _paths.front();
-  }
-  _last_id = force_change ?
-      random_excluding(_paths.size(), _last_id) : random(_paths.size());
-  return _paths[_last_id];
 }
 
 const Font& FontCache::get_font(

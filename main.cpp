@@ -27,30 +27,21 @@ int main(int argc, char** argv)
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   std::vector<trance_pb::Theme> themes;
-  // TODO: handle fonts properly.
-  std::unordered_set<std::string> font_set;
-  for (const auto& theme : session.theme()) {
-    bool enabled = false;
-    for (const auto& name : session.program().enabled_theme_name()) {
-      if (name == theme.theme_name()) {
-        enabled = true;
-        break;
-      }
-    }
-    if (!enabled) {
+  for (const auto& theme_name : session.program().enabled_theme_name()) {
+    auto it = session.theme_map().find(theme_name);
+    if (it == session.theme_map().end()) {
       continue;
     }
+    const auto& theme = it->second;
 
-    std::cout << "set " << theme.theme_name() << " with " <<
+    std::cout << "theme " << it->first << " with " <<
         theme.image_path_size() << " image(s), " <<
-        theme.animation_path_size() << " animation(s), and " <<
+        theme.animation_path_size() << " animation(s), " <<
+        theme.font_path_size() << " font(s), and " <<
         theme.text_line_size() << " line(s) of text" << std::endl;
     themes.push_back(theme);
-    for (const auto& font : theme.font_path()) {
-      font_set.emplace(font);
-    }
   }
-  ThemeBank theme_bank{themes, session.system().image_cache_size()};
+  ThemeBank theme_bank{themes, session.system()};
 
   auto video_mode = sf::VideoMode::getDesktopMode();
   window.create(video_mode, "Ubtrance",
@@ -64,7 +55,6 @@ int main(int argc, char** argv)
 
   auto director = std::make_unique<Director>(
       window, session, theme_bank,
-      std::vector<std::string>{font_set.begin(), font_set.end()},
       video_mode.width, video_mode.height);
   bool running = true;
 

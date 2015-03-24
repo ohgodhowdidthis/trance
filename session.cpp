@@ -11,6 +11,31 @@
 
 namespace {
 
+std::string split_text_line(const std::string& text)
+{
+  // Split strings into two lines at the space closest to the middle. This is
+  // sort of ad-hoc. There should probably be a better way that can judge length
+  // and split over more than two lines.
+  auto l = text.length() / 2;
+  auto r = l;
+  while (true) {
+    if (text[r] == ' ') {
+      return text.substr(0, r) + '\n' + text.substr(r + 1);
+    }
+
+    if (text[l] == ' ') {
+      return text.substr(0, l) + '\n' + text.substr(l + 1);
+    }
+
+    if (l == 0 || r == text.length() - 1) {
+      break;
+    }
+    --l;
+    ++r;
+  }
+  return text;
+}
+
 void set_default_visual_types(trance_pb::Program* program)
 {
   program->clear_visual_type();
@@ -55,7 +80,7 @@ void validate_colour(trance_pb::Colour* colour)
 void search_resources(trance_pb::Session& session)
 {
   static const std::string wildcards = "/wildcards/";
-  std::unordered_map<std::string, trance_pb::Theme> themes;
+  auto& themes = *session.mutable_theme_map();
 
   std::tr2::sys::path path(".");
   for (auto it = std::tr2::sys::recursive_directory_iterator(path);
@@ -85,7 +110,7 @@ void search_resources(trance_pb::Session& session)
           for (auto& c : line) {
             c = toupper(c);
           }
-          themes[theme_name].add_text_line(line);
+          themes[theme_name].add_text_line(split_text_line(line));
         }
       }
       else if (ext == ".gif" || ext == ".webm") {
@@ -106,11 +131,14 @@ void search_resources(trance_pb::Session& session)
     for (const auto& s : themes[wildcards].image_path()) {
       pair.second.add_image_path(s);
     }
-    for (const auto& s : themes[wildcards].text_line()) {
-      pair.second.add_text_line(s);
-    }
     for (const auto& s : themes[wildcards].animation_path()) {
       pair.second.add_animation_path(s);
+    }
+    for (const auto& s : themes[wildcards].font_path()) {
+      pair.second.add_font_path(s);
+    }
+    for (const auto& s : themes[wildcards].text_line()) {
+      pair.second.add_text_line(s);
     }
   }
 
@@ -120,8 +148,6 @@ void search_resources(trance_pb::Session& session)
   }
   themes.erase(wildcards);
   for (auto& pair : themes) {
-    pair.second.set_theme_name(pair.first);
-    *session.add_theme() = pair.second;
     session.mutable_program()->add_enabled_theme_name(pair.first);
   }
 }
