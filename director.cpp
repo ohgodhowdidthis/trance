@@ -52,7 +52,7 @@ void main()
   pos = pos * (max - min) + min;
   pos = (pos - 0.5) * 2.0;
   gl_Position = vec4(pos, 0.0, 1.0);
-  float z = 0.1 * zoom + 0.005;
+  float z = 0.25 * zoom + 0.005;
   vtexcoord = vec2(texcoord.x > 0.5 ? 1.0 - z : z,
                    texcoord.y > 0.5 ? 1.0 - z : z);
   vtexcoord = vec2(flip.x != 0.0 ? 1.0 - vtexcoord.x : vtexcoord.x,
@@ -82,6 +82,8 @@ static const std::string spiral_fragment = R"(
 uniform float time;
 uniform vec2 resolution;
 uniform float offset;
+uniform vec4 acolour;
+uniform vec4 bcolour;
 
 // A divisor of 360 (determines the number of spiral arms).
 uniform float width;
@@ -157,8 +159,7 @@ void main(void)
   if (amod > width - t) {
     v = 1.0 - (amod - width + t) / (2.0 * t);
   }
-  gl_FragColor = vec4(v, v, v,
-                      0.2 * min(1.0, radius * 2.0));
+  gl_FragColor = mix(acolour, bcolour, v);
 }
 )";
 
@@ -310,6 +311,11 @@ Director::~Director()
   }
 }
 
+float Director::get_frame_time() const
+{
+  return 1.f / program().global_fps();
+}
+
 void Director::update()
 {
   if (_oculus.enabled) {
@@ -375,7 +381,8 @@ void Director::render_image(const Image& image, float alpha,
 {
   if (image.anim_type != Image::NONE) {
     bool alternate = image.anim_type == Image::ALTERNATE_ANIMATION;
-    Image anim = _images.get_animation(_switch_sets / 8, alternate);
+    Image anim = _images.get_animation(
+        std::size_t(120.f * get_frame_time() * _switch_sets / 8), alternate);
     if (anim.texture) {
       render_image(anim, alpha, multiplier, zoom);
       return;
@@ -391,7 +398,8 @@ void Director::render_image(const Image& image, float alpha,
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, image.texture);
   glUniform1f(glGetUniformLocation(_image_program, "alpha"), alpha);
-  glUniform1f(glGetUniformLocation(_image_program, "zoom"), zoom);
+  glUniform1f(glGetUniformLocation(_image_program, "zoom"),
+              program().zoom_intensity() * zoom);
 
   GLuint ploc = glGetAttribLocation(_image_program, "position");
   glEnableVertexAttribArray(ploc);
@@ -470,11 +478,11 @@ void Director::render_text(const std::string& text, float multiplier) const
   auto shadow_size = fit_text(default_size + shadow_extra, true);
   render_raw_text(
       text, _fonts.get_font(_current_font, shadow_size),
-      colour2sf(_session.program().shadow_text_colour()), off3d(1.f + multiplier),
+      colour2sf(program().shadow_text_colour()), off3d(1.f + multiplier),
       std::exp((4.f - multiplier) / 16.f));
   render_raw_text(
       text, _fonts.get_font(_current_font, main_size),
-      colour2sf(_session.program().main_text_colour()), off3d(multiplier),
+      colour2sf(program().main_text_colour()), off3d(multiplier),
       std::exp((4.f - multiplier) / 16.f));
 }
 
@@ -535,6 +543,12 @@ void Director::render_spiral(float multiplier) const
               float(_spiral_width));
   glUniform1f(glGetUniformLocation(_spiral_program, "spiral_type"),
               float(_spiral_type));
+  glUniform4f(glGetUniformLocation(_spiral_program, "acolour"),
+              program().spiral_colour_a().r(), program().spiral_colour_a().g(),
+              program().spiral_colour_a().b(), program().spiral_colour_a().a());
+  glUniform4f(glGetUniformLocation(_spiral_program, "bcolour"),
+              program().spiral_colour_b().r(), program().spiral_colour_b().g(),
+              program().spiral_colour_b().b(), program().spiral_colour_b().a());
 
   auto loc = glGetAttribLocation(_spiral_program, "position");
   glEnableVertexAttribArray(loc);
@@ -608,13 +622,13 @@ void Director::change_program()
   _program.swap(_old_program);
 
   unsigned int total = 0;
-  for (const auto& type : _session.program().type()) {
+  for (const auto& type : program().type()) {
     total += type.random_weight();
   }
   auto r = random(total);
   total = 0;
   trance_pb::ProgramConfiguration_Type t;
-  for (const auto& type : _session.program().type()) {
+  for (const auto& type : program().type()) {
     if (r < (total += type.random_weight())) {
       t = type.type();
       break;
@@ -642,6 +656,11 @@ void Director::change_program()
   if (t == trance_pb::ProgramConfiguration_Type_ANIMATION) {
     _program.reset(new AnimationProgram{*this});
   }
+}
+
+const trance_pb::ProgramConfiguration& Director::program() const
+{
+  return _session.program();
 }
 
 void Director::init_oculus_rift()

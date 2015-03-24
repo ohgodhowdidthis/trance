@@ -8,6 +8,10 @@
 #include <vector>
 #include <SFML/Graphics.hpp>
 
+namespace trance_pb {
+  class ImageSet;
+}
+
 // In-memory image with load-on-request OpenGL texture which is ref-counted
 // and automatically unloaded once no longer used.
 struct Image {
@@ -50,9 +54,7 @@ struct Image {
 class ImageSet {
 public:
 
-  ImageSet(const std::vector<std::string>& images,
-           const std::vector<std::string>& texts,
-           const std::vector<std::string>& animations);
+  ImageSet(const trance_pb::ImageSet& proto);
   ImageSet(const ImageSet& images);
 
   // Get a random loaded in-memory Image or text string.
@@ -119,14 +121,8 @@ private:
 class ImageBank {
 public:
 
-  ImageBank(unsigned int image_cache_size);
-
-  // Add a bunch of sets with image paths and text strings, then call
-  // initialise().
-  void add_set(const std::vector<std::string>& images,
-               const std::vector<std::string>& texts,
-               const std::vector<std::string>& animations);
-  void initialise();
+  ImageBank(const std::vector<trance_pb::ImageSet>& sets,
+            unsigned int image_cache_size);
 
   // Get Images/text strings from either of the two active sets.
   Image get(bool alternate = false) const;
