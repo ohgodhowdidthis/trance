@@ -54,7 +54,7 @@ public:
                     float multiplier = 8.f, float zoom = 0.f) const;
   void render_text(const std::string& text, float multiplier = 4.f) const;
   void render_subtext(float alpha, float multiplier = 6.f) const;
-  void render_spiral(float multiplier = 0.f) const;
+  void render_spiral() const;
 
   void rotate_spiral(float amount);
   void change_spiral();
@@ -67,7 +67,7 @@ private:
 
   const trance_pb::Program& program() const;
   void init_oculus_rift();
-  sf::Vector2f off3d(float multiplier) const;
+  sf::Vector2f off3d(float multiplier, bool text) const;
   uint32_t view_width() const;
 
   void render_texture(float l, float t, float r, float b,

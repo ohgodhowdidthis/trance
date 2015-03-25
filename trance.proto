@@ -13,13 +13,18 @@ message SystemConfiguration {
   // Whether to enable oculus rift support, if possible.
   bool enable_oculus_rift = 1;
 
+  // Intensity of depth effects in oculus rift on various visual elements
+  // (default is 1.0).
+  float oculus_image_depth = 2;
+  float oculus_text_depth = 3;
+
   // Number of images to keep in memory at a time. Uses up both RAM and video
   // memory.
-  uint32 image_cache_size = 2;
+  uint32 image_cache_size = 4;
 
   // Number of font sizes to keep in memory at a time. Each character size of a
   // single font uses up another slot in the cache. Uses up video card memory.
-  uint32 font_cache_size = 3;
+  uint32 font_cache_size = 5;
 }
 
 // Configuration for a single program, i.e. a combination of a selection of

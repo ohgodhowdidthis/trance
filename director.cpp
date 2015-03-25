@@ -416,7 +416,7 @@ void Director::render_image(const Image& image, float alpha,
   glBindBuffer(GL_ARRAY_BUFFER, _tex_buffer);
   glVertexAttribPointer(tloc, 2, GL_FLOAT, false, 0, 0);
 
-  float offx3d = off3d(multiplier).x;
+  float offx3d = off3d(multiplier, false).x;
   auto x = float(image.width());
   auto y = float(image.height());
 
@@ -483,11 +483,11 @@ void Director::render_text(const std::string& text, float multiplier) const
   auto shadow_size = fit_text(default_size + shadow_extra, true);
   render_raw_text(
       text, _fonts.get_font(_current_font, shadow_size),
-      colour2sf(program().shadow_text_colour()), off3d(1.f + multiplier),
+      colour2sf(program().shadow_text_colour()), off3d(1.f + multiplier, true),
       std::exp((4.f - multiplier) / 16.f));
   render_raw_text(
       text, _fonts.get_font(_current_font, main_size),
-      colour2sf(program().main_text_colour()), off3d(multiplier),
+      colour2sf(program().main_text_colour()), off3d(multiplier, true),
       std::exp((4.f - multiplier) / 16.f));
 }
 
@@ -512,7 +512,7 @@ void Director::render_subtext(float alpha, float multiplier) const
     return t;
   };
 
-  float offx3d = off3d(multiplier).x;
+  float offx3d = off3d(multiplier, true).x;
   auto text = make_text();
   auto d = get_text_size(text, font);
   auto colour = sf::Color(0, 0, 0, sf::Uint8(alpha * 255));
@@ -527,7 +527,7 @@ void Director::render_subtext(float alpha, float multiplier) const
   }
 }
 
-void Director::render_spiral(float multiplier) const
+void Director::render_spiral() const
 {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -540,7 +540,7 @@ void Director::render_spiral(float multiplier) const
   glUniform2f(glGetUniformLocation(_spiral_program, "resolution"),
               float(view_width()), float(_height));
 
-  float offset = off3d(multiplier).x +
+  float offset = off3d(0.f, false).x +
       (_oculus.rendering_right ? float(view_width()) : 0.f);
   glUniform1f(glGetUniformLocation(_spiral_program, "offset"),
               _oculus.enabled ? offset : 0.f);
@@ -790,11 +790,13 @@ void Director::init_oculus_rift()
 #endif
 }
 
-sf::Vector2f Director::off3d(float multiplier) const
+sf::Vector2f Director::off3d(float multiplier, bool text) const
 {
   float x = !_oculus.enabled || !multiplier ? 0.f :
       !_oculus.rendering_right ? _width / (8.f * multiplier) :
                                  _width / -(8.f * multiplier);
+  x *= (text ? _session.system().oculus_text_depth() :
+               _session.system().oculus_image_depth());
   return {x, 0};
 }
 

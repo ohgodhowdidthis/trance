@@ -278,7 +278,7 @@ uint32_t Image::texture() const
 
 void Image::ensure_texture_uploaded() const
 {
-  if (_texture) {
+  if (_texture || !(*this)) {
     return;
   }
 
@@ -385,14 +385,14 @@ Image load_image(const std::string& path)
 
 std::vector<Image> load_animation(const std::string& path)
 {
-  auto ext = path.substr(path.length() - 4);
-  for (auto& c : ext) {
+  std::string lower = path;
+  for (auto& c : lower) {
     c = tolower(c);
   }
-  if (ext == ".gif") {
+  if (lower.substr(lower.size() - 4) == ".gif") {
     return load_animation_gif(path);
   }
-  if (ext == ".webm") {
+  if (lower.substr(lower.size() - 5) == ".webm") {
     return load_animation_webm(path);
   }
   return {};
