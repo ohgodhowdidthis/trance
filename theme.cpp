@@ -75,13 +75,12 @@ void Theme::set_target_load(std::size_t target_load)
 
 void Theme::perform_swap()
 {
-  if (_animation_paths.size() > 2 && random_chance(4)) {
+  if (_animation_paths.enabled_count() >= 2 && random_chance(4)) {
     load_animation_internal();
     return;
   }
-  // Swap if there's definitely an image loaded beyond the one currently
-  // displayed.
-  if (_images.size() > 2 && _image_paths.enabled_count()) {
+  // Swap if there's definitely an image to load.
+  if (_image_paths.enabled_count()) {
     unload_image_internal();
     load_image_internal();
   }
@@ -89,7 +88,7 @@ void Theme::perform_swap()
 
 void Theme::perform_load()
 {
-  if (!_animation_paths.empty()) {
+  if (_animation_paths.enabled_count()) {
     if (_target_load && _animation_images.empty()) {
       load_animation_internal();
     }
@@ -116,7 +115,8 @@ void Theme::perform_all_loads()
 bool Theme::all_loaded() const
 {
   return (_images.size() == _target_load || !_image_paths.enabled_count()) &&
-      (_animation_images.empty() == !_target_load || _animation_paths.empty());
+      (_animation_images.empty() == !_target_load ||
+       !_animation_paths.enabled_count());
 }
 
 std::size_t Theme::loaded() const
@@ -133,12 +133,10 @@ void Theme::load_image_internal()
 
   auto path = _image_paths.get(index);
   Image image = load_image(path);
-  if (image) {
-    _image_mutex.lock();
-    _image_paths.set_enabled(index, false);
-    _images.emplace(index, image);
-    _image_mutex.unlock();
-  }
+  _image_mutex.lock();
+  _image_paths.set_enabled(index, false);
+  _images.emplace(index, image ? image : Image{});
+  _image_mutex.unlock();
 }
 
 void Theme::unload_image_internal()
@@ -154,8 +152,11 @@ void Theme::unload_image_internal()
 
 void Theme::load_animation_internal()
 {
-  std::vector<Image> images = load_animation(_animation_paths.next());
+  auto index = _animation_paths.next_index();
+  std::vector<Image> images = load_animation(_animation_paths.get(index));
   if (images.empty()) {
+    // Don't try to load again.
+    _animation_paths.set_enabled(index, false);
     return;
   }
 

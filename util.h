@@ -27,6 +27,9 @@ T random_excluding(const T& max, const T& exclude)
   if (max == 1) {
     return 0;
   }
+  if (exclude < 0 || exclude >= max) {
+    return random(max);
+  }
   T t = random(max - 1);
   return t >= exclude ? 1 + t : t;
 }

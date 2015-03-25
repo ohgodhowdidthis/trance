@@ -203,6 +203,8 @@ trance_pb::Session get_default_session()
 
   auto system = session.mutable_system();
   system->set_enable_oculus_rift(true);
+  system->set_oculus_image_depth(1.f);
+  system->set_oculus_text_depth(1.f);
   system->set_image_cache_size(64);
   system->set_font_cache_size(8);
 
