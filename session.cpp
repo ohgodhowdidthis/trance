@@ -2,9 +2,6 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
 #include <SFML/Graphics/Color.hpp>
 #include <google/protobuf/text_format.h>
 #include <trance.pb.cc>
@@ -113,7 +110,8 @@ void search_resources(trance_pb::Session& session)
           themes[theme_name].add_text_line(split_text_line(line));
         }
       }
-      else if (ext == ".gif" || ext == ".webm") {
+      // Should really check is_gif_animated(), but it takes far too long.
+      else if (ext == ".webm" || ext == ".gif") {
         themes[theme_name].add_animation_path(it->path());
       }
       else if (ext == ".png" || ext == ".bmp" ||
@@ -212,7 +210,7 @@ trance_pb::Session get_default_session()
   set_default_visual_types(program);
   program->set_global_fps(120);
   program->set_zoom_intensity(.2f);
-  *program->mutable_spiral_colour_a() = sf2colour({255, 255, 255, 50});
+  *program->mutable_spiral_colour_a() = sf2colour({255, 150, 200, 50});
   *program->mutable_spiral_colour_b() = sf2colour({0, 0, 0, 50});
   *program->mutable_main_text_colour() = sf2colour({255, 150, 200, 224});
   *program->mutable_shadow_text_colour() = sf2colour({0, 0, 0, 192});
@@ -229,7 +227,7 @@ void validate_session(trance_pb::Session& session)
   system->set_font_cache_size(std::max(2u, system->image_cache_size()));
 
   auto program = session.mutable_program();
-  unsigned int count = 0;
+  uint32_t count = 0;
   for (const auto& type : program->visual_type()) {
     count += type.random_weight();
   }

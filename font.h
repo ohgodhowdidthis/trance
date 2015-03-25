@@ -10,7 +10,7 @@
 
 // Wrapper for an sf::Font that uses one character size only.
 struct Font {
-  Font(const std::string& path, unsigned int char_size)
+  Font(const std::string& path, uint32_t char_size)
   : font(new sf::Font)
   {
     key.path = path;
@@ -22,7 +22,7 @@ struct Font {
 
   struct key_t {
     std::string path;
-    unsigned int char_size;
+    uint32_t char_size;
 
     bool operator==(const key_t& key) const
     {
@@ -60,16 +60,16 @@ namespace std {
 class FontCache {
 public:
 
-  FontCache(unsigned int font_cache_size);
+  FontCache(uint32_t font_cache_size);
 
   static const std::size_t char_size_lock = 20;
   const Font& get_font(
-      const std::string& font_path, unsigned int char_size) const;
+      const std::string& font_path, uint32_t char_size) const;
 
 private:
 
   std::vector<std::string> _paths;
-  unsigned int _font_cache_size;
+  uint32_t _font_cache_size;
   mutable std::size_t _last_id;
   mutable std::list<Font> _list;
   mutable std::unordered_map<Font::key_t, Font*> _map;

@@ -46,37 +46,83 @@ template<typename T>
 class Shuffler {
 public:
   Shuffler(const T& data)
-    : _data(data)
-    , _last_id(random(data.size())) {}
-
-  std::size_t size() const
-  {
-    return _data.size();
-  }
+  : _data(data)
+  , _enabled(data.size(), true)
+  , _enabled_count(data.size())
+  , _last_enabled_id(random(data.size()))
+  , _last_disabled_id(random(data.size())) {}
 
   bool empty() const
   {
     return _data.empty();
   }
 
+  std::size_t size() const
+  {
+    return _data.size();
+  }
+
+  std::size_t enabled_count() const
+  {
+    return _enabled_count;
+  }
+
+  void set_enabled(std::size_t index, bool enabled)
+  {
+    if (_enabled[index] != enabled) {
+      _enabled_count += (enabled ? 1 : -1);
+    }
+    _enabled[index] = enabled;
+  }
+
   // Get some value, but not the same one as last time.
-  const typename T::value_type& next() const
+  const typename T::value_type& next(bool get_enabled = true) const
   {
     static T::value_type empty;
-    if (_data.empty()) {
+    if (get_enabled ? !_enabled_count : _enabled_count == _data.size()) {
       return empty;
     }
-    if (_data.size() == 1) {
-      return *_data.begin();
+    return get(next_index(get_enabled));
+  }
+
+  const typename T::value_type& get(std::size_t index) const
+  {
+    return *(_data.begin() + index);
+  }
+
+  const std::size_t next_index(bool get_enabled = true) const
+  {
+    auto count = get_enabled ? _enabled_count : _data.size() - _enabled_count;
+    auto& last_id = get_enabled ? _last_enabled_id : _last_disabled_id;
+    if (!count) {
+      return -1;
     }
-    _last_id = random_excluding(std::size_t(_data.size()), _last_id);
-    return *(_data.begin() + _last_id);
+
+    std::size_t last_tindex = 0;
+    for (std::size_t i = 0; i < last_id; ++i) {
+      last_tindex += _enabled[i] == get_enabled;
+    }
+    std::size_t random_tindex =
+      count > 1 && _enabled[last_id] == get_enabled ?
+      random_excluding(count, last_tindex) : random(count);
+
+    std::size_t tindex = 0;
+    for (std::size_t i = 0; i < _data.size(); ++i) {
+      tindex += _enabled[i] == get_enabled;
+      if (random_tindex < tindex) {
+        return last_id = i;
+      }
+    }
+    return -1;
   }
 
 private:
 
   const T& _data;
-  mutable std::size_t _last_id;
+  std::vector<bool> _enabled;
+  std::size_t _enabled_count;
+  mutable std::size_t _last_enabled_id;
+  mutable std::size_t _last_disabled_id;
   
 };
 

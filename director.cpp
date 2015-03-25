@@ -8,7 +8,7 @@
 #include <SFML/OpenGL.hpp>
 #include <trance.pb.h>
 
-static const unsigned int spiral_type_max = 7;
+static const uint32_t spiral_type_max = 7;
 
 static const std::string text_vertex = R"(
 uniform vec4 colour;
@@ -164,7 +164,7 @@ void main(void)
 )";
 
 Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
-                   ThemeBank& themes, unsigned int width, unsigned int height)
+                   ThemeBank& themes, uint32_t width, uint32_t height)
 : _window{window}
 , _session{session}
 , _themes{themes}
@@ -375,18 +375,24 @@ void Director::maybe_upload_next() const
   _themes.maybe_upload_next();
 }
 
+void Director::render_animation_or_image(
+    Anim type, const Image& image,
+    float alpha, float multiplier, float zoom) const
+{
+  Image anim = _themes.get(type == Anim::ANIM_ALTERNATE).get_animation(
+      std::size_t(120.f * get_frame_time() * _switch_themes / 8));
+
+  if (type != Anim::NONE && anim) {
+    render_image(anim, alpha, multiplier, zoom);
+  }
+  else {
+    render_image(image, alpha, multiplier, zoom);
+  }
+}
+
 void Director::render_image(const Image& image, float alpha,
                             float multiplier, float zoom) const
 {
-  if (image.anim_type != Image::NONE) {
-    bool alternate = image.anim_type == Image::ALTERNATE_ANIMATION;
-    Image anim = _themes.get(alternate).get_animation(
-        std::size_t(120.f * get_frame_time() * _switch_themes / 8));
-    if (anim.texture) {
-      render_image(anim, alpha, multiplier, zoom);
-      return;
-    }
-  }
   glEnable(GL_BLEND);
   glDisable(GL_TEXTURE_2D);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -395,7 +401,7 @@ void Director::render_image(const Image& image, float alpha,
   glUseProgram(_image_program);
 
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, image.texture);
+  glBindTexture(GL_TEXTURE_2D, image.texture());
   glUniform1f(glGetUniformLocation(_image_program, "alpha"), alpha);
   glUniform1f(glGetUniformLocation(_image_program, "zoom"),
               program().zoom_intensity() * zoom);
@@ -411,8 +417,8 @@ void Director::render_image(const Image& image, float alpha,
   glVertexAttribPointer(tloc, 2, GL_FLOAT, false, 0, 0);
 
   float offx3d = off3d(multiplier).x;
-  auto x = float(image.width);
-  auto y = float(image.height);
+  auto x = float(image.width());
+  auto y = float(image.height());
 
   auto scale = std::min(float(_height) / y, float(_width) / x);
   if (_oculus.enabled) {
@@ -461,8 +467,8 @@ void Director::render_text(const std::string& text, float multiplier) const
     return;
   }
 
-  unsigned int border = _oculus.enabled ? 250 : 100;
-  auto fit_text = [&](unsigned int size, bool fix)
+  uint32_t border = _oculus.enabled ? 250 : 100;
+  auto fit_text = [&](uint32_t size, bool fix)
   {
     auto r = get_text_size(text, _fonts.get_font(_current_font, size));
     int new_size = size;
@@ -491,7 +497,7 @@ void Director::render_subtext(float alpha, float multiplier) const
     return;
   }
 
-  static const unsigned int char_size = 100;
+  static const uint32_t char_size = 100;
   std::size_t n = 0;
   const auto& font = _fonts.get_font(_current_subfont, char_size);
 
@@ -587,9 +593,9 @@ void Director::change_font(bool force)
 
 void Director::change_subtext(bool alternate)
 {
-  static const unsigned int count = 16;
+  static const uint32_t count = 16;
   _subtext.clear();
-  for (unsigned int i = 0; i < 16; ++i) {
+  for (uint32_t i = 0; i < 16; ++i) {
     auto s = _themes.get(alternate).get_text();
     for (auto& c : s) {
       if (c == '\n') {
@@ -622,7 +628,7 @@ void Director::change_visual()
   _current_subfont = _themes.get().get_font();
   _visual.swap(_old_visual);
 
-  unsigned int total = 0;
+  uint32_t total = 0;
   for (const auto& type : program().visual_type()) {
     total += type.random_weight();
   }
@@ -792,7 +798,7 @@ sf::Vector2f Director::off3d(float multiplier) const
   return {x, 0};
 }
 
-unsigned int Director::view_width() const
+uint32_t Director::view_width() const
 {
   return _oculus.enabled ? _width / 2 : _width;
 }

@@ -2,13 +2,13 @@
 #include "director.h"
 #include "util.h"
 
-FontCache::FontCache(unsigned int font_cache_size)
+FontCache::FontCache(uint32_t font_cache_size)
 : _font_cache_size{font_cache_size}
 {
 }
 
 const Font& FontCache::get_font(
-    const std::string& font_path, unsigned int char_size) const
+    const std::string& font_path, uint32_t char_size) const
 {
   char_size -= char_size % char_size_lock;
   Font::key_t k{font_path, char_size};
