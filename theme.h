@@ -5,53 +5,16 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
-#include <SFML/Graphics.hpp>
 #include <google/protobuf/repeated_field.h>
+#include "image.h"
 #include "util.h"
 
 namespace trance_pb {
   class SystemConfiguration;
   class Theme;
 }
-
-// In-memory image with load-on-request OpenGL texture which is ref-counted
-// and automatically unloaded once no longer used.
-struct Image {
-  // In order to ensure textures are deleted from the rendering thread, we
-  // use a separate set.
-  static std::vector<unsigned int> textures_to_delete;
-  static std::mutex textures_to_delete_mutex;
-  static void delete_textures();
-
-  struct texture_deleter {
-    texture_deleter(unsigned int texture)
-    : texture{texture} {}
-    ~texture_deleter();
-    unsigned int texture;
-  };
-
-  // Dummy values used to pass inject animations.
-  enum {
-    NONE,
-    ANIMATION,
-    ALTERNATE_ANIMATION
-  } anim_type;
-
-  Image(const std::string& path)
-  : path{path}
-  , width{0}
-  , height{0}
-  , texture{0}
-  , anim_type{NONE} {}
-
-  std::string path;
-  unsigned int width;
-  unsigned int height;
-  std::shared_ptr<sf::Image> sf_image;
-  mutable unsigned int texture;
-  mutable std::shared_ptr<texture_deleter> deleter;
-};
 
 // Theme consists of images, animations, and associated text strings.
 class Theme {
@@ -89,34 +52,23 @@ public:
 
 private:
 
-  bool load_animation_gif_internal(std::vector<Image>& images,
-                                   const std::string& path) const;
-  bool load_animation_webm_internal(std::vector<Image>& images,
-                                    const std::string& path) const;
-  bool load_internal(Image* image, const std::string& path) const;
-
+  void load_image_internal();
+  void unload_image_internal();
   void load_animation_internal();
   void unload_animation_internal();
-  void load_internal();
-  void unload_internal();
-
-  Image get_internal(const std::vector<Image>& list, std::size_t index,
-                     std::mutex& unlock) const;
 
   using StringShuffler =
       Shuffler<google::protobuf::RepeatedPtrField<std::string>>;
-  const StringShuffler _animation_paths;
-  const StringShuffler _font_paths;
-  const StringShuffler _text_lines;
-  
-  std::vector<std::string> _paths;
-  std::vector<Image> _images;
+  StringShuffler _image_paths;
+  StringShuffler _animation_paths;
+  StringShuffler _font_paths;
+  StringShuffler _text_lines;
+
   std::size_t _target_load;
-  mutable std::size_t _last_id;
-  mutable std::mutex _mutex;
-  
-  mutable std::mutex _animation_mutex;
+  std::unordered_map<std::size_t, Image> _images;
   std::vector<Image> _animation_images;
+  mutable std::mutex _image_mutex;
+  mutable std::mutex _animation_mutex;
 
 };
 
@@ -156,9 +108,9 @@ private:
   std::size_t _next;
 
   std::vector<Theme> _themes;
-  unsigned int _image_cache_size;
-  unsigned int _updates;
-  std::atomic<unsigned int> _cooldown;
+  uint32_t _image_cache_size;
+  uint32_t _updates;
+  std::atomic<uint32_t> _cooldown;
 
 };
 

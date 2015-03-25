@@ -161,6 +161,7 @@
     <ClCompile Include="giflib_5_1_0\lib\dgif_lib.c" />
     <ClCompile Include="giflib_5_1_0\lib\gifalloc.c" />
     <ClCompile Include="giflib_5_1_0\lib\gif_err.c" />
+    <ClCompile Include="image.cpp" />
     <ClCompile Include="jpeg\jpgd.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="session.cpp" />
@@ -170,6 +171,7 @@
   <ItemGroup>
     <ClInclude Include="director.h" />
     <ClInclude Include="font.h" />
+    <ClInclude Include="image.h" />
     <ClInclude Include="session.h" />
     <ClInclude Include="theme.h" />
     <ClInclude Include="util.h" />

@@ -38,18 +38,18 @@ public:
 
 private:
 
-  static const unsigned int max_speed = 48;
-  static const unsigned int min_speed = 0;
-  static const unsigned int text_time = 4;
+  static const uint32_t max_speed = 48;
+  static const uint32_t min_speed = 0;
+  static const uint32_t text_time = 4;
 
   Image _current;
   std::string _current_text;
 
   bool _text_on;
-  unsigned int _change_timer;
-  unsigned int _change_speed;
-  unsigned int _change_speed_timer;
-  unsigned int _text_timer;
+  uint32_t _change_timer;
+  uint32_t _change_speed;
+  uint32_t _change_speed_timer;
+  uint32_t _text_timer;
   bool _change_faster;
 
 };
@@ -63,17 +63,17 @@ public:
 
 private:
 
-  static const unsigned int speed = 48;
-  static const unsigned int sub_speed = 12;
-  static const unsigned int cycles = 32;
+  static const uint32_t speed = 48;
+  static const uint32_t sub_speed = 12;
+  static const uint32_t cycles = 32;
 
   Image _current;
   std::string _current_text;
   bool _text_on;
-  unsigned int _change_timer;
-  unsigned int _sub_timer;
-  unsigned int _cycle;
-  unsigned int _sub_speed_multiplier;
+  uint32_t _change_timer;
+  uint32_t _sub_timer;
+  uint32_t _cycle;
+  uint32_t _sub_speed_multiplier;
 
 };
 
@@ -86,18 +86,19 @@ public:
 
 private:
 
-  static const unsigned int max_speed = 64;
-  static const unsigned int min_speed = 4;
-  static const unsigned int cycle_length = 16;
-  static const unsigned int set_length = 4;
+  static const uint32_t max_speed = 64;
+  static const uint32_t min_speed = 4;
+  static const uint32_t cycle_length = 16;
+  static const uint32_t set_length = 4;
 
   Image _current;
   std::string _current_text;
-  unsigned int _change_timer;
+  uint32_t _change_timer;
 
   bool _flash;
-  unsigned int _image_count;
-  unsigned int _cycle_count;
+  bool _anim;
+  uint32_t _image_count;
+  uint32_t _cycle_count;
 
 };
 
@@ -110,17 +111,17 @@ public:
 
 private:
 
-  static const unsigned int length = 64;
-  static const unsigned int font_length = 64;
-  static const unsigned int cycles = 8;
+  static const uint32_t length = 64;
+  static const uint32_t font_length = 64;
+  static const uint32_t cycles = 8;
 
   bool _animated;
   Image _start;
   Image _end;
   std::string _current_text;
-  unsigned int _timer;
-  unsigned int _cycle;
-  unsigned int _font_timer;
+  uint32_t _timer;
+  uint32_t _cycle;
+  uint32_t _font_timer;
 
 };
 
@@ -133,20 +134,20 @@ public:
 
 private:
 
-  static const unsigned int length = 32;
-  static const unsigned int cycles = 64;
+  static const uint32_t length = 32;
+  static const uint32_t cycles = 64;
 
   Image _image;
   Image _alternate;
-  unsigned int _anim_cycle;
-  unsigned int _alternate_anim_cycle;
-  unsigned int _length;
-  unsigned int _alternate_length;
+  uint32_t _anim_cycle;
+  uint32_t _alternate_anim_cycle;
+  uint32_t _length;
+  uint32_t _alternate_length;
   bool _switch_alt;
   bool _text_on;
   std::string _current_text;
-  unsigned int _timer;
-  unsigned int _cycle;
+  uint32_t _timer;
+  uint32_t _cycle;
 
 };
 
@@ -160,17 +161,17 @@ public:
 private:
 
   static const std::size_t image_count = 4;
-  static const unsigned int font_length = 64;
-  static const unsigned int length = 2;
-  static const unsigned int cycles = 512;
+  static const uint32_t font_length = 64;
+  static const uint32_t length = 2;
+  static const uint32_t cycles = 512;
 
   std::vector<Image> _images;
-  std::vector<unsigned int> _lengths;
+  std::vector<uint32_t> _lengths;
   std::size_t _index;
   std::string _current_text;
-  unsigned int _timer;
-  unsigned int _font_timer;
-  unsigned int _cycle;
+  uint32_t _timer;
+  uint32_t _font_timer;
+  uint32_t _cycle;
 
 };
 
@@ -183,14 +184,14 @@ public:
 
 private:
 
-  static const unsigned int length = 256;
-  static const unsigned int cycles = 4;
+  static const uint32_t length = 256;
+  static const uint32_t cycles = 4;
 
-  Image _animation;
+  Image _animation_backup;
   Image _current;
   std::string _current_text;
-  unsigned int _timer;
-  unsigned int _cycle;
+  uint32_t _timer;
+  uint32_t _cycle;
 
 };
 

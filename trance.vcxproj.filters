@@ -19,6 +19,7 @@
     <ClCompile Include="visual.cpp" />
     <ClCompile Include="theme.cpp" />
     <ClCompile Include="font.cpp" />
+    <ClCompile Include="image.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="director.h" />
@@ -27,6 +28,7 @@
     <ClInclude Include="visual.h" />
     <ClInclude Include="theme.h" />
     <ClInclude Include="font.h" />
+    <ClInclude Include="image.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="jpeg">
