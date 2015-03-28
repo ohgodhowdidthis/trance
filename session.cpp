@@ -202,6 +202,7 @@ trance_pb::Session get_default_session()
   trance_pb::Session session;
 
   auto system = session.mutable_system();
+  system->set_enable_vsync(false);
   system->set_enable_oculus_rift(true);
   system->set_oculus_image_depth(1.f);
   system->set_oculus_text_depth(1.f);
@@ -214,6 +215,8 @@ trance_pb::Session get_default_session()
   program->set_zoom_intensity(.2f);
   *program->mutable_spiral_colour_a() = sf2colour({255, 150, 200, 50});
   *program->mutable_spiral_colour_b() = sf2colour({0, 0, 0, 50});
+  program->set_reverse_spiral_direction(false);
+
   *program->mutable_main_text_colour() = sf2colour({255, 150, 200, 224});
   *program->mutable_shadow_text_colour() = sf2colour({0, 0, 0, 192});
 

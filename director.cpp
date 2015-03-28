@@ -566,6 +566,9 @@ void Director::render_spiral() const
 
 void Director::rotate_spiral(float amount)
 {
+  if (program().reverse_spiral_direction()) {
+    amount *= -1;
+  }
   _spiral += amount / (32 * sqrt(float(_spiral_width)));
   while (_spiral > 1.f) {
     _spiral -= 1.f;

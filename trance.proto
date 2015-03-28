@@ -10,21 +10,24 @@ message Colour {
 
 // General system-wide configuration.
 message SystemConfiguration {
+  // Enable vsync to eliminate tearing, but can cause stuttering.
+  bool enable_vsync = 1;
+
   // Whether to enable oculus rift support, if possible.
-  bool enable_oculus_rift = 1;
+  bool enable_oculus_rift = 2;
 
   // Intensity of depth effects in oculus rift on various visual elements
   // (default is 1.0).
-  float oculus_image_depth = 2;
-  float oculus_text_depth = 3;
+  float oculus_image_depth = 3;
+  float oculus_text_depth = 4;
 
   // Number of images to keep in memory at a time. Uses up both RAM and video
   // memory.
-  uint32 image_cache_size = 4;
+  uint32 image_cache_size = 5;
 
   // Number of font sizes to keep in memory at a time. Each character size of a
   // single font uses up another slot in the cache. Uses up video card memory.
-  uint32 font_cache_size = 5;
+  uint32 font_cache_size = 6;
 }
 
 // Configuration for a single program, i.e. a combination of a selection of
@@ -65,13 +68,15 @@ message Program {
   // Intensity of the zoom effect (0 being no zoom, 1 being the maximum).
   float zoom_intensity = 4;
 
-  // Settings for spiral colour.
+  // Settings for spiral.
   Colour spiral_colour_a = 5;
   Colour spiral_colour_b = 6;
+  bool reverse_spiral_direction = 7;
 
   // Font settings for displayed text.
-  Colour main_text_colour = 7;
-  Colour shadow_text_colour = 8;
+  // TODO: better text options and handling.
+  Colour main_text_colour = 8;
+  Colour shadow_text_colour = 9;
 }
 
 message Theme {
