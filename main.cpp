@@ -47,7 +47,7 @@ int main(int argc, char** argv)
   window.create(video_mode, "Ubtrance",
                 session.system().enable_oculus_rift() ?
                 sf::Style::None : sf::Style::Fullscreen);
-  window.setVerticalSyncEnabled(false);
+  window.setVerticalSyncEnabled(session.system().enable_vsync());
   window.setFramerateLimit(60);
   window.setVisible(true);
   window.setActive();
