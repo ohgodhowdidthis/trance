@@ -223,7 +223,7 @@ void SlowFlashVisual::update()
 
 void SlowFlashVisual::render() const
 {
-  float extra = 32.f - 32.f * _image_count / (4 * cycle_length);
+  float extra = 8.f - 8.f * _image_count / (4 * cycle_length);
   auto zoom = _flash ? float(_change_timer) / 2 * min_speed :
       .5f - float(_change_timer) / (2 * max_speed);
   director().render_animation_or_image(
@@ -358,7 +358,7 @@ void ParallelVisual::render() const
   auto anim = _anim_cycle % 3 == 2 ?
       Director::Anim::ANIM : Director::Anim::NONE;
   director().render_animation_or_image(
-      anim, _image, 1, 8 + extra, float(_length) / (2 * length));
+      anim, _image, 1, 8.f + extra, float(_length) / (2 * length));
 
   auto alt_anim = _alternate_anim_cycle % 3 == 1 ?
       Director::Anim::ANIM_ALTERNATE : Director::Anim::NONE;
@@ -485,4 +485,57 @@ void AnimationVisual::render() const
   if (_timer % 128 < 64) {
     director().render_text(_current_text, 5.f);
   }
+}
+
+SuperFastVisual::SuperFastVisual(Director& director)
+: Visual{director}
+, _current{director.get_image()}
+, _animation_timer{0}
+, _animation_alt{false}
+, _timer{length}
+{
+}
+
+void SuperFastVisual::update()
+{
+  director().rotate_spiral(3.f);
+  if (_animation_timer) {
+    --_animation_timer;
+    return;
+  }
+  if (_timer % 2 == 0) {
+    _current = director().get_image();
+    _current_text = director().get_text();
+  }
+  if (random_chance(256)) {
+    _animation_alt = !_animation_alt;
+    _animation_timer = anim_length + random(anim_length);
+  }
+  if (--_timer) {
+    return;
+  }
+
+  director().change_spiral();
+  director().change_font();
+  director().change_themes();
+  _timer = length;
+  if (random_chance(3)) {
+    director().change_visual();
+  }
+}
+
+void SuperFastVisual::render() const
+{
+  if (_animation_timer) {
+    director().render_animation_or_image(
+        _animation_alt ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM,
+        _current, 1.f);
+  }
+  else {
+    director().render_image(_current, 1.f, 8.f, _timer % 2 ? 0.f : 0.1f);
+    if (_timer % 8 < 2) {
+      director().render_text(_current_text, 5.f);
+    }
+  }
+  director().render_spiral();
 }

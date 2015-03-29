@@ -666,6 +666,9 @@ void Director::change_visual()
   if (t == trance_pb::Program_VisualType_ANIMATION) {
     _visual.reset(new AnimationVisual{*this});
   }
+  if (t == trance_pb::Program_VisualType_SUPER_FAST) {
+    _visual.reset(new SuperFastVisual{*this});
+  }
 }
 
 const trance_pb::Program& Director::program() const
