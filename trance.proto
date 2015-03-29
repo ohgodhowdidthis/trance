@@ -80,6 +80,23 @@ message Program {
   Colour shadow_text_colour = 9;
 }
 
+message PlaylistItem {
+  Program program = 1;
+
+  // How long to play this item before choosing a new one.
+  uint32 play_time_seconds = 2;
+
+  message NextItem {
+    // References playlist item in Session.
+    string playest_item_name = 1;
+
+    // Controls how frequently this item will be selected relative to others.
+    uint32 random_weight = 2;
+  }
+
+  repeated NextItem next_item = 3;
+}
+
 message Theme {
   // Paths to be used as images.
   repeated string image_path = 2;
@@ -95,9 +112,10 @@ message Session {
   // System-wide configuration.
   SystemConfiguration system = 1;
 
-  // A single program to use for now.
-  Program program = 2;
+  // The playlist of programs.
+  string first_playlist_item = 2;
+  map<string, PlaylistItem> playlist = 3;
 
   // Available themes.
-  map<string, Theme> theme_map = 3;
+  map<string, Theme> theme_map = 4;
 }

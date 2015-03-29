@@ -12,7 +12,7 @@
 #include "util.h"
 
 namespace trance_pb {
-  class SystemConfiguration;
+  class Session;
   class Theme;
 }
 
@@ -79,8 +79,7 @@ private:
 class ThemeBank {
 public:
 
-  ThemeBank(const std::vector<trance_pb::Theme>& themes,
-            const trance_pb::SystemConfiguration& system);
+  ThemeBank(const trance_pb::Session& session);
   // Get the main or alternate theme.
   const Theme& get(bool alternate = false) const;
 
@@ -107,6 +106,7 @@ private:
   std::size_t _b;
   std::size_t _next;
 
+  std::unordered_map<std::string, trance_pb::Theme> _theme_map;
   std::vector<Theme> _themes;
   uint32_t _image_cache_size;
   uint32_t _updates;

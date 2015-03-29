@@ -52,8 +52,8 @@ public:
   : _data(data)
   , _enabled(data.size(), true)
   , _enabled_count(data.size())
-  , _last_enabled_id(random(data.size()))
-  , _last_disabled_id(random(data.size())) {}
+  , _last_enabled_id(data.empty() ? 0 : random(data.size()))
+  , _last_disabled_id(data.empty() ? 0 :  random(data.size())) {}
 
   bool empty() const
   {
