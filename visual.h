@@ -206,9 +206,11 @@ private:
 
   static const uint32_t length = 1024;
   static const uint32_t anim_length = 128;
+  static const uint32_t nonanim_lenth = 16;
 
   Image _current;
   std::string _current_text;
+  uint32_t _start_timer;
   uint32_t _animation_timer;
   bool _animation_alt;
   uint32_t _timer;
