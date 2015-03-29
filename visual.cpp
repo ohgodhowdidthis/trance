@@ -490,6 +490,7 @@ void AnimationVisual::render() const
 SuperFastVisual::SuperFastVisual(Director& director)
 : Visual{director}
 , _current{director.get_image()}
+, _start_timer{0}
 , _animation_timer{0}
 , _animation_alt{false}
 , _timer{length}
@@ -507,9 +508,13 @@ void SuperFastVisual::update()
     _current = director().get_image();
     _current_text = director().get_text();
   }
-  if (random_chance(256)) {
+  if (!_start_timer && random_chance(256)) {
     _animation_alt = !_animation_alt;
     _animation_timer = anim_length + random(anim_length);
+    _start_timer = nonanim_lenth;
+  }
+  if (_start_timer) {
+    --_start_timer;
   }
   if (--_timer) {
     return;
