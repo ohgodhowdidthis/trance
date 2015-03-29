@@ -673,7 +673,8 @@ void Director::change_visual()
 
 const trance_pb::Program& Director::program() const
 {
-  return _session.program();
+  auto it = _session.playlist().find(_session.first_playlist_item());
+  return it->second.program();
 }
 
 void Director::init_oculus_rift()

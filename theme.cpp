@@ -173,16 +173,26 @@ void Theme::unload_animation_internal()
   _animation_mutex.unlock();
 }
 
-ThemeBank::ThemeBank(const std::vector<trance_pb::Theme>& themes,
-                     const trance_pb::SystemConfiguration& system)
-: _image_cache_size{system.image_cache_size()}
+ThemeBank::ThemeBank(const trance_pb::Session& session)
+: _image_cache_size{session.system().image_cache_size()}
 , _updates{0}
 , _cooldown{switch_cooldown}
 {
-  for (const auto& theme : themes) {
-    _themes.emplace_back(theme);
+  for (const auto& pair : session.theme_map()) {
+    auto theme = pair.second;
+    std::cout << "theme " << pair.first << " with " <<
+        theme.image_path_size() << " image(s), " <<
+        theme.animation_path_size() << " animation(s), " <<
+        theme.font_path_size() << " font(s), and " <<
+        theme.text_line_size() << " line(s) of text" << std::endl;
+    _theme_map.emplace(pair.first, theme);
   }
-  if (themes.empty()) {
+
+  // Need to store copies - proto map entries seem to be unstable.
+  for (const auto& pair : _theme_map) {
+    _themes.emplace_back(pair.second);
+  }
+  if (_themes.empty()) {
     _themes.push_back(Theme({}));
   }
 

@@ -70,14 +70,6 @@ void set_default_visual_types(trance_pb::Program* program)
   type->set_random_weight(2);
 }
 
-void validate_colour(trance_pb::Colour* colour)
-{
-  colour->set_r(std::max(0.f, std::min(1.f, colour->r())));
-  colour->set_g(std::max(0.f, std::min(1.f, colour->g())));
-  colour->set_b(std::max(0.f, std::min(1.f, colour->b())));
-  colour->set_a(std::max(0.f, std::min(1.f, colour->a())));
-}
-
 void search_resources(trance_pb::Session& session)
 {
   static const std::string wildcards = "/wildcards/";
@@ -149,9 +141,52 @@ void search_resources(trance_pb::Session& session)
     themes["default"] = themes[wildcards];
   }
   themes.erase(wildcards);
+  auto& item = (*session.mutable_playlist())["default"];
   for (auto& pair : themes) {
-    session.mutable_program()->add_enabled_theme_name(pair.first);
+    item.mutable_program()->add_enabled_theme_name(pair.first);
   }
+  session.set_first_playlist_item("default");
+}
+
+void set_default_program(trance_pb::Session& session)
+{
+  auto program = (*session.mutable_playlist())["default"].mutable_program();
+  set_default_visual_types(program);
+  program->set_global_fps(120);
+  program->set_zoom_intensity(.2f);
+  *program->mutable_spiral_colour_a() = sf2colour({255, 150, 200, 50});
+  *program->mutable_spiral_colour_b() = sf2colour({0, 0, 0, 50});
+  program->set_reverse_spiral_direction(false);
+
+  *program->mutable_main_text_colour() = sf2colour({255, 150, 200, 224});
+  *program->mutable_shadow_text_colour() = sf2colour({0, 0, 0, 192});
+  search_resources(session);
+}
+
+void validate_colour(trance_pb::Colour* colour)
+{
+  colour->set_r(std::max(0.f, std::min(1.f, colour->r())));
+  colour->set_g(std::max(0.f, std::min(1.f, colour->g())));
+  colour->set_b(std::max(0.f, std::min(1.f, colour->b())));
+  colour->set_a(std::max(0.f, std::min(1.f, colour->a())));
+}
+
+void validate_program(trance_pb::Program* program)
+{
+  uint32_t count = 0;
+  for (const auto& type : program->visual_type()) {
+    count += type.random_weight();
+  }
+  if (!count) {
+    set_default_visual_types(program);
+  }
+  program->set_global_fps(std::max(1u, std::min(240u, program->global_fps())));
+  program->set_zoom_intensity(
+    std::max(0.f, std::min(1.f, program->zoom_intensity())));
+  validate_colour(program->mutable_spiral_colour_a());
+  validate_colour(program->mutable_spiral_colour_b());
+  validate_colour(program->mutable_main_text_colour());
+  validate_colour(program->mutable_shadow_text_colour());
 }
 
 }
@@ -213,18 +248,7 @@ trance_pb::Session get_default_session()
   system->set_image_cache_size(64);
   system->set_font_cache_size(8);
 
-  auto program = session.mutable_program();
-  set_default_visual_types(program);
-  program->set_global_fps(120);
-  program->set_zoom_intensity(.2f);
-  *program->mutable_spiral_colour_a() = sf2colour({255, 150, 200, 50});
-  *program->mutable_spiral_colour_b() = sf2colour({0, 0, 0, 50});
-  program->set_reverse_spiral_direction(false);
-
-  *program->mutable_main_text_colour() = sf2colour({255, 150, 200, 224});
-  *program->mutable_shadow_text_colour() = sf2colour({0, 0, 0, 192});
-
-  search_resources(session);
+  set_default_program(session);
   validate_session(session);
   return session;
 }
@@ -235,19 +259,26 @@ void validate_session(trance_pb::Session& session)
   system->set_image_cache_size(std::max(6u, system->image_cache_size()));
   system->set_font_cache_size(std::max(2u, system->image_cache_size()));
 
-  auto program = session.mutable_program();
-  uint32_t count = 0;
-  for (const auto& type : program->visual_type()) {
-    count += type.random_weight();
+  if (session.playlist().empty()) {
+    set_default_program(session);
   }
-  if (!count) {
-    set_default_visual_types(program);
+  for (auto& pair : *session.mutable_playlist()) {
+    validate_program(pair.second.mutable_program());
+
+    bool has_next_item = false;
+    for (const auto& next_item : pair.second.next_item()) {
+      auto it = session.playlist().find(next_item.playest_item_name());
+      if (next_item.random_weight() > 0 && it != session.playlist().end()) {
+        has_next_item = true;
+        break;
+      }
+    }
+    if (has_next_item) {
+      pair.second.set_play_time_seconds(0);
+    }
   }
-  program->set_global_fps(std::max(1u, std::min(240u, program->global_fps())));
-  program->set_zoom_intensity(
-    std::max(0.f, std::min(1.f, program->zoom_intensity())));
-  validate_colour(program->mutable_spiral_colour_a());
-  validate_colour(program->mutable_spiral_colour_b());
-  validate_colour(program->mutable_main_text_colour());
-  validate_colour(program->mutable_shadow_text_colour());
+  auto it = session.playlist().find(session.first_playlist_item());
+  if (it == session.playlist().end()) {
+    session.set_first_playlist_item(session.playlist().begin()->first);
+  }
 }
