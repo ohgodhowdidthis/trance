@@ -45,6 +45,7 @@ message Program {
     PARALLEL = 5;
     SUPER_PARALLEL = 6;
     ANIMATION = 7;
+    SUPER_FAST = 8;
   }
 
   // Controls enabling/frequency of each visual type.

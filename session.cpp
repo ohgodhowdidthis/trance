@@ -64,6 +64,10 @@ void set_default_visual_types(trance_pb::Program* program)
   type = program->add_visual_type();
   type->set_type(trance_pb::Program_VisualType_ANIMATION);
   type->set_random_weight(2);
+
+  type = program->add_visual_type();
+  type->set_type(trance_pb::Program_VisualType_SUPER_FAST);
+  type->set_random_weight(2);
 }
 
 void validate_colour(trance_pb::Colour* colour)
@@ -202,7 +206,7 @@ trance_pb::Session get_default_session()
   trance_pb::Session session;
 
   auto system = session.mutable_system();
-  system->set_enable_vsync(false);
+  system->set_enable_vsync(true);
   system->set_enable_oculus_rift(true);
   system->set_oculus_image_depth(1.f);
   system->set_oculus_text_depth(1.f);

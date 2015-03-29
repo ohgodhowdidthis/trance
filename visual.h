@@ -195,4 +195,24 @@ private:
 
 };
 
+class SuperFastVisual : public Visual {
+public:
+
+  SuperFastVisual(Director& director);
+  void update() override;
+  void render() const override;
+
+private:
+
+  static const uint32_t length = 1024;
+  static const uint32_t anim_length = 128;
+
+  Image _current;
+  std::string _current_text;
+  uint32_t _animation_timer;
+  bool _animation_alt;
+  uint32_t _timer;
+
+};
+
 #endif
