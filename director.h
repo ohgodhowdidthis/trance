@@ -28,11 +28,11 @@ class Director {
 public:
 
   Director(sf::RenderWindow& window, const trance_pb::Session& session,
-           ThemeBank& themes, uint32_t width, uint32_t height);
+           ThemeBank& themes, const trance_pb::Program& program);
   ~Director();
 
-  // Called from main().
-  float get_frame_time() const;
+  // Called from play_session() in main.cpp.
+  void set_program(const trance_pb::Program& program);
   void update();
   void render() const;
 
@@ -65,7 +65,6 @@ public:
 
 private:
 
-  const trance_pb::Program& program() const;
   void init_oculus_rift();
   sf::Vector2f off3d(float multiplier, bool text) const;
   uint32_t view_width() const;
@@ -83,6 +82,7 @@ private:
   FontCache _fonts;
   uint32_t _width;
   uint32_t _height;
+  const trance_pb::Program* _program;
 
   struct {
     bool enabled;

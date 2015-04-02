@@ -1,6 +1,7 @@
 #include <OVR_CAPI.h>
 #include <SFML/Window.hpp>
 #include <trance.pb.h>
+#include <chrono>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -42,18 +43,37 @@ void close_window(sf::RenderWindow& window,
   }
 }
 
+const std::string& next_playlist_item(
+    const trance_pb::PlaylistItem* item)
+{
+  uint32_t total = 0;
+  for (const auto& next : item->next_item()) {
+    total += next.random_weight();
+  }
+  auto r = random(total);
+  total = 0;
+  for (const auto& next : item->next_item()) {
+    if (r < (total += next.random_weight())) {
+      return next.playlist_item_name();
+    }
+  }
+}
+
 void play_session(const trance_pb::Session& session)
 {
   static const std::string bad_alloc =
       "OUT OF MEMORY! TRY REDUCING USAGE IN SETTINGS...";
 
-  std::unordered_map<std::string, const trance_pb::Theme&> theme_map;
-  // TODO: theme selection is temporarily disabled.
-  auto theme_bank = std::make_unique<ThemeBank>(session);
+  const trance_pb::PlaylistItem* item =
+      &session.playlist().find(session.first_playlist_item())->second;
+  std::unordered_set<std::string> enabled_themes{
+      item->program().enabled_theme_name().begin(),
+      item->program().enabled_theme_name().end()};
+
+  auto theme_bank = std::make_unique<ThemeBank>(session, enabled_themes);
   auto window = create_window(session.system());
   auto director = std::make_unique<Director>(
-      *window, session, *theme_bank,
-      window->getSize().x, window->getSize().y);
+      *window, session, *theme_bank, item->program());
 
   std::atomic<bool> running = true;
   // Run the asynchronous load/unload thread.
@@ -72,6 +92,7 @@ void play_session(const trance_pb::Session& session)
   });
 
   float time = 0.f;
+  float playlist_item_time = 0.f;
   sf::Clock clock;
   try {
     while (running) {
@@ -87,12 +108,30 @@ void play_session(const trance_pb::Session& session)
         }
       }
 
+      playlist_item_time += clock.getElapsedTime().asSeconds();
       time += clock.getElapsedTime().asSeconds();
       clock.restart();
+
+      if (item->play_time_seconds() &&
+          playlist_item_time >= item->play_time_seconds()) {
+        playlist_item_time -= item->play_time_seconds();
+        auto next = next_playlist_item(item);
+        std::cout << "changing to playlist item: " << next << std::endl;
+        item = &session.playlist().find(next)->second;
+        theme_bank->set_enabled_themes({
+            item->program().enabled_theme_name().begin(),
+            item->program().enabled_theme_name().end()});
+        director->set_program(item->program());
+      }
+      if (theme_bank->swaps_to_match_theme()) {
+        theme_bank->change_themes();
+      }
+
       bool update = false;
-      while (time >= director->get_frame_time()) {
+      float frame_time = 1.f / item->program().global_fps();
+      while (time >= frame_time) {
         update = true;
-        time -= director->get_frame_time();
+        time -= frame_time;
         director->update();
       }
       if (update) {

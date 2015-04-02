@@ -26,7 +26,7 @@ Theme::Theme(const Theme& theme)
 , _animation_paths{theme._animation_paths}
 , _font_paths{theme._font_paths}
 , _text_lines{theme._text_lines}
-, _target_load(theme._target_load)
+, _target_load{theme._target_load.load()}
 {
 }
 
@@ -178,43 +178,48 @@ void Theme::unload_animation_internal()
   _animation_mutex.unlock();
 }
 
-ThemeBank::ThemeBank(const trance_pb::Session& session)
+ThemeBank::ThemeBank(
+    const trance_pb::Session& session,
+    const std::unordered_set<std::string>& enabled_themes)
 : _theme_map{session.theme_map().begin(), session.theme_map().end()}
-, _themes{[&]{
-  std::vector<Theme> result;
-  // Need to store copies - proto map entries seem to be unstable.
-  for (const auto& pair : _theme_map) {
-    result.emplace_back(pair.second);
-  }
-  if (result.empty()) {
-    result.push_back(Theme({}));
-  }
-  // Always have at least two themes.
-  if (result.size() == 1) {
-    result.emplace_back(result.back());
+, _themes{_theme_map.begin(), _theme_map.end()}
+, _theme_shuffler{[&]{
+  Shuffler<std::vector<std::pair<std::string, Theme>>> result{_themes};
+  for (std::size_t i = 0; i < result.size(); ++i) {
+    result.set_enabled(i, enabled_themes.count(result.get(i).first));
   }
   return result;
 }()}
-, _theme_shuffler{_themes}
-, _prev{&_theme_shuffler.next()}
-, _main{&_theme_shuffler.next()}
-, _alt{&_theme_shuffler.next()}
-, _next{&_theme_shuffler.next()}
+, _prev{&_theme_shuffler.next().second}
+, _main{&_theme_shuffler.next().second}
+, _alt{&_theme_shuffler.next().second}
+, _next{&_theme_shuffler.next().second}
+, _swaps_to_match_theme{0}
 , _image_cache_size{session.system().image_cache_size()}
 , _updates{0}
 , _cooldown{switch_cooldown}
 {
-  uint32_t cache_per_theme = _themes.size() == 2 ?
-      _image_cache_size / 2 : _image_cache_size / 3;
-  _main->set_target_load(cache_per_theme);
-  _alt->set_target_load(cache_per_theme);
-  _next->set_target_load(cache_per_theme);
-
+  _main->set_target_load(cache_per_theme());
+  _alt->set_target_load(cache_per_theme());
+  _next->set_target_load(cache_per_theme());
   _main->perform_all_loads();
   _alt->perform_all_loads();
-  if (_themes.size() == 3) {
-    _next->perform_all_loads();
+}
+
+void ThemeBank::set_enabled_themes(
+    const std::unordered_set<std::string>& enabled_themes)
+{
+  for (std::size_t i = 0; i < _theme_shuffler.size(); ++i) {
+    _theme_shuffler.set_enabled(
+        i, enabled_themes.count(_theme_shuffler.get(i).first));
   }
+  if (_next != _main && _next != _alt) {
+    _next->set_target_load(0);
+  }
+  _next = &_theme_shuffler.next().second;
+  _next->set_target_load(cache_per_theme());
+  // Could check whether the themes we're using are still enabled.
+  _swaps_to_match_theme = 2;
 }
 
 const Theme& ThemeBank::get(bool alternate) const
@@ -238,16 +243,22 @@ bool ThemeBank::change_themes()
   _prev = _main;
   _main = _alt;
   _alt = _next;
-  _next = &_theme_shuffler.next();
+  _next = &_theme_shuffler.next().second;
+  if (_swaps_to_match_theme) {
+    --_swaps_to_match_theme;
+  }
 
   // Update target loads.
   if (_prev != _next && _prev != _alt && _prev != _main) {
     _prev->set_target_load(0);
   }
-  uint32_t cache_per_theme = _themes.size() == 2 ?
-      _image_cache_size / 2 : _image_cache_size / 3;
-  _next->set_target_load(cache_per_theme);
+  _next->set_target_load(cache_per_theme());
   return true;
+}
+
+bool ThemeBank::swaps_to_match_theme() const
+{
+  return _swaps_to_match_theme;
 }
 
 void ThemeBank::async_update()
@@ -259,7 +270,7 @@ void ThemeBank::async_update()
 
   ++_updates;
   // Swap some images from the active themes in and out every so often.
-  if (_updates > 64) {
+  if (_updates > 128) {
     _main->perform_swap();
     _alt->perform_swap();
     if (_themes.size() == 3) {
@@ -271,4 +282,11 @@ void ThemeBank::async_update()
     _prev->perform_load();
     _next->perform_load();
   }
+}
+
+uint32_t ThemeBank::cache_per_theme() const
+{
+  return !_theme_shuffler.enabled_count() ? 0 :
+      _image_cache_size / std::min((std::size_t) 3,
+                                   _theme_shuffler.enabled_count());
 }

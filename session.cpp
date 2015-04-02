@@ -267,13 +267,13 @@ void validate_session(trance_pb::Session& session)
 
     bool has_next_item = false;
     for (const auto& next_item : pair.second.next_item()) {
-      auto it = session.playlist().find(next_item.playest_item_name());
+      auto it = session.playlist().find(next_item.playlist_item_name());
       if (next_item.random_weight() > 0 && it != session.playlist().end()) {
         has_next_item = true;
         break;
       }
     }
-    if (has_next_item) {
+    if (!has_next_item) {
       pair.second.set_play_time_seconds(0);
     }
   }

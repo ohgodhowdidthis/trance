@@ -88,7 +88,7 @@ message PlaylistItem {
 
   message NextItem {
     // References playlist item in Session.
-    string playest_item_name = 1;
+    string playlist_item_name = 1;
 
     // Controls how frequently this item will be selected relative to others.
     uint32 random_weight = 2;

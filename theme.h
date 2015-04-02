@@ -6,6 +6,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <google/protobuf/repeated_field.h>
 #include "image.h"
@@ -65,7 +66,7 @@ private:
   StringShuffler _font_paths;
   StringShuffler _text_lines;
 
-  std::size_t _target_load;
+  std::atomic<std::size_t> _target_load;
   std::unordered_map<std::size_t, Image> _images;
   std::vector<Image> _animation_images;
   mutable std::mutex _image_mutex;
@@ -80,7 +81,11 @@ private:
 class ThemeBank {
 public:
 
-  ThemeBank(const trance_pb::Session& session);
+  ThemeBank(const trance_pb::Session& session,
+            const std::unordered_set<std::string>& enabled_themes);
+  void set_enabled_themes(
+      const std::unordered_set<std::string>& enabled_themes);
+
   // Get the main or alternate theme.
   const Theme& get(bool alternate = false) const;
 
@@ -94,23 +99,26 @@ public:
   // If the next theme has been fully loaded, swap it out for one of the two
   // active themes.
   bool change_themes();
+  bool swaps_to_match_theme() const;
 
   // Called from separate update thread to perform async loading/unloading.
   void async_update();
 
 private:
 
+  uint32_t cache_per_theme() const;
   static const std::size_t switch_cooldown = 500;
 
   std::unordered_map<std::string, trance_pb::Theme> _theme_map;
-  std::vector<Theme> _themes;
-  Shuffler<std::vector<Theme>> _theme_shuffler;
+  std::vector<std::pair<std::string, Theme>> _themes;
+  Shuffler<std::vector<std::pair<std::string, Theme>>> _theme_shuffler;
 
   Theme* _prev;
   Theme* _main;
   Theme* _alt;
   Theme* _next;
 
+  uint32_t _swaps_to_match_theme;
   uint32_t _image_cache_size;
   uint32_t _updates;
   std::atomic<uint32_t> _cooldown;
