@@ -164,13 +164,14 @@ void main(void)
 )";
 
 Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
-                   ThemeBank& themes, uint32_t width, uint32_t height)
+                   ThemeBank& themes, const trance_pb::Program& program)
 : _window{window}
 , _session{session}
 , _themes{themes}
 , _fonts{session.system().font_cache_size()}
-, _width{width}
-, _height{height}
+, _width{window.getSize().x}
+, _height{window.getSize().y}
+, _program{&program}
 , _image_program{0}
 , _spiral_program{0}
 , _quad_buffer{0}
@@ -310,9 +311,9 @@ Director::~Director()
   }
 }
 
-float Director::get_frame_time() const
+void Director::set_program(const trance_pb::Program& program)
 {
-  return 1.f / program().global_fps();
+  _program = &program;
 }
 
 void Director::update()
@@ -380,7 +381,7 @@ void Director::render_animation_or_image(
     float alpha, float multiplier, float zoom) const
 {
   Image anim = _themes.get(type == Anim::ANIM_ALTERNATE).get_animation(
-      std::size_t(120.f * get_frame_time() * _switch_themes / 8));
+      std::size_t((120.f / _program->global_fps()) * _switch_themes / 8));
 
   if (type != Anim::NONE && anim) {
     render_image(anim, alpha, multiplier, zoom);
@@ -404,7 +405,7 @@ void Director::render_image(const Image& image, float alpha,
   glBindTexture(GL_TEXTURE_2D, image.texture());
   glUniform1f(glGetUniformLocation(_image_program, "alpha"), alpha);
   glUniform1f(glGetUniformLocation(_image_program, "zoom"),
-              program().zoom_intensity() * zoom);
+              _program->zoom_intensity() * zoom);
 
   GLuint ploc = glGetAttribLocation(_image_program, "position");
   glEnableVertexAttribArray(ploc);
@@ -483,11 +484,11 @@ void Director::render_text(const std::string& text, float multiplier) const
   auto shadow_size = fit_text(default_size + shadow_extra, true);
   render_raw_text(
       text, _fonts.get_font(_current_font, shadow_size),
-      colour2sf(program().shadow_text_colour()), off3d(1.f + multiplier, true),
+      colour2sf(_program->shadow_text_colour()), off3d(1.f + multiplier, true),
       std::exp((4.f - multiplier) / 16.f));
   render_raw_text(
       text, _fonts.get_font(_current_font, main_size),
-      colour2sf(program().main_text_colour()), off3d(multiplier, true),
+      colour2sf(_program->main_text_colour()), off3d(multiplier, true),
       std::exp((4.f - multiplier) / 16.f));
 }
 
@@ -549,11 +550,11 @@ void Director::render_spiral() const
   glUniform1f(glGetUniformLocation(_spiral_program, "spiral_type"),
               float(_spiral_type));
   glUniform4f(glGetUniformLocation(_spiral_program, "acolour"),
-              program().spiral_colour_a().r(), program().spiral_colour_a().g(),
-              program().spiral_colour_a().b(), program().spiral_colour_a().a());
+              _program->spiral_colour_a().r(), _program->spiral_colour_a().g(),
+              _program->spiral_colour_a().b(), _program->spiral_colour_a().a());
   glUniform4f(glGetUniformLocation(_spiral_program, "bcolour"),
-              program().spiral_colour_b().r(), program().spiral_colour_b().g(),
-              program().spiral_colour_b().b(), program().spiral_colour_b().a());
+              _program->spiral_colour_b().r(), _program->spiral_colour_b().g(),
+              _program->spiral_colour_b().b(), _program->spiral_colour_b().a());
 
   auto loc = glGetAttribLocation(_spiral_program, "position");
   glEnableVertexAttribArray(loc);
@@ -566,7 +567,7 @@ void Director::render_spiral() const
 
 void Director::rotate_spiral(float amount)
 {
-  if (program().reverse_spiral_direction()) {
+  if (_program->reverse_spiral_direction()) {
     amount *= -1;
   }
   _spiral += amount / (32 * sqrt(float(_spiral_width)));
@@ -632,13 +633,13 @@ void Director::change_visual()
   _visual.swap(_old_visual);
 
   uint32_t total = 0;
-  for (const auto& type : program().visual_type()) {
+  for (const auto& type : _program->visual_type()) {
     total += type.random_weight();
   }
   auto r = random(total);
   total = 0;
   trance_pb::Program_VisualType t;
-  for (const auto& type : program().visual_type()) {
+  for (const auto& type : _program->visual_type()) {
     if (r < (total += type.random_weight())) {
       t = type.type();
       break;
@@ -669,12 +670,6 @@ void Director::change_visual()
   if (t == trance_pb::Program_VisualType_SUPER_FAST) {
     _visual.reset(new SuperFastVisual{*this});
   }
-}
-
-const trance_pb::Program& Director::program() const
-{
-  auto it = _session.playlist().find(_session.first_playlist_item());
-  return it->second.program();
 }
 
 void Director::init_oculus_rift()
