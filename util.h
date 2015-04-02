@@ -2,6 +2,7 @@
 #define TRANCE_UTIL_H
 
 #include <random>
+#include <type_traits>
 
 inline std::mt19937& get_mersenne_twister()
 {
@@ -48,7 +49,7 @@ inline bool random_chance()
 template<typename T>
 class Shuffler {
 public:
-  Shuffler(const T& data)
+  Shuffler(T& data)
   : _data(data)
   , _enabled(data.size(), true)
   , _enabled_count(data.size())
@@ -88,12 +89,30 @@ public:
     return get(next_index(get_enabled));
   }
 
+  template<typename U = T,
+           typename std::enable_if<!std::is_const<U>::value>::type* = nullptr>
+  typename T::value_type& next(bool get_enabled = true)
+  {
+    static T::value_type empty;
+    if (get_enabled ? !_enabled_count : _enabled_count == _data.size()) {
+      return empty;
+    }
+    return get(next_index(get_enabled));
+  }
+
   const typename T::value_type& get(std::size_t index) const
   {
     return *(_data.begin() + index);
   }
 
-  const std::size_t next_index(bool get_enabled = true) const
+  template<typename U = T,
+           typename std::enable_if<!std::is_const<U>::value>::type* = nullptr>
+  typename T::value_type& get(std::size_t index)
+  {
+    return *(_data.begin() + index);
+  }
+
+  std::size_t next_index(bool get_enabled = true) const
   {
     auto count = get_enabled ? _enabled_count : _data.size() - _enabled_count;
     auto& last_id = get_enabled ? _last_enabled_id : _last_disabled_id;
@@ -121,7 +140,7 @@ public:
 
 private:
 
-  const T& _data;
+  T& _data;
   std::vector<bool> _enabled;
   std::size_t _enabled_count;
   mutable std::size_t _last_enabled_id;

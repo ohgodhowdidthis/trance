@@ -6,6 +6,11 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 
+Theme::Theme()
+: Theme{trance_pb::Theme{}}
+{
+}
+
 Theme::Theme(const trance_pb::Theme& proto)
 : _image_paths{proto.image_path()}
 , _animation_paths{proto.animation_path()}
@@ -174,123 +179,74 @@ void Theme::unload_animation_internal()
 }
 
 ThemeBank::ThemeBank(const trance_pb::Session& session)
-: _image_cache_size{session.system().image_cache_size()}
+: _theme_map{session.theme_map().begin(), session.theme_map().end()}
+, _themes{[&]{
+  std::vector<Theme> result;
+  // Need to store copies - proto map entries seem to be unstable.
+  for (const auto& pair : _theme_map) {
+    result.emplace_back(pair.second);
+  }
+  if (result.empty()) {
+    result.push_back(Theme({}));
+  }
+  // Always have at least two themes.
+  if (result.size() == 1) {
+    result.emplace_back(result.back());
+  }
+  return result;
+}()}
+, _theme_shuffler{_themes}
+, _prev{&_theme_shuffler.next()}
+, _main{&_theme_shuffler.next()}
+, _alt{&_theme_shuffler.next()}
+, _next{&_theme_shuffler.next()}
+, _image_cache_size{session.system().image_cache_size()}
 , _updates{0}
 , _cooldown{switch_cooldown}
 {
-  for (const auto& pair : session.theme_map()) {
-    auto theme = pair.second;
-    std::cout << "theme " << pair.first << " with " <<
-        theme.image_path_size() << " image(s), " <<
-        theme.animation_path_size() << " animation(s), " <<
-        theme.font_path_size() << " font(s), and " <<
-        theme.text_line_size() << " line(s) of text" << std::endl;
-    _theme_map.emplace(pair.first, theme);
-  }
+  uint32_t cache_per_theme = _themes.size() == 2 ?
+      _image_cache_size / 2 : _image_cache_size / 3;
+  _main->set_target_load(cache_per_theme);
+  _alt->set_target_load(cache_per_theme);
+  _next->set_target_load(cache_per_theme);
 
-  // Need to store copies - proto map entries seem to be unstable.
-  for (const auto& pair : _theme_map) {
-    _themes.emplace_back(pair.second);
-  }
-  if (_themes.empty()) {
-    _themes.push_back(Theme({}));
-  }
-
-  if (_themes.size() == 1) {
-    // Always have at least two themes.
-    Theme copy = _themes.back();
-    _themes.emplace_back(copy);
-  }
-  if (_themes.size() == 2) {
-    // Two active themes and switching just swaps them.
-    _a = 0;
-    _b = 1;
-    _themes[0].set_target_load(_image_cache_size / 2);
-    _themes[1].set_target_load(_image_cache_size / 2);
-    _themes[0].perform_all_loads();
-    _themes[1].perform_all_loads();
-    return;
-  }
-
-  // For three themes, we keep every theme loaded at all times but swap the two
-  // active ones.
-  //
-  // Four four or more themes, we have:
-  // - 2 active themes (_a, _b)
-  // - 1 loading in (_next)
-  // - 1 being unloaded (_prev)
-  // - some others
-  _a = random(_themes.size());
-  _b = random_excluding(_themes.size(), _a);
-  do {
-    _next = random_excluding(_themes.size(), _a);
-  }
-  while (_next == _b);
-
-  _themes[_a].set_target_load(_image_cache_size / 3);
-  _themes[_b].set_target_load(_image_cache_size / 3);
-  _themes[_next].set_target_load(_image_cache_size / 3);
-  _themes[_a].perform_all_loads();
-  _themes[_b].perform_all_loads();
-
+  _main->perform_all_loads();
+  _alt->perform_all_loads();
   if (_themes.size() == 3) {
-    _themes[_next].perform_all_loads();
-  }
-  else {
-    // _prev just needs to be some unused index.
-    _prev = 0;
-    while (_prev == _a || _prev == _b || _prev == _next) {
-      ++_prev;
-    }
+    _next->perform_all_loads();
   }
 }
 
 const Theme& ThemeBank::get(bool alternate) const
 {
-  return alternate ? _themes[_a] : _themes[_b];
+  return alternate ? *_alt : *_main;
 }
 
 void ThemeBank::maybe_upload_next()
 {
-  if (_themes.size() > 3 && _themes[_next].loaded() > 0) {
-    _themes[_next].get_image();
+  if (_next->loaded() > 0) {
+    _next->get_image();
   }
 }
 
 bool ThemeBank::change_themes()
 {
-  _cooldown = switch_cooldown;
-  if (_themes.size() < 3) {
-    // Only indexes need to be swapped.
-    std::swap(_a, _b);
-    return true;
-  }
-  if (_themes.size() == 3) {
-    // Indexes need to be cycled.
-    std::size_t t = _a;
-    _a = _b;
-    _b = _next;
-    _next = _a;
-    return true;
-  }
-
-  // For four or more themes, we need to wait until the next one has loaded in
-  // sufficiently.
-  if (!_themes[_prev].all_loaded() || !_themes[_next].all_loaded()) {
+  if (!_prev->all_loaded() || !_next->all_loaded()) {
     return false;
   }
-
-  _prev = _a;
-  _a = _b;
-  _b = _next;
-  do {
-    _next = random_excluding(_themes.size(), _prev);
-  }
-  while (_next == _a || _next == _b);
+  _cooldown = switch_cooldown;
+  _prev = _main;
+  _main = _alt;
+  _alt = _next;
+  _next = &_theme_shuffler.next();
 
   // Update target loads.
-  _themes[_prev].set_target_load(0);
-  _themes[_next].set_target_load(_image_cache_size / 3);
+  if (_prev != _next && _prev != _alt && _prev != _main) {
+    _prev->set_target_load(0);
+  }
+  uint32_t cache_per_theme = _themes.size() == 2 ?
+      _image_cache_size / 2 : _image_cache_size / 3;
+  _next->set_target_load(cache_per_theme);
   return true;
 }
 
@@ -303,16 +259,16 @@ void ThemeBank::async_update()
 
   ++_updates;
   // Swap some images from the active themes in and out every so often.
-  if (_updates > 128) {
-    _themes[_a].perform_swap();
-    _themes[_b].perform_swap();
+  if (_updates > 64) {
+    _main->perform_swap();
+    _alt->perform_swap();
+    if (_themes.size() == 3) {
+      _next->perform_swap();
+    }
     _updates = 0;
   }
-  if (_themes.size() == 3) {
-    _themes[_next].perform_swap();
-  }
-  else if (_themes.size() >= 4) {
-    _themes[_prev].perform_load();
-    _themes[_next].perform_load();
+  else {
+    _prev->perform_load();
+    _next->perform_load();
   }
 }

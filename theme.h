@@ -20,6 +20,7 @@ namespace trance_pb {
 class Theme {
 public:
 
+  Theme();
   Theme(const trance_pb::Theme& proto);
   Theme(const Theme& theme);
 
@@ -58,7 +59,7 @@ private:
   void unload_animation_internal();
 
   using StringShuffler =
-      Shuffler<google::protobuf::RepeatedPtrField<std::string>>;
+      Shuffler<const google::protobuf::RepeatedPtrField<std::string>>;
   StringShuffler _image_paths;
   StringShuffler _animation_paths;
   StringShuffler _font_paths;
@@ -101,13 +102,15 @@ private:
 
   static const std::size_t switch_cooldown = 500;
 
-  std::size_t _prev;
-  std::size_t _a;
-  std::size_t _b;
-  std::size_t _next;
-
   std::unordered_map<std::string, trance_pb::Theme> _theme_map;
   std::vector<Theme> _themes;
+  Shuffler<std::vector<Theme>> _theme_shuffler;
+
+  Theme* _prev;
+  Theme* _main;
+  Theme* _alt;
+  Theme* _next;
+
   uint32_t _image_cache_size;
   uint32_t _updates;
   std::atomic<uint32_t> _cooldown;
