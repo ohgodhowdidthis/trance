@@ -27,6 +27,7 @@ Theme::Theme(const Theme& theme)
 , _font_paths{theme._font_paths}
 , _text_lines{theme._text_lines}
 , _target_load{theme._target_load.load()}
+, _purgeable_images{theme._purgeable_images}
 {
 }
 
@@ -41,7 +42,11 @@ Image Theme::get_image() const
   }
   std::size_t index = _image_paths.next_index(false);
   auto it = _images.find(index);
-  it->second.ensure_texture_uploaded();
+  if (it->second.ensure_texture_uploaded()) {
+    _purge_mutex.lock();
+    _purgeable_images.push_back(it->second.get_sf_image());
+    _purge_mutex.unlock();
+  }
   Image image = it->second;
   _image_mutex.unlock();
   return image;
@@ -57,7 +62,11 @@ Image Theme::get_animation(std::size_t frame) const
   auto len = _animation_images.size();
   auto f = frame % (2 * len - 2);
   f = f < len ? f : 2 * len - 2 - f;
-  _animation_images[f].ensure_texture_uploaded();
+  if (_animation_images[f].ensure_texture_uploaded()) {
+    _purge_mutex.lock();
+    _purgeable_images.push_back(_animation_images[f].get_sf_image());
+    _purge_mutex.unlock();
+  }
   Image image = _animation_images[f];
   _animation_mutex.unlock();
   return image;
@@ -76,6 +85,16 @@ const std::string& Theme::get_font() const
 void Theme::set_target_load(std::size_t target_load)
 {
   _target_load = target_load;
+}
+
+void Theme::perform_purge()
+{
+  _purge_mutex.lock();
+  for (auto& image : _purgeable_images) {
+    image->reset(); 
+  }
+  _purgeable_images.clear();
+  _purge_mutex.unlock();
 }
 
 void Theme::perform_swap()
@@ -263,6 +282,9 @@ bool ThemeBank::swaps_to_match_theme() const
 
 void ThemeBank::async_update()
 {
+  for (auto& pair : _themes) {
+    pair.second.perform_purge();
+  }
   if (_cooldown) {
     --_cooldown;
     return;

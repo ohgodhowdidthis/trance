@@ -41,6 +41,8 @@ public:
   // load/unload images until we're at the target.
   void set_target_load(std::size_t target_load);
 
+  // Purge memory we no longer need.
+  void perform_purge();
   // Randomly swap out one in-memory image for another unloaded one.
   void perform_swap();
   // Perform at most one load or unload towards the target.
@@ -71,6 +73,8 @@ private:
   std::vector<Image> _animation_images;
   mutable std::mutex _image_mutex;
   mutable std::mutex _animation_mutex;
+  mutable std::mutex _purge_mutex;
+  mutable std::vector<Image::sf_image_ptr> _purgeable_images;
 
 };
 
