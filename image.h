@@ -12,21 +12,20 @@ class Image {
 public:
 
   Image();
-  Image(const std::string& path, uint32_t width, uint32_t height,
-        unsigned char* data);
-  Image(const std::string& path, const sf::Image& image);
+  Image(uint32_t width, uint32_t height, unsigned char* data);
+  Image(const sf::Image& image);
   explicit operator bool() const;
 
   uint32_t width() const;
   uint32_t height() const;
   uint32_t texture() const;
 
+  // Double-indirection for easy purging.
+  typedef std::shared_ptr<std::shared_ptr<sf::Image>> sf_image_ptr;
   // Call from OpenGL context thread only!
-  void ensure_texture_uploaded() const;
+  bool ensure_texture_uploaded() const;
+  sf_image_ptr& get_sf_image() const;
   static void delete_textures();
-
-  std::string _path; // TODO: only needed while image
-                     // loading/unloading uses dumb method.
 
 private:
 
@@ -44,9 +43,9 @@ private:
 
   uint32_t _width;
   uint32_t _height;
-  std::shared_ptr<sf::Image> _sf_image;
 
   mutable uint32_t _texture;
+  mutable sf_image_ptr _sf_image;
   mutable std::shared_ptr<texture_deleter> _deleter;
 };
 
