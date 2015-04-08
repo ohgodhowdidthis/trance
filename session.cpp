@@ -246,7 +246,7 @@ trance_pb::Session get_default_session()
   system->set_oculus_image_depth(1.f);
   system->set_oculus_text_depth(1.f);
   system->set_image_cache_size(64);
-  system->set_font_cache_size(8);
+  system->set_font_cache_size(16);
 
   set_default_program(session);
   validate_session(session);
@@ -257,7 +257,7 @@ void validate_session(trance_pb::Session& session)
 {
   auto system = session.mutable_system();
   system->set_image_cache_size(std::max(6u, system->image_cache_size()));
-  system->set_font_cache_size(std::max(2u, system->image_cache_size()));
+  system->set_font_cache_size(std::max(2u, system->font_cache_size()));
 
   if (session.playlist().empty()) {
     set_default_program(session);

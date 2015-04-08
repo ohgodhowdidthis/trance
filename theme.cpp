@@ -91,7 +91,7 @@ void Theme::perform_purge()
 {
   _purge_mutex.lock();
   for (auto& image : _purgeable_images) {
-    image->reset(); 
+    image->reset();
   }
   _purgeable_images.clear();
   _purge_mutex.unlock();
