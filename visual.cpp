@@ -2,6 +2,8 @@
 #include "director.h"
 #include "util.h"
 
+// TODO: some sort of unification of this logic, especially timers, calls to
+// maybe_upload_next, etc.
 Visual::Visual(Director& director)
 : _director{director}
 {
@@ -91,6 +93,13 @@ void AccelerateVisual::update()
       }
     }
     director().change_font();
+    // Frames is something like:
+    // 49 + sum(0 <= k < 48, (1 + floor(k^6/48^5))(48 - k)) for acceleration.
+    // 1 + sum(0 <= k < 48, (1 + floor((48 - k)^6/48^5/2))(2 + k)) for
+    // deceleration.
+    // 1/2 chance after ~2984 for acceleration, ~2367 for deceleration.
+    // 1/2 random weight.
+    // Average length 2 * 2675 / 2 = 2675 frames.
     if (random_chance()) {
       director().change_visual();
     }
@@ -132,8 +141,7 @@ void SubTextVisual::update()
     director().change_subtext();
   }
 
-  if (_change_timer) {
-    --_change_timer;
+  if (--_change_timer) {
     if (_change_timer == speed / 2) {
       director().maybe_upload_next();
     }
@@ -153,6 +161,8 @@ void SubTextVisual::update()
       _current_text = director().get_text();
     }
     director().change_font();
+    // 1/2 chance after 32 * 48 = 1536 frames.
+    // Average length 2 * 1536 = 3072 frames.
     if (random_chance()) {
       director().change_visual();
       director().change_spiral();
@@ -207,6 +217,9 @@ void SlowFlashVisual::update()
     if (!--_cycle_count) {
       _cycle_count = set_length;
       director().change_themes();
+      // 1/2 chance after 2 * (16 * 64 + 64 * 4) = 2560 frames.
+      // 1/2 random weight.
+      // Average length 2 * 2560 / 2 = 2560 frames.
       if (random_chance()) {
         director().change_visual();
       }
@@ -263,6 +276,8 @@ void FlashTextVisual::update()
       _cycle = cycles;
       director().change_themes();
       _current_text = director().get_text();
+      // 1/4 chance after 64 * 8 = 512 frames.
+      // Average length 4 * 512 = 2048 frames.
       if (random_chance(4)) {
         director().change_visual();
       }
@@ -331,6 +346,8 @@ void ParallelVisual::update()
     director().change_font();
     director().change_themes();
     _cycle = cycles;
+    // 1/2 chance after 32 * 64 = 2048 frames.
+    // Average length 2 * 2048 = 4096 frames.
     if (random_chance()) {
       director().change_visual();
     }
@@ -409,6 +426,8 @@ void SuperParallelVisual::update()
     director().change_font();
     director().change_themes();
     _cycle = cycles;
+    // 1/2 chance after 2 * 512 = 1024 frames.
+    // Average length 2 * 1024 = 2048 frames.
     if (random_chance()) {
       director().change_visual();
     }
@@ -466,6 +485,8 @@ void AnimationVisual::update()
     director().change_themes();
     _cycle = cycles;
     _current_text = director().get_text();
+    // 1/3 chance after 256 * 4 = 1024 frames.
+    // Average length 3 * 1024 = 3072 frames.
     if (random_chance(3)) {
       director().change_visual();
     }
@@ -524,6 +545,9 @@ void SuperFastVisual::update()
   director().change_font();
   director().change_themes();
   _timer = length;
+  // Roughly 1024 + ~ 1024 * (128 + 128 / 2) / 256 (ignoring the _start_timer).
+  // ~1/3 chance after 1792 frames.
+  // Average length 3 * 1792 = 5376 frames.
   if (random_chance(3)) {
     director().change_visual();
   }
