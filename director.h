@@ -61,7 +61,7 @@ public:
   void change_font(bool force = false);
   void change_subtext(bool alternate = false);
   bool change_themes();
-  void change_visual();
+  bool change_visual(uint32_t chance);
 
 private:
 
