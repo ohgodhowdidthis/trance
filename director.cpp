@@ -300,7 +300,7 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 
   change_font(true);
   change_spiral();
-  change_visual();
+  change_visual(0);
   change_subtext();
 }
 
@@ -624,10 +624,12 @@ bool Director::change_themes()
   return false;
 }
 
-void Director::change_visual()
+bool Director::change_visual(uint32_t chance)
 {
-  if (_old_visual) {
-    return;
+  // Like !random_chance(chance), but scaled to speed.
+  if (_old_visual ||
+      (chance && random(chance * _program->global_fps()) >= 120)) {
+    return false;
   }
   _current_subfont = _themes.get().get_font();
   _visual.swap(_old_visual);
@@ -670,6 +672,7 @@ void Director::change_visual()
   if (t == trance_pb::Program_VisualType_SUPER_FAST) {
     _visual.reset(new SuperFastVisual{*this});
   }
+  return true;
 }
 
 void Director::init_oculus_rift()
