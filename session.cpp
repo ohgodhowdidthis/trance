@@ -36,38 +36,20 @@ std::string split_text_line(const std::string& text)
 void set_default_visual_types(trance_pb::Program* program)
 {
   program->clear_visual_type();
+  auto add = [&](trance_pb::Program::VisualType type_enum) {
+    auto type = program->add_visual_type();
+    type->set_type(type_enum);
+    type->set_random_weight(1);
+  };
 
-  auto type = program->add_visual_type();
-  type->set_type(trance_pb::Program_VisualType_ACCELERATE);
-  type->set_random_weight(1);
-
-  type = program->add_visual_type();
-  type->set_type(trance_pb::Program_VisualType_SLOW_FLASH);
-  type->set_random_weight(1);
-
-  type = program->add_visual_type();
-  type->set_type(trance_pb::Program_VisualType_SUB_TEXT);
-  type->set_random_weight(2);
-
-  type = program->add_visual_type();
-  type->set_type(trance_pb::Program_VisualType_FLASH_TEXT);
-  type->set_random_weight(2);
-
-  type = program->add_visual_type();
-  type->set_type(trance_pb::Program_VisualType_PARALLEL);
-  type->set_random_weight(2);
-
-  type = program->add_visual_type();
-  type->set_type(trance_pb::Program_VisualType_SUPER_PARALLEL);
-  type->set_random_weight(2);
-
-  type = program->add_visual_type();
-  type->set_type(trance_pb::Program_VisualType_ANIMATION);
-  type->set_random_weight(2);
-
-  type = program->add_visual_type();
-  type->set_type(trance_pb::Program_VisualType_SUPER_FAST);
-  type->set_random_weight(2);
+  add(trance_pb::Program_VisualType_ACCELERATE);
+  add(trance_pb::Program_VisualType_SLOW_FLASH);
+  add(trance_pb::Program_VisualType_SUB_TEXT);
+  add(trance_pb::Program_VisualType_FLASH_TEXT);
+  add(trance_pb::Program_VisualType_PARALLEL);
+  add(trance_pb::Program_VisualType_SUPER_PARALLEL);
+  add(trance_pb::Program_VisualType_ANIMATION);
+  add(trance_pb::Program_VisualType_SUPER_FAST);
 }
 
 void search_resources(trance_pb::Session& session)
