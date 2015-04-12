@@ -45,7 +45,7 @@ std::vector<Image> load_animation_gif(const std::string& path)
   for (int i = 0; i < gif->ImageCount; ++i) {
     const auto& frame = gif->SavedImages[i];
     bool transparency = false;
-    unsigned char transparency_byte = 0;
+    uint8_t transparency_byte = 0;
     // Delay time in hundredths of a second. Ignore it; it messes with the
     // rhythm.
     int delay_time = 1;
@@ -76,7 +76,7 @@ std::vector<Image> load_animation_gif(const std::string& path)
 
     for (int y = 0; y < std::min(height, fh); ++y) {
       for (int x = 0; x < std::min(width, fw); ++x) {
-        unsigned char byte = frame.RasterBits[x + y * fw];
+        uint8_t byte = frame.RasterBits[x + y * fw];
         if (transparency && byte == transparency_byte) {
           continue;
         }
@@ -171,7 +171,7 @@ std::vector<Image> load_animation_webm(const std::string& path)
       if (b->GetTrackNumber() == video_track->GetNumber()) {
         for (int i = 0; i < b->GetFrameCount(); ++i) {
           const auto& frame = b->GetFrame(i);
-          std::unique_ptr<unsigned char[]> data(new unsigned char[frame.len]);
+          std::unique_ptr<uint8_t[]> data(new uint8_t[frame.len]);
           reader.Read(frame.pos, frame.len, data.get());
 
           if (vpx_codec_decode(&codec, data.get(), frame.len, nullptr, 0)) {
@@ -188,26 +188,26 @@ std::vector<Image> load_animation_webm(const std::string& path)
             auto h = img->d_h;
             for (uint32_t y = 0; y < h; ++y) {
               for (uint32_t x = 0; x < w; ++x) {
-                int Y = img->planes[VPX_PLANE_Y]
+                uint8_t Y = img->planes[VPX_PLANE_Y]
                     [x + y * img->stride[VPX_PLANE_Y]];
-                int U = img->planes[VPX_PLANE_U]
+                uint8_t U = img->planes[VPX_PLANE_U]
                     [x / 2 + (y / 2) * img->stride[VPX_PLANE_U]];
-                int V = img->planes[VPX_PLANE_V]
+                uint8_t V = img->planes[VPX_PLANE_V]
                     [x / 2 + (y / 2) * img->stride[VPX_PLANE_V]];
 
                 auto cl = [](float f) {
-                  return (unsigned char) std::max(0, std::min(255, (int) f));
+                  return (uint8_t) std::max(0, std::min(255, (int) f));
                 };
                 auto R = cl(1.164f * (Y - 16.f) + 1.596f * (V - 128.f));
                 auto G = cl(1.164f * (Y - 16.f) -
-                    0.813f * (V - 128.f) - 0.391f * (U - 128.f));
-                auto B = cl(1.164f * (Y - 16.f) + 2.018f * (U - 128.f));
+                    0.391f * (U - 128.f) - 0.813f * (V - 128.f));
+                auto B = cl(1.164f * (Y - 16.f) + 2.017f * (U - 128.f));
                 data[x + y * w] =
                     R | (G << 8) | (B << 16) | (0xff << 24);
               }
             }
 
-            result.emplace_back(w, h, (unsigned char*) data.get());
+            result.emplace_back(w, h, (uint8_t*) data.get());
             std::cout << ";";
           }
         }
@@ -473,27 +473,31 @@ void WebmExporter::encode_frame(const sf::Image& image)
   // Convert RGB to YUV420.
   auto data = image.getPixelsPtr();
   for (uint32_t y = 0; y < _height / 2; ++y) {
-    for (uint32_t x = 0; x < _width / 2; ++x) {
-      _img->planes[VPX_PLANE_U][x + y * _img->stride[VPX_PLANE_U]] = 0;
-      _img->planes[VPX_PLANE_V][x + y * _img->stride[VPX_PLANE_V]] = 0;
-    }
+    memset(_img->planes[VPX_PLANE_U] + y * _img->stride[VPX_PLANE_U],
+           0, _width / 2);
+    memset(_img->planes[VPX_PLANE_V] + y * _img->stride[VPX_PLANE_V],
+           0, _width / 2);
   }
   for (uint32_t y = 0; y < _height; ++y) {
     for (uint32_t x = 0; x < _width; ++x) {
-      uint16_t r = data[4 * (x + y * _width)];
-      uint16_t g = data[1 + 4 * (x + y * _width)];
-      uint16_t b = data[2 + 4 * (x + y * _width)];
+      uint8_t R = data[4 * (x + y * _width)];
+      uint8_t G = data[1 + 4 * (x + y * _width)];
+      uint8_t B = data[2 + 4 * (x + y * _width)];
 
-      uint8_t y = ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
-      uint8_t u = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
-      uint8_t v = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
+      auto cl = [](float f) {
+        return (uint8_t) std::max(0, std::min(255, (int) f));
+      };
 
-      _img->planes[VPX_PLANE_Y][x + y * _img->stride[VPX_PLANE_Y]] = y;
+      uint8_t Y = cl(16.f + 0.257f * R + 0.504f * G + 0.098f * B);
+      uint8_t U = cl(128.f - 0.148f * R - 0.291f * G + 0.439f * B);
+      uint8_t V = cl(128.f + 0.439f * R - 0.368f * G - 0.071f * B);
+
+      _img->planes[VPX_PLANE_Y][x + y * _img->stride[VPX_PLANE_Y]] = Y;
       // TODO: messy rounding.
       _img->planes[VPX_PLANE_U]
-          [(x / 2) + (y / 2) * _img->stride[VPX_PLANE_U]] += u / 4;
+          [(x / 2) + (y / 2) * _img->stride[VPX_PLANE_U]] += U / 4;
       _img->planes[VPX_PLANE_V]
-          [(x / 2) + (y / 2) * _img->stride[VPX_PLANE_V]] += v / 4;
+          [(x / 2) + (y / 2) * _img->stride[VPX_PLANE_V]] += V / 4;
     }
   }
   add_frame(_img);
