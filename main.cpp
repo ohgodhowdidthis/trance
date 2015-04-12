@@ -1,3 +1,4 @@
+#include <gflags/gflags.h>
 #include <OVR_CAPI.h>
 #include <SFML/Window.hpp>
 #include <trance.pb.h>
@@ -150,11 +151,21 @@ void play_session(const trance_pb::Session& session)
   close_window(*window, session.system());
 }
 
+DEFINE_string(export_video_path, "", "export video to this path");
+DEFINE_uint64(export_video_seconds, 600, "export video length in seconds");
+DEFINE_uint64(export_video_width, 1920, "export video resolution width");
+DEFINE_uint64(export_video_height, 1080, "export video resolution height");
+
 int main(int argc, char** argv)
 {
-  static const std::string session_cfg_path = "./session.cfg";
-  trance_pb::Session session = load_session(session_cfg_path);
-  save_session(session, session_cfg_path);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  if (argc > 2) {
+    std::cerr << "too many command-line arguments" << std::endl;
+    return 1;
+  }
+  std::string session_path{argc == 2 ? argv[1] : "./default_session.cfg"};
+  trance_pb::Session session = load_session(session_path);
+  save_session(session, session_path);
   play_session(session);
   return 0;
 }
