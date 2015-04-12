@@ -8,6 +8,9 @@
 
 #define VPX_CODEC_DISABLE_COMPAT 1
 #include <vpx/vpx_decoder.h>
+#include <vpx/vpx_encoder.h>
+#include <vpx/vpx_image.h>
+#include <vpx/vp8cx.h>
 #include <vpx/vp8dx.h>
 
 namespace {
@@ -180,15 +183,17 @@ std::vector<Image> load_animation_webm(const std::string& path)
           while (auto img = vpx_codec_get_frame(&codec, &it)) {
             // Convert I420 (YUV with NxN Y-plane and (N/2)x(N/2) U- and V-
             // planes) to RGB.
-            std::unique_ptr<uint32_t[]> data(
-                new uint32_t[32 * img->d_w * img->d_h]);
+            std::unique_ptr<uint32_t[]> data(new uint32_t[img->d_w * img->d_h]);
             auto w = img->d_w;
             auto h = img->d_h;
             for (uint32_t y = 0; y < h; ++y) {
               for (uint32_t x = 0; x < w; ++x) {
-                int Y = img->planes[0][x + y * img->stride[0]];
-                int U = img->planes[1][x / 2 + (y / 2) * img->stride[1]];
-                int V = img->planes[2][x / 2 + (y / 2) * img->stride[2]];
+                int Y = img->planes[VPX_PLANE_Y]
+                    [x + y * img->stride[VPX_PLANE_Y]];
+                int U = img->planes[VPX_PLANE_U]
+                    [x / 2 + (y / 2) * img->stride[VPX_PLANE_U]];
+                int V = img->planes[VPX_PLANE_V]
+                    [x / 2 + (y / 2) * img->stride[VPX_PLANE_V]];
 
                 auto cl = [](float f) {
                   return (unsigned char) std::max(0, std::min(255, (int) f));
@@ -398,4 +403,157 @@ std::vector<Image> load_animation(const std::string& path)
     return load_animation_webm(path);
   }
   return {};
+}
+
+WebmExporter::WebmExporter(
+    const std::string& path, uint32_t width, uint32_t height,
+    uint32_t fps, uint32_t bitrate)
+: _success{false}
+, _width{width}
+, _height{height}
+, _fps{fps}
+, _video_track{0}
+, _img{nullptr}
+, _frame_index{0}
+{
+  if (!_writer.Open(path.c_str())) {
+    std::cerr << "couldn't open " << path << " for writing" << std::endl;
+    return;
+  }
+
+  if (!_segment.Init(&_writer)) {
+    std::cerr << "couldn't initialise muxer segment" << std::endl;
+    return;
+  }
+  _segment.set_mode(mkvmuxer::Segment::kFile);
+  _segment.OutputCues(true);
+  _segment.GetSegmentInfo()->set_writing_app("trance");
+
+  _video_track = _segment.AddVideoTrack(width, height, 0);
+  if (!_video_track) {
+    std::cerr << "couldn't add video track" << std::endl;
+    return;
+  }
+
+  auto video = (mkvmuxer::VideoTrack*)
+      _segment.GetTrackByNumber(_video_track);
+  if (!video) {
+    std::cerr << "couldn't get video track" << std::endl;
+    return;
+  }
+  video->set_frame_rate(fps);
+  _segment.CuesTrack(_video_track);
+
+  vpx_codec_enc_cfg_t cfg;
+  if (vpx_codec_enc_config_default(vpx_codec_vp8_cx(), &cfg, 0)) {
+    std::cerr << "couldn't get default codec config" << std::endl;
+    return;
+  }
+  cfg.g_w = width;
+  cfg.g_h = height;
+  cfg.g_timebase.num = 1;
+  cfg.g_timebase.den = fps;
+  cfg.rc_target_bitrate = bitrate;
+
+  if (vpx_codec_enc_init(&_codec, vpx_codec_vp8_cx(), &cfg, 0)) {
+    codec_error("couldn't initialise encoder");
+    return;
+  }
+
+  _img = vpx_img_alloc(nullptr, VPX_IMG_FMT_I420, width, height, 16);
+  if (!_img) {
+    std::cerr << "couldn't allocate image for encoding" << std::endl;
+    return;
+  }
+  _success = true;
+}
+
+void WebmExporter::encode_frame(const sf::Image& image)
+{
+  // Convert RGB to YUV420.
+  auto data = image.getPixelsPtr();
+  for (uint32_t y = 0; y < _height / 2; ++y) {
+    for (uint32_t x = 0; x < _width / 2; ++x) {
+      _img->planes[VPX_PLANE_U][x + y * _img->stride[VPX_PLANE_U]] = 0;
+      _img->planes[VPX_PLANE_V][x + y * _img->stride[VPX_PLANE_V]] = 0;
+    }
+  }
+  for (uint32_t y = 0; y < _height; ++y) {
+    for (uint32_t x = 0; x < _width; ++x) {
+      uint16_t r = data[4 * (x + y * _width)];
+      uint16_t g = data[1 + 4 * (x + y * _width)];
+      uint16_t b = data[2 + 4 * (x + y * _width)];
+
+      uint8_t y = ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
+      uint8_t u = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
+      uint8_t v = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
+
+      _img->planes[VPX_PLANE_Y][x + y * _img->stride[VPX_PLANE_Y]] = y;
+      // TODO: messy rounding.
+      _img->planes[VPX_PLANE_U]
+          [(x / 2) + (y / 2) * _img->stride[VPX_PLANE_U]] += u / 4;
+      _img->planes[VPX_PLANE_V]
+          [(x / 2) + (y / 2) * _img->stride[VPX_PLANE_V]] += v / 4;
+    }
+  }
+  add_frame(_img);
+}
+
+void WebmExporter::codec_error(const std::string& s)
+{
+  auto detail = vpx_codec_error_detail(&_codec);
+  std::cerr << s << ": " << vpx_codec_error(&_codec);
+  if (detail) {
+    std::cerr << ": " << detail;
+  }
+  std::cerr << std::endl;
+}
+
+bool WebmExporter::add_frame(const vpx_image* data)
+{
+  auto result = vpx_codec_encode(
+      &_codec, data, _frame_index++, 1, 0, VPX_DL_GOOD_QUALITY);
+  if (result != VPX_CODEC_OK) {
+    codec_error("couldn't encode frame");
+    return false;
+  }
+
+  vpx_codec_iter_t iter = nullptr;
+  const vpx_codec_cx_pkt_t* packet = nullptr;
+  bool found_packet = false;
+  while (packet = vpx_codec_get_cx_data(&_codec, &iter)) {
+    found_packet = true;
+    if (packet->kind != VPX_CODEC_CX_FRAME_PKT) {
+      continue;
+    }
+    auto timestamp_ns = 1000000000 * packet->data.frame.pts / _fps;
+    bool result = _segment.AddFrame(
+        (uint8_t*) packet->data.frame.buf, packet->data.frame.sz, _video_track,
+        timestamp_ns, packet->data.frame.flags & VPX_FRAME_IS_KEY);
+    if (!result) {
+      std::cerr << "couldn't add frame" << std::endl;
+      return false;
+    }
+  }
+
+  return found_packet;
+};
+
+WebmExporter::~WebmExporter()
+{
+  if (_img) {
+    vpx_img_free(_img);
+  }
+  // Flush encoder.
+  while (add_frame(nullptr));
+
+  if (vpx_codec_destroy(&_codec)) {
+    codec_error("failed to destroy codec");
+    return;
+  }
+  if (!_segment.Finalize()) {
+    std::cerr << "couldn't finalise muxer segment" << std::endl;
+    return;
+  }
+  _writer.Close();
 }
