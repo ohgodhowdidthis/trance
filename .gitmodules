@@ -10,3 +10,6 @@
 [submodule "protobuf"]
 	path = protobuf
 	url = http://github.com/google/protobuf
+[submodule "gflags"]
+	path = gflags
+	url = http://github.com/gflags/gflags.git
