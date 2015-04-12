@@ -39,6 +39,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="trance.proto" />
+    <CustomBuild Include="trance.proto" />
   </ItemGroup>
 </Project>
