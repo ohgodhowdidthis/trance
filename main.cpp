@@ -11,7 +11,8 @@
 #include "theme.h"
 
 std::unique_ptr<sf::RenderWindow> create_window(
-    const trance_pb::SystemConfiguration& system)
+    const trance_pb::SystemConfiguration& system,
+    uint32_t width, uint32_t height, bool visible)
 {
   // Call ovr_Initialize() before getting an OpenGL context.
   if (system.enable_oculus_rift()) {
@@ -23,15 +24,21 @@ std::unique_ptr<sf::RenderWindow> create_window(
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   auto video_mode = sf::VideoMode::getDesktopMode();
-  window->create(
-      video_mode, "trance",
-      system.enable_oculus_rift() ? sf::Style::None : sf::Style::Fullscreen);
+  if (width && height) {
+    video_mode.width = width;
+    video_mode.height = height;
+  }
+  auto style = !visible || system.enable_oculus_rift() ?
+      sf::Style::None : sf::Style::Fullscreen;
+  window->create(video_mode, "trance", style);
 
   window->setVerticalSyncEnabled(system.enable_vsync());
   window->setFramerateLimit(60);
-  window->setVisible(true);
+  window->setVisible(visible);
   window->setActive();
-  window->display();
+  if (visible) {
+    window->display();
+  }
   return window;
 }
 
@@ -60,11 +67,49 @@ const std::string& next_playlist_item(
   }
 }
 
-void play_session(const trance_pb::Session& session)
-{
-  static const std::string bad_alloc =
-      "OUT OF MEMORY! TRY REDUCING USAGE IN SETTINGS...";
+static const std::string bad_alloc =
+    "OUT OF MEMORY! TRY REDUCING USAGE IN SETTINGS...";
+static const uint32_t async_millis = 10;
 
+std::thread run_async_thread(std::atomic<bool>& running, ThemeBank& bank)
+{
+  // Run the asynchronous load/unload thread.
+  return std::thread{[&]{
+    while (running) {
+      try {
+        bank.async_update();
+      }
+      catch (std::bad_alloc&) {
+        std::cerr << bad_alloc << std::endl;
+        running = false;
+        throw;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(async_millis));
+    }
+  }};
+}
+
+void handle_events(std::atomic<bool>& running, sf::RenderWindow* window)
+{
+  sf::Event event;
+  while (window && window->pollEvent(event)) {
+    if (event.type == event.Closed ||
+        (event.type == event.KeyPressed &&
+          event.key.code == sf::Keyboard::Escape)) {
+      running = false;
+    }
+    if (event.type == sf::Event::Resized) {
+      glViewport(0, 0, event.size.width, event.size.height);
+    }
+  }
+}
+
+void play_session(
+    const trance_pb::Session& session, const std::string& export_path,
+    uint32_t export_length, uint32_t export_fps, uint32_t export_bitrate,
+    uint32_t export_width, uint32_t export_height)
+{
+  bool realtime = export_path.empty();
   const trance_pb::PlaylistItem* item =
       &session.playlist().find(session.first_playlist_item())->second;
   std::unordered_set<std::string> enabled_themes{
@@ -72,52 +117,64 @@ void play_session(const trance_pb::Session& session)
       item->program().enabled_theme_name().end()};
 
   auto theme_bank = std::make_unique<ThemeBank>(session, enabled_themes);
-  auto window = create_window(session.system());
+  auto window = create_window(
+      session.system(),
+      realtime ? 0 : export_width, realtime ? 0 : export_height, realtime);
   auto director = std::make_unique<Director>(
       *window, session, *theme_bank, item->program());
 
   std::atomic<bool> running = true;
-  // Run the asynchronous load/unload thread.
-  std::thread image_load_thread([&]{
-    while (running) {
-      try {
-        theme_bank->async_update();
-      }
-      catch (std::bad_alloc&) {
-        std::cerr << bad_alloc << std::endl;
-        running = false;
-        throw;
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-  });
+  std::thread async_thread;
+  std::unique_ptr<WebmExporter> exporter{};
+  if (realtime) {
+    async_thread = run_async_thread(running, *theme_bank);
+  }
+  else {
+    exporter = std::make_unique<WebmExporter>(
+        export_path, export_width, export_height, export_fps, export_bitrate);
+  }
 
-  float time = 0.f;
+  float update_time = 0.f;
+  float async_update_time = 0.f;
   float playlist_item_time = 0.f;
+  float total_time = 0.f;
   sf::Clock clock;
+  uint32_t percentage = 0;
   try {
     while (running) {
-      sf::Event event;
-      while (window->pollEvent(event)) {
-        if (event.type == event.Closed ||
-            (event.type == event.KeyPressed &&
-             event.key.code == sf::Keyboard::Escape)) {
-          running = false;
+      handle_events(running, window.get());
+
+      float elapsed = 0.f;
+      if (realtime) {
+        elapsed = clock.getElapsedTime().asSeconds();
+        clock.restart();
+      }
+      else {
+        elapsed = 1.f / export_fps;
+        uint32_t new_percentage = 100 * total_time / export_length;
+        if (new_percentage > percentage) {
+          percentage = std::min(uint32_t{100}, new_percentage);
+          std::cout << std::endl << percentage << "%" << std::endl;
         }
-        if (event.type == sf::Event::Resized) {
-          glViewport(0, 0, event.size.width, event.size.height);
+        if (total_time >= export_length) {
+          break;
         }
       }
+      update_time += elapsed;
+      async_update_time += elapsed;
+      playlist_item_time += elapsed;
+      total_time += elapsed;
 
-      playlist_item_time += clock.getElapsedTime().asSeconds();
-      time += clock.getElapsedTime().asSeconds();
-      clock.restart();
+      float async_frame_time = async_millis * 1.f / 1000;
+      while (!realtime && async_update_time >= async_frame_time) {
+        async_update_time -= async_frame_time;
+        theme_bank->async_update();
+      }
 
       if (item->play_time_seconds() &&
           playlist_item_time >= item->play_time_seconds()) {
         playlist_item_time -= item->play_time_seconds();
         auto next = next_playlist_item(item);
-        std::cout << "changing to playlist item: " << next << std::endl;
         item = &session.playlist().find(next)->second;
         theme_bank->set_enabled_themes({
             item->program().enabled_theme_name().begin(),
@@ -130,13 +187,16 @@ void play_session(const trance_pb::Session& session)
 
       bool update = false;
       float frame_time = 1.f / item->program().global_fps();
-      while (time >= frame_time) {
+      while (update_time >= frame_time) {
         update = true;
-        time -= frame_time;
+        update_time -= frame_time;
         director->update();
       }
-      if (update) {
-        director->render();
+      if (update || !realtime) {
+        auto image = director->render(realtime);
+        if (!realtime) {
+          exporter->encode_frame(image);
+        }
       }
     }
   }
@@ -145,16 +205,20 @@ void play_session(const trance_pb::Session& session)
     throw;
   }
 
-  image_load_thread.join();
+  if (realtime) {
+    async_thread.join();
+  }
   // Destroy oculus HMD before calling ovr_Shutdown().
   director.reset();
   close_window(*window, session.system());
 }
 
-DEFINE_string(export_video_path, "", "export video to this path");
-DEFINE_uint64(export_video_seconds, 600, "export video length in seconds");
-DEFINE_uint64(export_video_width, 1920, "export video resolution width");
-DEFINE_uint64(export_video_height, 1080, "export video resolution height");
+DEFINE_string(export_path, "", "export video to this path");
+DEFINE_uint64(export_length, 300, "export video length in seconds");
+DEFINE_uint64(export_fps, 60, "export video frames per second");
+DEFINE_uint64(export_bitrate, 10000, "export video target bitrate");
+DEFINE_uint64(export_width, 1920, "export video resolution width");
+DEFINE_uint64(export_height, 1080, "export video resolution height");
 
 int main(int argc, char** argv)
 {
@@ -166,6 +230,8 @@ int main(int argc, char** argv)
   std::string session_path{argc == 2 ? argv[1] : "./default_session.cfg"};
   trance_pb::Session session = load_session(session_path);
   save_session(session, session_path);
-  play_session(session);
+  play_session(session, FLAGS_export_path,
+               FLAGS_export_length, FLAGS_export_fps, FLAGS_export_bitrate,
+               FLAGS_export_width, FLAGS_export_height);
   return 0;
 }

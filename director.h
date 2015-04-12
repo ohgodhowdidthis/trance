@@ -34,7 +34,7 @@ public:
   // Called from play_session() in main.cpp.
   void set_program(const trance_pb::Program& program);
   void update();
-  void render() const;
+  sf::Image render(bool realtime) const;
 
   // Visual API: called from Visual objects to render and control the
   // various elements.

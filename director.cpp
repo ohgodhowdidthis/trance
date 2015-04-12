@@ -332,15 +332,17 @@ void Director::update()
   _visual->update();
 }
 
-void Director::render() const
+sf::Image Director::render(bool realtime) const
 {
   Image::delete_textures();
   if (!_oculus.enabled) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     _oculus.rendering_right = false;
     _visual->render();
-    _window.display();
-    return;
+    if (realtime) {
+      _window.display();
+    }
+    return realtime ? sf::Image{} : _window.capture();
   }
 
   ovrPosef pose[2];
@@ -359,6 +361,7 @@ void Director::render() const
   ovrHmd_EndFrame(_oculus.hmd, pose, &_oculus.fb_ovr_tex[0].Texture);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glUseProgram(0);
+  return realtime ? sf::Image{} : _window.capture();
 }
 
 Image Director::get_image(bool alternate) const
@@ -702,8 +705,6 @@ void Director::init_oculus_rift()
     }
   }
 
-  _window.setSize(sf::Vector2u(_oculus.hmd->Resolution.w,
-                               _oculus.hmd->Resolution.h));
   auto oculus_flags =
       ovrTrackingCap_Orientation |
       ovrTrackingCap_MagYawCorrection |
@@ -789,6 +790,8 @@ void Director::init_oculus_rift()
   _height = fh;
   _window.setVerticalSyncEnabled(true);
   _window.setFramerateLimit(75);
+  _window.setSize(sf::Vector2u(_oculus.hmd->Resolution.w,
+                               _oculus.hmd->Resolution.h));
 #ifndef DEBUG
   _window.setPosition(sf::Vector2i(_oculus.hmd->WindowsPos.x,
                                    _oculus.hmd->WindowsPos.y));
