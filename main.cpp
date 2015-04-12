@@ -216,9 +216,9 @@ void play_session(
 DEFINE_string(export_path, "", "export video to this path");
 DEFINE_uint64(export_length, 300, "export video length in seconds");
 DEFINE_uint64(export_fps, 60, "export video frames per second");
-DEFINE_uint64(export_bitrate, 10000, "export video target bitrate");
-DEFINE_uint64(export_width, 1920, "export video resolution width");
-DEFINE_uint64(export_height, 1080, "export video resolution height");
+DEFINE_uint64(export_bitrate, 20000, "export video target bitrate");
+DEFINE_uint64(export_width, 1280, "export video resolution width");
+DEFINE_uint64(export_height, 720, "export video resolution height");
 
 int main(int argc, char** argv)
 {
