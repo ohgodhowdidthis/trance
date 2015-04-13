@@ -90,7 +90,6 @@ private:
 
     uint32_t fbo;
     uint32_t fb_tex;
-    uint32_t fb_depth;
 
     union ovrGLConfig gl_cfg;
     ovrGLTexture fb_ovr_tex[2];

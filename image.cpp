@@ -516,7 +516,7 @@ void WebmExporter::codec_error(const std::string& s)
 bool WebmExporter::add_frame(const vpx_image* data)
 {
   auto result = vpx_codec_encode(
-      &_codec, data, _frame_index++, 1, 0, VPX_DL_GOOD_QUALITY);
+      &_codec, data, _frame_index++, 1, 0, VPX_DL_BEST_QUALITY);
   if (result != VPX_CODEC_OK) {
     codec_error("couldn't encode frame");
     return false;

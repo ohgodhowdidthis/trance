@@ -185,7 +185,6 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
   _oculus.hmd = nullptr;
   _oculus.fbo = 0;
   _oculus.fb_tex = 0;
-  _oculus.fb_depth = 0;
 
   GLenum ok = glewInit();
   if (ok != GLEW_OK) {
@@ -336,7 +335,7 @@ sf::Image Director::render(bool realtime) const
 {
   Image::delete_textures();
   if (!_oculus.enabled) {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
     _oculus.rendering_right = false;
     _visual->render();
     if (realtime) {
@@ -348,7 +347,7 @@ sf::Image Director::render(bool realtime) const
   ovrPosef pose[2];
   ovrHmd_BeginFrame(_oculus.hmd, 0);
   glBindFramebuffer(GL_FRAMEBUFFER, _oculus.fbo);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT);
 
   for (int i = 0; i < 2; ++i) {
     auto eye = _oculus.hmd->EyeRenderOrder[i];
@@ -685,21 +684,21 @@ void Director::init_oculus_rift()
   }
 
   if (!GLEW_EXT_framebuffer_object) {
-    std::cerr << "OpenGL framebuffer objects not available" << std::endl;
+    std::cerr << "opengl framebuffer objects not available" << std::endl;
     _oculus.enabled = false;
     return;
   }
 
   _oculus.hmd = ovrHmd_Create(0);
   if (!_oculus.hmd) {
-    std::cerr << "Oculus HMD failed" << std::endl;
+    std::cerr << "oculus HMD failed" << std::endl;
 #ifndef DEBUG
     _oculus.enabled = false;
     return;
 #endif
     _oculus.hmd = ovrHmd_CreateDebug(ovrHmd_DK2);
     if (!_oculus.hmd) {
-      std::cerr << "Oculus HMD debug mode failed" << std::endl;
+      std::cerr << "oculus HMD debug mode failed" << std::endl;
       _oculus.enabled = false;
       return;
     }
@@ -720,7 +719,6 @@ void Director::init_oculus_rift()
 
   glGenFramebuffers(1, &_oculus.fbo);
   glGenTextures(1, &_oculus.fb_tex);
-  glGenRenderbuffers(1, &_oculus.fb_depth);
 
   glBindTexture(GL_TEXTURE_2D, _oculus.fb_tex);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -733,13 +731,8 @@ void Director::init_oculus_rift()
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                          GL_TEXTURE_2D, _oculus.fb_tex, 0);
 
-  glBindRenderbuffer(GL_RENDERBUFFER, _oculus.fb_depth);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, fw, fh);
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                            GL_RENDERBUFFER, _oculus.fb_depth);
-
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-    std::cerr << "Framebuffer failed" << std::endl;
+    std::cerr << "framebuffer failed" << std::endl;
     _oculus.enabled = false;
     return;
   }
@@ -764,7 +757,7 @@ void Director::init_oculus_rift()
   _oculus.gl_cfg.OGL.DC = wglGetCurrentDC();
 
   if (!(_oculus.hmd->HmdCaps & ovrHmdCap_ExtendDesktop)) {
-    std::cerr << "Direct HMD access unsupported" << std::endl;
+    std::cerr << "direct HMD access unsupported" << std::endl;
     _oculus.enabled = false;
     return;
   }
@@ -782,7 +775,7 @@ void Director::init_oculus_rift()
   if (!ovrHmd_ConfigureRendering(_oculus.hmd, &_oculus.gl_cfg.Config,
                                  distort_caps, _oculus.hmd->DefaultEyeFov,
                                  _oculus.eye_desc)) {
-    std::cerr << "Oculus rendering failed" << std::endl;
+    std::cerr << "oculus rendering failed" << std::endl;
     _oculus.enabled = false;
     return;
   }

@@ -150,7 +150,7 @@ void print_info(const sf::Clock& clock,
   auto percentage = uint32_t(100 * completion);
 
   std::cout << std::endl <<
-      "frames rendered: " << frames << " / " << total_frames << " [" << percentage <<
+      "frame: " << frames << " / " << total_frames << " [" << percentage <<
       "%]; elapsed: " << format_time(elapsed) << "; eta: " <<
       format_time(eta) << std::endl;
 }
@@ -280,7 +280,7 @@ void play_session(
 DEFINE_string(export_path, "", "export video to this path");
 DEFINE_uint64(export_length, 300, "export video length in seconds");
 DEFINE_uint64(export_fps, 60, "export video frames per second");
-DEFINE_uint64(export_bitrate, 20000, "export video target bitrate");
+DEFINE_uint64(export_bitrate, 5000, "export video target bitrate");
 DEFINE_uint64(export_width, 1280, "export video resolution width");
 DEFINE_uint64(export_height, 720, "export video resolution height");
 
