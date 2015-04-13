@@ -89,6 +89,27 @@ std::thread run_async_thread(std::atomic<bool>& running, ThemeBank& bank)
   }};
 }
 
+std::thread run_export_thread(
+    std::atomic<bool>& running, std::mutex& mutex,
+    sf::Image& next_frame, WebmExporter& exporter)
+{
+  return std::thread{[&]{
+    while (running) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(async_millis));
+      mutex.lock();
+      if (!next_frame.getSize().x || !next_frame.getSize().y) {
+        mutex.unlock();
+      }
+      else {
+        auto frame = next_frame;
+        next_frame = sf::Image{};
+        mutex.unlock();
+        exporter.encode_frame(frame);
+      }
+    }
+  }};
+}
+
 void handle_events(std::atomic<bool>& running, sf::RenderWindow* window)
 {
   sf::Event event;
@@ -102,6 +123,36 @@ void handle_events(std::atomic<bool>& running, sf::RenderWindow* window)
       glViewport(0, 0, event.size.width, event.size.height);
     }
   }
+}
+
+void print_info(const sf::Clock& clock,
+                uint32_t frames, uint32_t total_frames)
+{
+  auto format_time = [](uint32_t seconds) {
+    auto minutes = seconds / 60;
+    seconds = seconds % 60;
+    auto hours = minutes / 60;
+    minutes = minutes % 60;
+
+    std::string result;
+    if (hours) {
+      result += std::to_string(hours) + ":";
+    }
+    result += (minutes < 10 ? "0" : "") + std::to_string(minutes) + ":" +
+        (seconds < 10 ? "0" : "") + std::to_string(seconds);
+    return result;
+  };
+
+  float completion = float(frames) / total_frames;
+  auto elapsed = uint32_t(clock.getElapsedTime().asSeconds() + .5f);
+  auto eta = uint32_t(.5f + (completion ?
+      clock.getElapsedTime().asSeconds() * (1.f / completion - 1.f) : 0.f));
+  auto percentage = uint32_t(100 * completion);
+
+  std::cout << std::endl <<
+      "frames rendered: " << frames << " / " << total_frames << " [" << percentage <<
+      "%]; elapsed: " << format_time(elapsed) << "; eta: " <<
+      format_time(eta) << std::endl;
 }
 
 void play_session(
@@ -124,22 +175,28 @@ void play_session(
       *window, session, *theme_bank, item->program());
 
   std::atomic<bool> running = true;
-  std::thread async_thread;
+  std::mutex exporter_mutex;
+  sf::Image export_next_frame;
   std::unique_ptr<WebmExporter> exporter{};
+  std::thread async_thread;
   if (realtime) {
     async_thread = run_async_thread(running, *theme_bank);
   }
   else {
+    // We could queue images for exporter thread, but it makes no difference
+    // unless we implement some thread pool for parallel YUV conversion; and
+    // that might be better solved by doing the conversion on the GPU.
     exporter = std::make_unique<WebmExporter>(
         export_path, export_width, export_height, export_fps, export_bitrate);
+    async_thread = run_export_thread(running, exporter_mutex,
+                                     export_next_frame, *exporter);
   }
 
   float update_time = 0.f;
   float async_update_time = 0.f;
   float playlist_item_time = 0.f;
-  float total_time = 0.f;
+  uint32_t frames = 0;
   sf::Clock clock;
-  uint32_t percentage = 0;
   try {
     while (running) {
       handle_events(running, window.get());
@@ -151,19 +208,18 @@ void play_session(
       }
       else {
         elapsed = 1.f / export_fps;
-        uint32_t new_percentage = 100 * total_time / export_length;
-        if (new_percentage > percentage) {
-          percentage = std::min(uint32_t{100}, new_percentage);
-          std::cout << std::endl << percentage << "%" << std::endl;
+        if (frames % 8 == 0) {
+          print_info(clock, frames, export_length * export_fps);
         }
-        if (total_time >= export_length) {
+        if (frames >= export_length * export_fps) {
+          running = false;
           break;
         }
+        ++frames;
       }
       update_time += elapsed;
       async_update_time += elapsed;
       playlist_item_time += elapsed;
-      total_time += elapsed;
 
       float async_frame_time = async_millis * 1.f / 1000;
       while (!realtime && async_update_time >= async_frame_time) {
@@ -194,8 +250,18 @@ void play_session(
       }
       if (update || !realtime) {
         auto image = director->render(realtime);
-        if (!realtime) {
-          exporter->encode_frame(image);
+        while (!realtime) {
+          // Spin until export thread has dealt with previous frame.
+          exporter_mutex.lock();
+          if (export_next_frame.getSize().x && export_next_frame.getSize().y) {
+            exporter_mutex.unlock();
+          }
+          else {
+            export_next_frame = image;
+            exporter_mutex.unlock();
+            break;
+          }
+          std::this_thread::sleep_for(std::chrono::milliseconds(async_millis));
         }
       }
     }
@@ -205,9 +271,7 @@ void play_session(
     throw;
   }
 
-  if (realtime) {
-    async_thread.join();
-  }
+  async_thread.join();
   // Destroy oculus HMD before calling ovr_Shutdown().
   director.reset();
   close_window(*window, session.system());
