@@ -472,7 +472,13 @@ WebmExporter::WebmExporter(
   cfg.g_h = height;
   cfg.g_timebase.num = 1;
   cfg.g_timebase.den = fps;
+  cfg.g_lag_in_frames = 24;
+  cfg.g_threads = 4;
+  cfg.kf_min_dist = 0;
+  cfg.kf_max_dist = 256;
+  // TODO: need CONSTANT QUALITY instead of running out of bitrate!
   cfg.rc_target_bitrate = bitrate;
+  // TODO: enable seeking.
 
   if (vpx_codec_enc_init(&_codec, vpx_codec_vp8_cx(), &cfg, 0)) {
     codec_error("couldn't initialise encoder");
