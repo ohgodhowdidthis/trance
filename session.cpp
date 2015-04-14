@@ -5,6 +5,7 @@
 #include <SFML/Graphics/Color.hpp>
 #include <google/protobuf/text_format.h>
 #include <trance.pb.cc>
+#include "util.h"
 
 namespace {
 
@@ -61,21 +62,16 @@ void search_resources(trance_pb::Session& session)
   for (auto it = std::tr2::sys::recursive_directory_iterator(path);
        it != std::tr2::sys::recursive_directory_iterator(); ++it) {
     if (std::tr2::sys::is_regular_file(it->status())) {
-      std::string ext = it->path().extension();
-      for (auto& c : ext) {
-        c = tolower(c);
-      }
-
       auto jt = ++it->path().begin();
       if (jt == it->path().end()) {
         continue;
       }
       auto theme_name = jt == --it->path().end() ? wildcards : *jt;
 
-      if (ext == ".ttf") {
+      if (ext_is(it->path(), "ttf")) {
         themes[theme_name].add_font_path(it->path());
       }
-      else if (ext == ".txt") {
+      else if (ext_is(it->path(), "txt")) {
         std::ifstream f(it->path());
         std::string line;
         while (std::getline(f, line)) {
@@ -89,11 +85,11 @@ void search_resources(trance_pb::Session& session)
         }
       }
       // Should really check is_gif_animated(), but it takes far too long.
-      else if (ext == ".webm" || ext == ".gif") {
+      else if (ext_is(it->path(), "webm") || ext_is(it->path(), "gif")) {
         themes[theme_name].add_animation_path(it->path());
       }
-      else if (ext == ".png" || ext == ".bmp" ||
-               ext == ".jpg" || ext == ".jpeg") {
+      else if (ext_is(it->path(), "png") || ext_is(it->path(), "bmp") ||
+               ext_is(it->path(), "jpg") || ext_is(it->path(), "jpeg")) {
         themes[theme_name].add_image_path(it->path());
       }
     }
