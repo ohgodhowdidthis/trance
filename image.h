@@ -57,14 +57,39 @@ bool is_gif_animated(const std::string& path);
 Image load_image(const std::string& path);
 std::vector<Image> load_animation(const std::string& path);
 
-class WebmExporter {
+class Exporter {
+public:
+
+  virtual void encode_frame(const uint8_t* data) = 0;
+
+};
+
+class FrameExporter : public Exporter {
+public:
+
+  FrameExporter(const std::string& path,
+                uint32_t width, uint32_t height, uint32_t total_frames);
+  void encode_frame(const uint8_t* data) override;
+
+private:
+
+  std::string _path;
+  uint32_t _width;
+  uint32_t _height;
+  uint32_t _total_frames;
+  uint32_t _frame;
+
+};
+
+class WebmExporter : public Exporter {
 public:
 
   WebmExporter(const std::string& path, uint32_t width, uint32_t height,
                uint32_t fps, uint32_t bitrate);
   ~WebmExporter();
 
-  void encode_frame(const sf::Image& image);
+  bool success() const;
+  void encode_frame(const uint8_t* data) override;
 
 private:
 

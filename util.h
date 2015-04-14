@@ -1,8 +1,18 @@
 #ifndef TRANCE_UTIL_H
 #define TRANCE_UTIL_H
 
+#include <string>
 #include <random>
 #include <type_traits>
+
+inline bool ext_is(const std::string& path, const std::string& ext)
+{
+  std::string lower = path;
+  for (char& c : lower) {
+    c = tolower(c);
+  }
+  return lower.substr(lower.length() - ext.length() - 1) == "." + ext;
+}
 
 inline std::mt19937& get_mersenne_twister()
 {

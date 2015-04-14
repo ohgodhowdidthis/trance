@@ -163,8 +163,37 @@ void main(void)
 }
 )";
 
+static const std::string yuv_vertex = R"(
+attribute vec2 position;
+
+void main() {
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}
+)";
+static const std::string yuv_fragment = R"(
+uniform sampler2D source;
+uniform vec2 resolution;
+uniform float yuv_mix;
+
+const mat3 map = mat3(
+    0.257, -0.148, 0.439,
+    0.504, -0.291, -0.368,
+    0.098, 0.439, -0.071);
+const vec3 offset = vec3(16.0, 128.0, 128.0) / 255.0;
+
+void main(void)
+{
+  vec2 coord = gl_FragCoord.xy / resolution;
+  coord.y *= -1;
+  vec3 rgb = texture2D(source, coord).rgb;
+  vec3 yuv = clamp(offset + map * rgb, 0.0, 1.0);
+  gl_FragColor = vec4(mix(rgb, yuv, yuv_mix), 1.0);
+}
+)";
+
 Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
-                   ThemeBank& themes, const trance_pb::Program& program)
+                   ThemeBank& themes, const trance_pb::Program& program,
+                   bool realtime, bool convert_to_yuv)
 : _window{window}
 , _session{session}
 , _themes{themes}
@@ -172,6 +201,12 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 , _width{window.getSize().x}
 , _height{window.getSize().y}
 , _program{&program}
+, _realtime{realtime}
+, _convert_to_yuv{convert_to_yuv}
+, _render_fbo{0}
+, _render_fb_tex{0}
+, _yuv_fbo{0}
+, _yuv_fb_tex{0}
 , _image_program{0}
 , _spiral_program{0}
 , _quad_buffer{0}
@@ -181,14 +216,12 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 , _spiral_width{60}
 , _switch_themes{0}
 {
-  _oculus.enabled = session.system().enable_oculus_rift();
+  _oculus.enabled = false;
   _oculus.hmd = nullptr;
-  _oculus.fbo = 0;
-  _oculus.fb_tex = 0;
 
   GLenum ok = glewInit();
   if (ok != GLEW_OK) {
-    std::cerr << "Couldn't initialise GLEW: " <<
+    std::cerr << "couldn't initialise GLEW: " <<
         glewGetErrorString(ok) << std::endl;
   }
 
@@ -205,7 +238,23 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
     std::cerr << "OpenGL shaders not available" << std::endl;
   }
 
-  init_oculus_rift();
+  if (!GLEW_EXT_framebuffer_object) {
+    std::cerr << "OpenGL framebuffer objects not available" << std::endl;
+  }
+
+  if (session.system().enable_oculus_rift()) {
+    if (_realtime) {
+      _oculus.enabled = init_oculus_rift();
+    }
+    else {
+      _oculus.enabled = true;
+    }
+  }
+  if (!_realtime) {
+    init_framebuffer(_render_fbo, _render_fb_tex, _width, _height);
+    init_framebuffer(_yuv_fbo, _yuv_fb_tex, _width, _height);
+    _screen_data.reset(new uint8_t[4 * _width * _height]);
+  }
 
   static const std::size_t gl_preload = 1000;
   for (std::size_t i = 0; i < gl_preload; ++i) {
@@ -272,6 +321,7 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
   _spiral_program = compile(spiral_vertex, spiral_fragment);
   _image_program = compile(image_vertex, image_fragment);
   _text_program = compile(text_vertex, text_fragment);
+  _yuv_program = compile(yuv_vertex, yuv_fragment);
 
   static const float quad_data[] = {
     -1.f, -1.f,
@@ -317,7 +367,7 @@ void Director::set_program(const trance_pb::Program& program)
 
 void Director::update()
 {
-  if (_oculus.enabled) {
+  if (_oculus.enabled && _realtime) {
     ovrHSWDisplayState state;
     ovrHmd_GetHSWDisplayState(_oculus.hmd, &state);
     if (state.Displayed && ovr_GetTimeInSeconds() > state.DismissibleTime) {
@@ -331,36 +381,82 @@ void Director::update()
   _visual->update();
 }
 
-sf::Image Director::render(bool realtime) const
+void Director::render() const
 {
   Image::delete_textures();
-  if (!_oculus.enabled) {
-    glClear(GL_COLOR_BUFFER_BIT);
-    _oculus.rendering_right = false;
-    _visual->render();
-    if (realtime) {
-      _window.display();
-    }
-    return realtime ? sf::Image{} : _window.capture();
-  }
+  bool to_window = _realtime && !_oculus.enabled;
+  bool to_oculus = _realtime && _oculus.enabled;
 
-  ovrPosef pose[2];
-  ovrHmd_BeginFrame(_oculus.hmd, 0);
-  glBindFramebuffer(GL_FRAMEBUFFER, _oculus.fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, to_window ? 0 : _render_fbo);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  for (int i = 0; i < 2; ++i) {
-    auto eye = _oculus.hmd->EyeRenderOrder[i];
-    pose[eye] = ovrHmd_GetHmdPosePerEye(_oculus.hmd, eye);
-		glViewport((eye != ovrEye_Left) * view_width(), 0, view_width(), _height);
-    _oculus.rendering_right = eye == ovrEye_Right;
+  if (!_oculus.enabled) {
+    _oculus.rendering_right = false;
     _visual->render();
   }
+  else if (to_oculus) {
+    // TODO: how much of this is really necessary, given that we don't actually
+    // care about head position at all?
+    ovrHmd_BeginFrame(_oculus.hmd, 0);
+    ovrPosef pose[2];
+    for (int i = 0; i < 2; ++i) {
+      auto eye = _oculus.hmd->EyeRenderOrder[i];
+      pose[eye] = ovrHmd_GetHmdPosePerEye(_oculus.hmd, eye);
+      _oculus.rendering_right = eye == ovrEye_Right;
+      glViewport(_oculus.rendering_right * view_width(), 0, view_width(), _height);
+      _visual->render();
+    }
+    ovrHmd_EndFrame(_oculus.hmd, pose, &_oculus.fb_ovr_tex[0].Texture);
+  }
+  else {
+    for (int i = 0; i < 2; ++i) {
+      _oculus.rendering_right = i;
+		  glViewport(_oculus.rendering_right * view_width(), 0, view_width(), _height);
+      _visual->render();
+    }
+  }
 
-  ovrHmd_EndFrame(_oculus.hmd, pose, &_oculus.fb_ovr_tex[0].Texture);
+  if (!_realtime) {
+    // Could do more on the GPU e.g. scaling, splitting planes, but the VP8
+    // encoding is the bottleneck anyway.
+    glBindFramebuffer(GL_FRAMEBUFFER, _yuv_fbo);
+    glViewport(0, 0, _width, _height);
+    glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_TEXTURE_2D);
+    glUseProgram(_yuv_program);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _render_fb_tex);
+
+    glUniform1f(glGetUniformLocation(_yuv_program, "yuv_mix"),
+                _convert_to_yuv ? 1.f : 0.f);
+    glUniform2f(glGetUniformLocation(_yuv_program, "resolution"),
+                float(_width), float(_height));
+    auto loc = glGetAttribLocation(_yuv_program, "position");
+    glEnableVertexAttribArray(loc);
+    glBindBuffer(GL_ARRAY_BUFFER, _quad_buffer);
+    glVertexAttribPointer(loc, 2, GL_FLOAT, false, 0, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glDisableVertexAttribArray(loc);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  }
+
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glUseProgram(0);
-  return realtime ? sf::Image{} : _window.capture();
+  if (!_realtime) {
+    glBindTexture(GL_TEXTURE_2D, _yuv_fb_tex);
+    glGetTexImage(
+        GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, _screen_data.get());
+  }
+  if (to_window) {
+    _window.display();
+  }
+}
+
+const uint8_t* Director::get_screen_data() const
+{
+  return _screen_data.get();
 }
 
 Image Director::get_image(bool alternate) const
@@ -677,30 +773,43 @@ bool Director::change_visual(uint32_t chance)
   return true;
 }
 
-void Director::init_oculus_rift()
+bool Director::init_framebuffer(uint32_t& fbo, uint32_t& fb_tex,
+                                uint32_t width, uint32_t height) const
 {
-  if (!_oculus.enabled) {
-    return;
-  }
+  glGenFramebuffers(1, &fbo);
+  glGenTextures(1, &fb_tex);
 
-  if (!GLEW_EXT_framebuffer_object) {
-    std::cerr << "opengl framebuffer objects not available" << std::endl;
-    _oculus.enabled = false;
-    return;
-  }
+  glBindTexture(GL_TEXTURE_2D, fb_tex);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
+  glBindTexture(GL_TEXTURE_2D, fb_tex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0,
+               GL_RGBA, GL_UNSIGNED_BYTE, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                         GL_TEXTURE_2D, fb_tex, 0);
+
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    std::cerr << "framebuffer failed" << std::endl;
+    return false;
+  }
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  return true;
+}
+
+bool Director::init_oculus_rift()
+{
   _oculus.hmd = ovrHmd_Create(0);
   if (!_oculus.hmd) {
-    std::cerr << "oculus HMD failed" << std::endl;
+    std::cerr << "Oculus HMD failed" << std::endl;
 #ifndef DEBUG
-    _oculus.enabled = false;
-    return;
+    return false;
 #endif
     _oculus.hmd = ovrHmd_CreateDebug(ovrHmd_DK2);
     if (!_oculus.hmd) {
-      std::cerr << "oculus HMD debug mode failed" << std::endl;
-      _oculus.enabled = false;
-      return;
+      std::cerr << "Oculus HMD debug mode failed" << std::endl;
+      return false;
     }
   }
 
@@ -716,28 +825,10 @@ void Director::init_oculus_rift()
       _oculus.hmd, ovrEye_Right, _oculus.hmd->DefaultEyeFov[0], 1.0);
   int fw = eye_left.w + eye_right.w;
   int fh = std::max(eye_left.h, eye_right.h);
-
-  glGenFramebuffers(1, &_oculus.fbo);
-  glGenTextures(1, &_oculus.fb_tex);
-
-  glBindTexture(GL_TEXTURE_2D, _oculus.fb_tex);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glBindFramebuffer(GL_FRAMEBUFFER, _oculus.fbo);
-
-  glBindTexture(GL_TEXTURE_2D, _oculus.fb_tex);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fw, fh, 0,
-               GL_RGBA, GL_UNSIGNED_BYTE, 0);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                         GL_TEXTURE_2D, _oculus.fb_tex, 0);
-
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-    std::cerr << "framebuffer failed" << std::endl;
-    _oculus.enabled = false;
-    return;
+  if (!init_framebuffer(_render_fbo, _render_fb_tex, fw, fh)) {
+    return false;
   }
 
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
   for (int i = 0; i < 2; ++i) {
     _oculus.fb_ovr_tex[i].OGL.Header.API = ovrRenderAPI_OpenGL;
     _oculus.fb_ovr_tex[i].OGL.Header.TextureSize.w = fw;
@@ -746,7 +837,7 @@ void Director::init_oculus_rift()
     _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Pos.y = 0;
     _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Size.w = fw / 2;
     _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Size.h = fh;
-    _oculus.fb_ovr_tex[i].OGL.TexId = _oculus.fb_tex;
+    _oculus.fb_ovr_tex[i].OGL.TexId = _render_fb_tex;
   }
 
   memset(&_oculus.gl_cfg, 0, sizeof(_oculus.gl_cfg));
@@ -757,9 +848,8 @@ void Director::init_oculus_rift()
   _oculus.gl_cfg.OGL.DC = wglGetCurrentDC();
 
   if (!(_oculus.hmd->HmdCaps & ovrHmdCap_ExtendDesktop)) {
-    std::cerr << "direct HMD access unsupported" << std::endl;
-    _oculus.enabled = false;
-    return;
+    std::cerr << "Oculus direct HMD access unsupported" << std::endl;
+    return false;
   }
 
   auto hmd_caps =
@@ -775,9 +865,8 @@ void Director::init_oculus_rift()
   if (!ovrHmd_ConfigureRendering(_oculus.hmd, &_oculus.gl_cfg.Config,
                                  distort_caps, _oculus.hmd->DefaultEyeFov,
                                  _oculus.eye_desc)) {
-    std::cerr << "oculus rendering failed" << std::endl;
-    _oculus.enabled = false;
-    return;
+    std::cerr << "Oculus rendering failed" << std::endl;
+    return false;
   }
   _width = fw;
   _height = fh;
@@ -789,6 +878,7 @@ void Director::init_oculus_rift()
   _window.setPosition(sf::Vector2i(_oculus.hmd->WindowsPos.x,
                                    _oculus.hmd->WindowsPos.y));
 #endif
+  return true;
 }
 
 sf::Vector2f Director::off3d(float multiplier, bool text) const

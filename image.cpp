@@ -5,6 +5,7 @@
 #include <mkvreader.hpp>
 #include <mkvparser.hpp>
 #include <SFML/OpenGL.hpp>
+#include "util.h"
 
 #define VPX_CODEC_DISABLE_COMPAT 1
 #include <vpx/vpx_decoder.h>
@@ -354,15 +355,9 @@ bool is_gif_animated(const std::string& path)
 
 Image load_image(const std::string& path)
 {
-  std::string lower = path;
-  for (auto& c : lower) {
-    c = tolower(c);
-  }
-
   // Load JPEGs with the jpgd library since SFML does not support progressive
   // JPEGs.
-  if (lower.substr(lower.size() - 4) == ".jpg" ||
-      lower.substr(lower.size() - 5) == ".jpeg") {
+  if (ext_is(path, "jpg") || ext_is(path, "jpeg")) {
     int width = 0;
     int height = 0;
     int reqs = 0;
@@ -392,17 +387,38 @@ Image load_image(const std::string& path)
 
 std::vector<Image> load_animation(const std::string& path)
 {
-  std::string lower = path;
-  for (auto& c : lower) {
-    c = tolower(c);
-  }
-  if (lower.substr(lower.size() - 4) == ".gif") {
+  if (ext_is(path, "gif")) {
     return load_animation_gif(path);
   }
-  if (lower.substr(lower.size() - 5) == ".webm") {
+  if (ext_is(path, "webm")) {
     return load_animation_webm(path);
   }
   return {};
+}
+
+FrameExporter::FrameExporter(
+    const std::string& path, uint32_t width, uint32_t height, uint32_t total_frames)
+: _path{path}
+, _width{width}
+, _height{height}
+, _total_frames{total_frames}
+, _frame{0}
+{
+}
+
+void FrameExporter::encode_frame(const uint8_t* data)
+{
+  auto counter_str = std::to_string(_frame);
+  std::size_t padding =
+      std::to_string(_total_frames).length() - counter_str.length();
+  std::size_t index = _path.find_last_of('.');
+  auto frame_path = _path.substr(0, index) + '_' +
+      std::string(padding, '0') + counter_str + _path.substr(index);
+
+  sf::Image image;
+  image.create(_width, _height, data);
+  image.saveToFile(frame_path);
+  ++_frame;
 }
 
 WebmExporter::WebmExporter(
@@ -444,6 +460,9 @@ WebmExporter::WebmExporter(
   video->set_frame_rate(fps);
   _segment.CuesTrack(_video_track);
 
+  // See http://www.webmproject.org/docs/encoder-parameters.
+  // TODO: tweak this a bunch. Especially: 2-pass, buffer size, quality
+  // options, and multithreaded encoding.
   vpx_codec_enc_cfg_t cfg;
   if (vpx_codec_enc_config_default(vpx_codec_vp8_cx(), &cfg, 0)) {
     std::cerr << "couldn't get default codec config" << std::endl;
@@ -468,36 +487,31 @@ WebmExporter::WebmExporter(
   _success = true;
 }
 
-void WebmExporter::encode_frame(const sf::Image& image)
+bool WebmExporter::success() const
 {
-  // Convert RGB to YUV420.
-  auto data = image.getPixelsPtr();
-  for (uint32_t y = 0; y < _height / 2; ++y) {
-    memset(_img->planes[VPX_PLANE_U] + y * _img->stride[VPX_PLANE_U],
-           0, _width / 2);
-    memset(_img->planes[VPX_PLANE_V] + y * _img->stride[VPX_PLANE_V],
-           0, _width / 2);
-  }
+  return _success;
+}
+
+void WebmExporter::encode_frame(const uint8_t* data)
+{
+  // Convert YUV to YUV420.
   for (uint32_t y = 0; y < _height; ++y) {
     for (uint32_t x = 0; x < _width; ++x) {
-      uint8_t R = data[4 * (x + y * _width)];
-      uint8_t G = data[1 + 4 * (x + y * _width)];
-      uint8_t B = data[2 + 4 * (x + y * _width)];
+      _img->planes[VPX_PLANE_Y]
+          [x + y * _img->stride[VPX_PLANE_Y]] = data[4 * (x + y * _width)];
+    }
+  }
+  for (uint32_t y = 0; y < _height / 2; ++y) {
+    for (uint32_t x = 0; x < _width / 2; ++x) {
+      auto c00 = 4 * (2 * x + 2 * y * _width);
+      auto c01 = 4 * (2 * x + (1 + 2 * y) * _width);
+      auto c10 = 4 * (1 + 2 * x + 2 * y * _width);
+      auto c11 = 4 * (1 + 2 * x + (1 + 2 * y) * _width);
 
-      auto cl = [](float f) {
-        return (uint8_t) std::max(0, std::min(255, (int) f));
-      };
-
-      uint8_t Y = cl(16.f + 0.257f * R + 0.504f * G + 0.098f * B);
-      uint8_t U = cl(128.f - 0.148f * R - 0.291f * G + 0.439f * B);
-      uint8_t V = cl(128.f + 0.439f * R - 0.368f * G - 0.071f * B);
-
-      _img->planes[VPX_PLANE_Y][x + y * _img->stride[VPX_PLANE_Y]] = Y;
-      // TODO: messy rounding.
-      _img->planes[VPX_PLANE_U]
-          [(x / 2) + (y / 2) * _img->stride[VPX_PLANE_U]] += U / 4;
-      _img->planes[VPX_PLANE_V]
-          [(x / 2) + (y / 2) * _img->stride[VPX_PLANE_V]] += V / 4;
+      _img->planes[VPX_PLANE_U][x + y * _img->stride[VPX_PLANE_U]] =
+          (data[1 + c00] + data[1 + c01] + data[1 + c10] + data[1 + c11]) / 4;
+      _img->planes[VPX_PLANE_V][x + y * _img->stride[VPX_PLANE_V]] =
+          (data[2 + c00] + data[2 + c01] + data[2 + c10] + data[2 + c11]) / 4;
     }
   }
   add_frame(_img);
@@ -515,8 +529,9 @@ void WebmExporter::codec_error(const std::string& s)
 
 bool WebmExporter::add_frame(const vpx_image* data)
 {
+  // TODO: option for VPX_DL_BEST_QUALITY?
   auto result = vpx_codec_encode(
-      &_codec, data, _frame_index++, 1, 0, VPX_DL_BEST_QUALITY);
+      &_codec, data, _frame_index++, 1, 0, VPX_DL_GOOD_QUALITY);
   if (result != VPX_CODEC_OK) {
     codec_error("couldn't encode frame");
     return false;

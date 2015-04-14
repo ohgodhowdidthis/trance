@@ -89,27 +89,6 @@ std::thread run_async_thread(std::atomic<bool>& running, ThemeBank& bank)
   }};
 }
 
-std::thread run_export_thread(
-    std::atomic<bool>& running, std::mutex& mutex,
-    sf::Image& next_frame, WebmExporter& exporter)
-{
-  return std::thread{[&]{
-    while (running) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(async_millis));
-      mutex.lock();
-      if (!next_frame.getSize().x || !next_frame.getSize().y) {
-        mutex.unlock();
-      }
-      else {
-        auto frame = next_frame;
-        next_frame = sf::Image{};
-        mutex.unlock();
-        exporter.encode_frame(frame);
-      }
-    }
-  }};
-}
-
 void handle_events(std::atomic<bool>& running, sf::RenderWindow* window)
 {
   sf::Event event;
@@ -161,6 +140,30 @@ void play_session(
     uint32_t export_width, uint32_t export_height)
 {
   bool realtime = export_path.empty();
+  const uint32_t total_frames = export_length * export_fps;
+  std::unique_ptr<Exporter> exporter{};
+  bool convert_to_yuv = false;
+  if (!realtime) {
+    if (ext_is(export_path, "jpg") || ext_is(export_path, "png") ||
+        ext_is(export_path, "bmp")) {
+      exporter = std::make_unique<FrameExporter>(
+          export_path, export_width, export_height, total_frames);
+    }
+    else if (ext_is(export_path, "webm")) {
+      WebmExporter* webm = new WebmExporter(
+          export_path, export_width, export_height, export_fps, export_bitrate);
+      exporter.reset(webm);
+      if (!webm->success()) {
+        return;
+      }
+      convert_to_yuv = true;
+    }
+    else {
+      std::cerr << "don't know how to export that format" << std::endl;
+      return;
+    }
+  }
+
   const trance_pb::PlaylistItem* item =
       &session.playlist().find(session.first_playlist_item())->second;
   std::unordered_set<std::string> enabled_themes{
@@ -172,24 +175,12 @@ void play_session(
       session.system(),
       realtime ? 0 : export_width, realtime ? 0 : export_height, realtime);
   auto director = std::make_unique<Director>(
-      *window, session, *theme_bank, item->program());
+      *window, session, *theme_bank, item->program(), realtime, convert_to_yuv);
 
-  std::atomic<bool> running = true;
-  std::mutex exporter_mutex;
-  sf::Image export_next_frame;
-  std::unique_ptr<WebmExporter> exporter{};
   std::thread async_thread;
+  std::atomic<bool> running = true;
   if (realtime) {
     async_thread = run_async_thread(running, *theme_bank);
-  }
-  else {
-    // We could queue images for exporter thread, but it makes no difference
-    // unless we implement some thread pool for parallel YUV conversion; and
-    // that might be better solved by doing the conversion on the GPU.
-    exporter = std::make_unique<WebmExporter>(
-        export_path, export_width, export_height, export_fps, export_bitrate);
-    async_thread = run_export_thread(running, exporter_mutex,
-                                     export_next_frame, *exporter);
   }
 
   float update_time = 0.f;
@@ -209,9 +200,9 @@ void play_session(
       else {
         elapsed = 1.f / export_fps;
         if (frames % 8 == 0) {
-          print_info(clock, frames, export_length * export_fps);
+          print_info(clock, frames, total_frames);
         }
-        if (frames >= export_length * export_fps) {
+        if (frames >= total_frames) {
           running = false;
           break;
         }
@@ -249,20 +240,11 @@ void play_session(
         director->update();
       }
       if (update || !realtime) {
-        auto image = director->render(realtime);
-        while (!realtime) {
-          // Spin until export thread has dealt with previous frame.
-          exporter_mutex.lock();
-          if (export_next_frame.getSize().x && export_next_frame.getSize().y) {
-            exporter_mutex.unlock();
-          }
-          else {
-            export_next_frame = image;
-            exporter_mutex.unlock();
-            break;
-          }
-          std::this_thread::sleep_for(std::chrono::milliseconds(async_millis));
-        }
+        director->render();
+      }
+
+      if (!realtime) {
+        exporter->encode_frame(director->get_screen_data());
       }
     }
   }
@@ -271,7 +253,9 @@ void play_session(
     throw;
   }
 
-  async_thread.join();
+  if (realtime) {
+    async_thread.join();
+  }
   // Destroy oculus HMD before calling ovr_Shutdown().
   director.reset();
   close_window(*window, session.system());

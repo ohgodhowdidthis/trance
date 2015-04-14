@@ -28,13 +28,16 @@ class Director {
 public:
 
   Director(sf::RenderWindow& window, const trance_pb::Session& session,
-           ThemeBank& themes, const trance_pb::Program& program);
+           ThemeBank& themes, const trance_pb::Program& program,
+           bool realtime, bool convert_to_yuv);
   ~Director();
 
   // Called from play_session() in main.cpp.
   void set_program(const trance_pb::Program& program);
   void update();
-  sf::Image render(bool realtime) const;
+  void render() const;
+  // Returns screen data only in non-realtime mode.
+  const uint8_t* get_screen_data() const;
 
   // Visual API: called from Visual objects to render and control the
   // various elements.
@@ -65,7 +68,9 @@ public:
 
 private:
 
-  void init_oculus_rift();
+  bool init_framebuffer(uint32_t& fbo, uint32_t& fb_tex,
+                        uint32_t width, uint32_t height) const;
+  bool init_oculus_rift();
   sf::Vector2f off3d(float multiplier, bool text) const;
   uint32_t view_width() const;
 
@@ -84,12 +89,17 @@ private:
   uint32_t _height;
   const trance_pb::Program* _program;
 
+  bool _realtime;
+  bool _convert_to_yuv;
+  uint32_t _render_fbo;
+  uint32_t _render_fb_tex;
+  uint32_t _yuv_fbo;
+  uint32_t _yuv_fb_tex;
+  std::unique_ptr<uint8_t[]> _screen_data;
+
   struct {
     bool enabled;
     ovrHmd hmd;
-
-    uint32_t fbo;
-    uint32_t fb_tex;
 
     union ovrGLConfig gl_cfg;
     ovrGLTexture fb_ovr_tex[2];
@@ -101,6 +111,7 @@ private:
   GLuint _image_program;
   GLuint _spiral_program;
   GLuint _text_program;
+  GLuint _yuv_program;
   GLuint _quad_buffer;
   GLuint _tex_buffer;
 
