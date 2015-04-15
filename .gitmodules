@@ -13,3 +13,6 @@
 [submodule "gflags"]
 	path = gflags
 	url = http://github.com/gflags/gflags.git
+[submodule "x264"]
+	path = x264
+	url = git://git.videolan.org/x264.git
