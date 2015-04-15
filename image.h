@@ -4,9 +4,12 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+
+#pragma warning(push, 0)
 #include <mkvwriter.hpp>
 #include <SFML/Graphics.hpp>
 #include <vpx/vpx_codec.h>
+#pragma warning(pop)
 
 struct vpx_image;
 
@@ -57,9 +60,19 @@ bool is_gif_animated(const std::string& path);
 Image load_image(const std::string& path);
 std::vector<Image> load_animation(const std::string& path);
 
+struct exporter_settings {
+  std::string path;
+  uint32_t width;
+  uint32_t height;
+  uint32_t fps;
+  uint32_t length;
+  uint32_t bitrate;
+};
+
 class Exporter {
 public:
 
+  virtual bool requires_yuv_input() const = 0;
   virtual void encode_frame(const uint8_t* data) = 0;
 
 };
@@ -67,16 +80,13 @@ public:
 class FrameExporter : public Exporter {
 public:
 
-  FrameExporter(const std::string& path,
-                uint32_t width, uint32_t height, uint32_t total_frames);
+  FrameExporter(const exporter_settings& settings);
+  bool requires_yuv_input() const override;
   void encode_frame(const uint8_t* data) override;
 
 private:
 
-  std::string _path;
-  uint32_t _width;
-  uint32_t _height;
-  uint32_t _total_frames;
+  exporter_settings _settings;  
   uint32_t _frame;
 
 };
@@ -84,11 +94,11 @@ private:
 class WebmExporter : public Exporter {
 public:
 
-  WebmExporter(const std::string& path, uint32_t width, uint32_t height,
-               uint32_t fps, uint32_t bitrate);
+  WebmExporter(const exporter_settings& settings);
   ~WebmExporter();
 
   bool success() const;
+  bool requires_yuv_input() const override;
   void encode_frame(const uint8_t* data) override;
 
 private:
@@ -97,9 +107,7 @@ private:
   bool add_frame(const vpx_image* data);
 
   bool _success;
-  uint32_t _width;
-  uint32_t _height;
-  uint32_t _fps;
+  exporter_settings _settings;
   uint64_t _video_track;
 
   mkvmuxer::MkvWriter _writer;
@@ -108,6 +116,21 @@ private:
   vpx_codec_ctx_t _codec;
   vpx_image* _img;
   uint32_t _frame_index;
+
+};
+
+class H264Exporter : public Exporter {
+public:
+
+  H264Exporter(const exporter_settings& settings);
+  ~H264Exporter();
+
+  bool requires_yuv_input() const override;
+  void encode_frame(const uint8_t* data) override;
+
+private:
+
+  exporter_settings _settings;
 
 };
 

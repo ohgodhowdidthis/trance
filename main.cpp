@@ -1,7 +1,3 @@
-#include <gflags/gflags.h>
-#include <OVR_CAPI.h>
-#include <SFML/Window.hpp>
-#include <trance.pb.h>
 #include <chrono>
 #include <iostream>
 #include <string>
@@ -9,6 +5,29 @@
 #include "director.h"
 #include "session.h"
 #include "theme.h"
+
+#pragma warning(push, 0)
+#include <gflags/gflags.h>
+#include <OVR_CAPI.h>
+#include <SFML/Window.hpp>
+#include <trance.pb.h>
+#pragma warning(pop)
+
+std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
+{
+  if (ext_is(settings.path, "jpg") || ext_is(settings.path, "png") ||
+      ext_is(settings.path, "bmp")) {
+    return std::make_unique<FrameExporter>(settings);
+  }
+  else if (ext_is(settings.path, "webm")) {
+    auto exporter = std::make_unique<WebmExporter>(settings);
+    if (!exporter->success()) {
+      return {};
+    }
+    return std::move(exporter);
+  }
+  return {};
+}
 
 std::unique_ptr<sf::RenderWindow> create_window(
     const trance_pb::SystemConfiguration& system,
@@ -65,6 +84,8 @@ const std::string& next_playlist_item(
       return next.playlist_item_name();
     }
   }
+  static std::string never_happens;
+  return never_happens;
 }
 
 static const std::string bad_alloc =
@@ -135,33 +156,13 @@ void print_info(const sf::Clock& clock,
 }
 
 void play_session(
-    const trance_pb::Session& session, const std::string& export_path,
-    uint32_t export_length, uint32_t export_fps, uint32_t export_bitrate,
-    uint32_t export_width, uint32_t export_height)
+    const trance_pb::Session& session, const exporter_settings& settings)
 {
-  bool realtime = export_path.empty();
-  const uint32_t total_frames = export_length * export_fps;
-  std::unique_ptr<Exporter> exporter{};
-  bool convert_to_yuv = false;
-  if (!realtime) {
-    if (ext_is(export_path, "jpg") || ext_is(export_path, "png") ||
-        ext_is(export_path, "bmp")) {
-      exporter = std::make_unique<FrameExporter>(
-          export_path, export_width, export_height, total_frames);
-    }
-    else if (ext_is(export_path, "webm")) {
-      WebmExporter* webm = new WebmExporter(
-          export_path, export_width, export_height, export_fps, export_bitrate);
-      exporter.reset(webm);
-      if (!webm->success()) {
-        return;
-      }
-      convert_to_yuv = true;
-    }
-    else {
-      std::cerr << "don't know how to export that format" << std::endl;
-      return;
-    }
+  bool realtime = settings.path.empty();
+  auto exporter = create_exporter(settings);
+  if (!realtime && !exporter) {
+    std::cerr << "don't know how to export that format" << std::endl;
+    return;
   }
 
   const trance_pb::PlaylistItem* item =
@@ -173,9 +174,10 @@ void play_session(
   auto theme_bank = std::make_unique<ThemeBank>(session, enabled_themes);
   auto window = create_window(
       session.system(),
-      realtime ? 0 : export_width, realtime ? 0 : export_height, realtime);
+      realtime ? 0 : settings.width, realtime ? 0 : settings.height, realtime);
   auto director = std::make_unique<Director>(
-      *window, session, *theme_bank, item->program(), realtime, convert_to_yuv);
+      *window, session, *theme_bank, item->program(),
+      realtime, exporter->requires_yuv_input());
 
   std::thread async_thread;
   std::atomic<bool> running = true;
@@ -198,7 +200,8 @@ void play_session(
         clock.restart();
       }
       else {
-        elapsed = 1.f / export_fps;
+        elapsed = 1.f / settings.fps;
+        uint32_t total_frames = settings.length * settings.fps;
         if (frames % 8 == 0) {
           print_info(clock, frames, total_frames);
         }
@@ -262,11 +265,11 @@ void play_session(
 }
 
 DEFINE_string(export_path, "", "export video to this path");
-DEFINE_uint64(export_length, 300, "export video length in seconds");
-DEFINE_uint64(export_fps, 60, "export video frames per second");
-DEFINE_uint64(export_bitrate, 5000, "export video target bitrate");
 DEFINE_uint64(export_width, 1280, "export video resolution width");
 DEFINE_uint64(export_height, 720, "export video resolution height");
+DEFINE_uint64(export_fps, 60, "export video frames per second");
+DEFINE_uint64(export_length, 300, "export video length in seconds");
+DEFINE_uint64(export_bitrate, 5000, "export video target bitrate");
 
 int main(int argc, char** argv)
 {
@@ -275,11 +278,15 @@ int main(int argc, char** argv)
     std::cerr << "too many command-line arguments" << std::endl;
     return 1;
   }
+  exporter_settings settings{
+      FLAGS_export_path,
+      uint32_t(FLAGS_export_width), uint32_t(FLAGS_export_height),
+      uint32_t(FLAGS_export_fps), uint32_t(FLAGS_export_length),
+      uint32_t(FLAGS_export_bitrate)};
+
   std::string session_path{argc == 2 ? argv[1] : "./default_session.cfg"};
   trance_pb::Session session = load_session(session_path);
   save_session(session, session_path);
-  play_session(session, FLAGS_export_path,
-               FLAGS_export_length, FLAGS_export_fps, FLAGS_export_bitrate,
-               FLAGS_export_width, FLAGS_export_height);
+  play_session(session, settings);
   return 0;
 }

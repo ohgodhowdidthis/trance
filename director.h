@@ -8,12 +8,15 @@
 #include <cstddef>
 #include <memory>
 #include <vector>
+#include "font.h"
+
+#pragma warning(push, 0)
 #include <GL/glew.h>
 #include <OVR_CAPI.h>
 #include <OVR_CAPI_GL.h>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
-#include "font.h"
+#pragma warning(pop)
 
 namespace trance_pb {
   class Session;

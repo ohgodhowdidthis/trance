@@ -2,9 +2,12 @@
 #include "director.h"
 #include "util.h"
 #include <iostream>
+
+#pragma warning(push, 0)
 #include <trance.pb.h>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
+#pragma warning(pop)
 
 Theme::Theme()
 : Theme{trance_pb::Theme{}}
@@ -309,6 +312,6 @@ void ThemeBank::async_update()
 uint32_t ThemeBank::cache_per_theme() const
 {
   return !_theme_shuffler.enabled_count() ? 0 :
-      _image_cache_size / std::min((std::size_t) 3,
-                                   _theme_shuffler.enabled_count());
+      _image_cache_size / uint32_t(std::min((std::size_t) 3,
+                                            _theme_shuffler.enabled_count()));
 }
