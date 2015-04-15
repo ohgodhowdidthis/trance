@@ -41,4 +41,7 @@
   <ItemGroup>
     <CustomBuild Include="trance.proto" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="BUILDING" />
+  </ItemGroup>
 </Project>

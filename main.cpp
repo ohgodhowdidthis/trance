@@ -38,9 +38,8 @@ std::unique_ptr<sf::RenderWindow> create_window(
     ovr_Initialize();
   }
   auto window = std::make_unique<sf::RenderWindow>();
-  glClearDepth(1.f);
   glClearColor(0.f, 0.f, 0.f, 0.f);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT);
 
   auto video_mode = sf::VideoMode::getDesktopMode();
   if (width && height) {
@@ -177,7 +176,7 @@ void play_session(
       realtime ? 0 : settings.width, realtime ? 0 : settings.height, realtime);
   auto director = std::make_unique<Director>(
       *window, session, *theme_bank, item->program(),
-      realtime, exporter->requires_yuv_input());
+      realtime, exporter && exporter->requires_yuv_input());
 
   std::thread async_thread;
   std::atomic<bool> running = true;
