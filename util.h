@@ -11,7 +11,8 @@ inline bool ext_is(const std::string& path, const std::string& ext)
   for (char& c : lower) {
     c = tolower(c);
   }
-  return lower.substr(lower.length() - ext.length() - 1) == "." + ext;
+  return lower.length() >= ext.length() + 1 &&
+      lower.substr(lower.length() - ext.length() - 1) == "." + ext;
 }
 
 inline std::mt19937& get_mersenne_twister()
@@ -139,7 +140,7 @@ public:
       random_excluding(count, last_tindex) : random(count);
 
     std::size_t tindex = 0;
-    for (std::size_t i = 0; i < _data.size(); ++i) {
+    for (std::size_t i = 0; i < std::size_t(_data.size()); ++i) {
       tindex += _enabled[i] == get_enabled;
       if (random_tindex < tindex) {
         return last_id = i;

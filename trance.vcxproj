@@ -79,8 +79,8 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\gflags\$(Platform)\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm;$(SolutionDir)\protobuf\src;$(SolutionDir)\protobuf\vsprojects;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4800</DisableSpecificWarnings>
+      <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;DEBUG;_SCL_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
@@ -100,8 +100,8 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\gflags\$(Platform)\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm;$(SolutionDir)\protobuf\src;$(SolutionDir)\protobuf\vsprojects;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4800</DisableSpecificWarnings>
+      <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;DEBUG;_SCL_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
@@ -122,8 +122,8 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\gflags\$(Platform)\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm;$(SolutionDir)\protobuf\src;$(SolutionDir)\protobuf\vsprojects;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4800</DisableSpecificWarnings>
+      <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
@@ -148,8 +148,8 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\gflags\$(Platform)\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm;$(SolutionDir)\protobuf\src;$(SolutionDir)\protobuf\vsprojects;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4800</DisableSpecificWarnings>
+      <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
@@ -221,6 +221,9 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BUILDING" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
