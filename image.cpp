@@ -1,11 +1,13 @@
 #include "image.h"
+#include "util.h"
 #include <iostream>
+
+#pragma warning(push, 0)
 #include <gif_lib.h>
 #include <jpgd.h>
 #include <mkvreader.hpp>
 #include <mkvparser.hpp>
 #include <SFML/OpenGL.hpp>
-#include "util.h"
 
 #define VPX_CODEC_DISABLE_COMPAT 1
 #include <vpx/vpx_decoder.h>
@@ -13,6 +15,7 @@
 #include <vpx/vpx_image.h>
 #include <vpx/vp8cx.h>
 #include <vpx/vp8dx.h>
+#pragma warning(pop)
 
 namespace {
 
@@ -396,44 +399,44 @@ std::vector<Image> load_animation(const std::string& path)
   return {};
 }
 
-FrameExporter::FrameExporter(
-    const std::string& path, uint32_t width, uint32_t height, uint32_t total_frames)
-: _path{path}
-, _width{width}
-, _height{height}
-, _total_frames{total_frames}
+FrameExporter::FrameExporter(const exporter_settings& settings)
+: _settings(settings)
 , _frame{0}
 {
+}
+
+bool FrameExporter::requires_yuv_input() const
+{
+  return false;
 }
 
 void FrameExporter::encode_frame(const uint8_t* data)
 {
   auto counter_str = std::to_string(_frame);
   std::size_t padding =
-      std::to_string(_total_frames).length() - counter_str.length();
-  std::size_t index = _path.find_last_of('.');
-  auto frame_path = _path.substr(0, index) + '_' +
-      std::string(padding, '0') + counter_str + _path.substr(index);
+      std::to_string(_settings.fps * _settings.length).length() -
+      counter_str.length();
+
+  std::size_t index = _settings.path.find_last_of('.');
+  auto frame_path = _settings.path.substr(0, index) + '_' +
+      std::string(padding, '0') + counter_str + _settings.path.substr(index);
 
   sf::Image image;
-  image.create(_width, _height, data);
+  image.create(_settings.width, _settings.height, data);
   image.saveToFile(frame_path);
   ++_frame;
 }
 
-WebmExporter::WebmExporter(
-    const std::string& path, uint32_t width, uint32_t height,
-    uint32_t fps, uint32_t bitrate)
+WebmExporter::WebmExporter(const exporter_settings& settings)
 : _success{false}
-, _width{width}
-, _height{height}
-, _fps{fps}
+, _settings(settings)
 , _video_track{0}
 , _img{nullptr}
 , _frame_index{0}
 {
-  if (!_writer.Open(path.c_str())) {
-    std::cerr << "couldn't open " << path << " for writing" << std::endl;
+  if (!_writer.Open(_settings.path.c_str())) {
+    std::cerr << "couldn't open " <<
+        _settings.path << " for writing" << std::endl;
     return;
   }
 
@@ -445,7 +448,7 @@ WebmExporter::WebmExporter(
   _segment.OutputCues(true);
   _segment.GetSegmentInfo()->set_writing_app("trance");
 
-  _video_track = _segment.AddVideoTrack(width, height, 0);
+  _video_track = _segment.AddVideoTrack(_settings.width, _settings.height, 0);
   if (!_video_track) {
     std::cerr << "couldn't add video track" << std::endl;
     return;
@@ -457,35 +460,35 @@ WebmExporter::WebmExporter(
     std::cerr << "couldn't get video track" << std::endl;
     return;
   }
-  video->set_frame_rate(fps);
+  video->set_frame_rate(_settings.fps);
   _segment.CuesTrack(_video_track);
 
   // See http://www.webmproject.org/docs/encoder-parameters.
-  // TODO: tweak this a bunch. Especially: 2-pass, buffer size, quality
-  // options, and multithreaded encoding.
+  // TODO: tweak this a bunch? Especially: 2-pass, buffer size, quality
+  // options. Need sustained quality instead of running out of bitrate!
+  // Also, enable seeking somehow.
   vpx_codec_enc_cfg_t cfg;
   if (vpx_codec_enc_config_default(vpx_codec_vp8_cx(), &cfg, 0)) {
     std::cerr << "couldn't get default codec config" << std::endl;
     return;
   }
-  cfg.g_w = width;
-  cfg.g_h = height;
+  cfg.g_w = _settings.width;
+  cfg.g_h = _settings.height;
   cfg.g_timebase.num = 1;
-  cfg.g_timebase.den = fps;
+  cfg.g_timebase.den = _settings.fps;
   cfg.g_lag_in_frames = 24;
   cfg.g_threads = 4;
   cfg.kf_min_dist = 0;
   cfg.kf_max_dist = 256;
-  // TODO: need CONSTANT QUALITY instead of running out of bitrate!
-  cfg.rc_target_bitrate = bitrate;
-  // TODO: enable seeking.
+  cfg.rc_target_bitrate = _settings.bitrate;
 
   if (vpx_codec_enc_init(&_codec, vpx_codec_vp8_cx(), &cfg, 0)) {
     codec_error("couldn't initialise encoder");
     return;
   }
 
-  _img = vpx_img_alloc(nullptr, VPX_IMG_FMT_I420, width, height, 16);
+  _img = vpx_img_alloc(
+      nullptr, VPX_IMG_FMT_I420, _settings.width, _settings.height, 16);
   if (!_img) {
     std::cerr << "couldn't allocate image for encoding" << std::endl;
     return;
@@ -498,21 +501,26 @@ bool WebmExporter::success() const
   return _success;
 }
 
+bool WebmExporter::requires_yuv_input() const
+{
+  return true;
+}
+
 void WebmExporter::encode_frame(const uint8_t* data)
 {
   // Convert YUV to YUV420.
-  for (uint32_t y = 0; y < _height; ++y) {
-    for (uint32_t x = 0; x < _width; ++x) {
-      _img->planes[VPX_PLANE_Y]
-          [x + y * _img->stride[VPX_PLANE_Y]] = data[4 * (x + y * _width)];
+  for (uint32_t y = 0; y < _settings.height; ++y) {
+    for (uint32_t x = 0; x < _settings.width; ++x) {
+      _img->planes[VPX_PLANE_Y][x + y * _img->stride[VPX_PLANE_Y]] =
+          data[4 * (x + y * _settings.width)];
     }
   }
-  for (uint32_t y = 0; y < _height / 2; ++y) {
-    for (uint32_t x = 0; x < _width / 2; ++x) {
-      auto c00 = 4 * (2 * x + 2 * y * _width);
-      auto c01 = 4 * (2 * x + (1 + 2 * y) * _width);
-      auto c10 = 4 * (1 + 2 * x + 2 * y * _width);
-      auto c11 = 4 * (1 + 2 * x + (1 + 2 * y) * _width);
+  for (uint32_t y = 0; y < _settings.height / 2; ++y) {
+    for (uint32_t x = 0; x < _settings.width / 2; ++x) {
+      auto c00 = 4 * (2 * x + 2 * y * _settings.width);
+      auto c01 = 4 * (2 * x + (1 + 2 * y) * _settings.width);
+      auto c10 = 4 * (1 + 2 * x + 2 * y * _settings.width);
+      auto c11 = 4 * (1 + 2 * x + (1 + 2 * y) * _settings.width);
 
       _img->planes[VPX_PLANE_U][x + y * _img->stride[VPX_PLANE_U]] =
           (data[1 + c00] + data[1 + c01] + data[1 + c10] + data[1 + c11]) / 4;
@@ -551,7 +559,7 @@ bool WebmExporter::add_frame(const vpx_image* data)
     if (packet->kind != VPX_CODEC_CX_FRAME_PKT) {
       continue;
     }
-    auto timestamp_ns = 1000000000 * packet->data.frame.pts / _fps;
+    auto timestamp_ns = 1000000000 * packet->data.frame.pts / _settings.fps;
     bool result = _segment.AddFrame(
         (uint8_t*) packet->data.frame.buf, packet->data.frame.sz, _video_track,
         timestamp_ns, packet->data.frame.flags & VPX_FRAME_IS_KEY);
@@ -581,4 +589,18 @@ WebmExporter::~WebmExporter()
     return;
   }
   _writer.Close();
+}
+
+H264Exporter::H264Exporter(const exporter_settings& settings)
+: _settings(settings)
+{
+}
+
+bool H264Exporter::requires_yuv_input() const
+{
+  return true;
+}
+
+void H264Exporter::encode_frame(const uint8_t* data)
+{
 }

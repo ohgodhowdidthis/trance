@@ -65,7 +65,7 @@ void AccelerateVisual::update()
   }
 
   bool changed = false;
-  _change_speed_timer = d * d * d * d * d * d / (m * m * m * m * m);
+  _change_speed_timer = uint32_t(d * d * d * d * d * d / (m * m * m * m * m));
   if (_change_faster) {
     if (_change_speed == min_speed) {
       _change_faster = false;

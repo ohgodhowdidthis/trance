@@ -1,6 +1,8 @@
 #ifndef TRANCE_THEME_H
 #define TRANCE_THEME_H
 
+#include "image.h"
+#include "util.h"
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -8,9 +10,10 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#pragma warning(push, 0)
 #include <google/protobuf/repeated_field.h>
-#include "image.h"
-#include "util.h"
+#pragma warning(pop)
 
 namespace trance_pb {
   class Session;

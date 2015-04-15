@@ -80,6 +80,8 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\gflags\$(Platform)\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm;$(SolutionDir)\protobuf\src;$(SolutionDir)\protobuf\vsprojects;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800</DisableSpecificWarnings>
+      <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -99,6 +101,8 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\gflags\$(Platform)\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm;$(SolutionDir)\protobuf\src;$(SolutionDir)\protobuf\vsprojects;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800</DisableSpecificWarnings>
+      <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -119,6 +123,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\gflags\$(Platform)\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm;$(SolutionDir)\protobuf\src;$(SolutionDir)\protobuf\vsprojects;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800</DisableSpecificWarnings>
+      <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -143,6 +149,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>$(SolutionDir)\sfml\include;$(SolutionDir)\gflags\$(Platform)\include;$(SolutionDir)\glew_1_10_0\include;$(SolutionDir)\jpeg;$(SolutionDir)\libovr_0_4_4\src;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\libvpx;$(SolutionDir)\libwebm;$(SolutionDir)\protobuf\src;$(SolutionDir)\protobuf\vsprojects;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_MBCS;OVR_OS_WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4800</DisableSpecificWarnings>
+      <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -162,11 +170,31 @@
   <ItemGroup>
     <ClCompile Include="director.cpp" />
     <ClCompile Include="font.cpp" />
-    <ClCompile Include="giflib_5_1_0\lib\dgif_lib.c" />
-    <ClCompile Include="giflib_5_1_0\lib\gifalloc.c" />
-    <ClCompile Include="giflib_5_1_0\lib\gif_err.c" />
+    <ClCompile Include="giflib_5_1_0\lib\dgif_lib.c">
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="giflib_5_1_0\lib\gifalloc.c">
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="giflib_5_1_0\lib\gif_err.c">
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
     <ClCompile Include="image.cpp" />
-    <ClCompile Include="jpeg\jpgd.cpp" />
+    <ClCompile Include="jpeg\jpgd.cpp">
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="session.cpp" />
     <ClCompile Include="theme.cpp" />

@@ -6,7 +6,10 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+
+#pragma warning(push, 0)
 #include <SFML/Graphics.hpp>
+#pragma warning(pop)
 
 // Wrapper for an sf::Font that uses one character size only.
 struct Font {

@@ -1,11 +1,14 @@
 #include "session.h"
+#include "util.h"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+
+#pragma warning(push, 0)
 #include <SFML/Graphics/Color.hpp>
 #include <google/protobuf/text_format.h>
 #include <trance.pb.cc>
-#include "util.h"
+#pragma warning(pop)
 
 namespace {
 
