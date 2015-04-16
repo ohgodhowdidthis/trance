@@ -1,9 +1,8 @@
 #ifndef TRANCE_DIRECTOR_H
 #define TRANCE_DIRECTOR_H
 
+#define NOMINMAX
 #include <windows.h>
-#undef min
-#undef max
 
 #include <cstddef>
 #include <memory>
