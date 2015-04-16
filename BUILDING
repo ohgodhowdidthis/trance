@@ -62,12 +62,12 @@ x264
 - From MSYS shell in x264 folder, run
   "./configure --prefix=./Win32 --host=i686-pc-mingw32 --enable-shared
    --extra-ldflags=-Wl,--output-def=libx264.def && make && make install".
-- From Visual Studio Command Prompt in x264\Win32\ folder, run
+- From Visual Studio Command Prompt in x264 folder, run
   "LIB /DEF:libx264.def /MACHINE:X86 && move libx264.lib Win32\lib".
 - From MSYS shell in x264 folder, run
   "./configure --prefix=./x64 --host=i686-pc-mingw64 --enable-shared
    --extra-ldflags=-Wl,--output-def=libx264.def && make && make install".
-- From Visual Studio Command Prompt in x264\Win32\ folder, run
+- From Visual Studio Command Prompt in x264 folder, run
   "LIB /DEF:libx264.def /MACHINE:X64 && move libx264.lib x64\lib".
 
 Everything should now be set up correctly and installed in the right place to
