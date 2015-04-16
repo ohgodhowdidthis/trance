@@ -12,6 +12,7 @@
 #pragma warning(pop)
 
 struct vpx_image;
+struct x264_t;
 
 // In-memory image with load-on-request OpenGL texture which is ref-counted
 // and automatically unloaded once no longer used.
@@ -131,6 +132,7 @@ public:
 private:
 
   exporter_settings _settings;
+  x264_t* _encoder;
 
 };
 

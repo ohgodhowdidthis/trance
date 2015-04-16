@@ -8,6 +8,9 @@
 #include <mkvreader.hpp>
 #include <mkvparser.hpp>
 #include <SFML/OpenGL.hpp>
+extern "C" {
+#include <x264.h>
+}
 
 #define VPX_CODEC_DISABLE_COMPAT 1
 #include <vpx/vpx_decoder.h>
@@ -593,7 +596,31 @@ WebmExporter::~WebmExporter()
 
 H264Exporter::H264Exporter(const exporter_settings& settings)
 : _settings(settings)
+, _encoder(nullptr)
 {
+  x264_param_t param;
+  // TODO: options for these?
+  x264_param_default_preset(&param, "slow", "film");
+  // TODO: option for threads?
+  param.i_threads = 3;
+  param.i_lookahead_threads = 1;
+
+  param.i_width = settings.width;
+  param.i_height = settings.height;
+  param.i_fps_num = settings.fps;
+  param.i_fps_den = 1;
+  param.i_frame_total = settings.fps * settings.length;
+  param.i_keyint_min = 0;
+  param.i_keyint_max = settings.fps;
+  param.b_intra_refresh = 1;
+  x264_param_apply_profile(&param, "high");
+
+  _encoder = x264_encoder_open(&param);
+}
+
+H264Exporter::~H264Exporter()
+{
+  x264_encoder_close(_encoder);
 }
 
 bool H264Exporter::requires_yuv_input() const

@@ -19,12 +19,15 @@ std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
       ext_is(settings.path, "bmp")) {
     return std::make_unique<FrameExporter>(settings);
   }
-  else if (ext_is(settings.path, "webm")) {
+  if (ext_is(settings.path, "webm")) {
     auto exporter = std::make_unique<WebmExporter>(settings);
     if (!exporter->success()) {
       return {};
     }
     return std::move(exporter);
+  }
+  if (ext_is(settings.path, "mkv")) {
+    return std::make_unique<H264Exporter>(settings);
   }
   return {};
 }
