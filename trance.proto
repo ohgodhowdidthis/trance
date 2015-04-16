@@ -32,8 +32,7 @@ message SystemConfiguration {
 
 // Configuration for a single program, i.e. a combination of a selection of
 // themes with settings related to visual styles, visual effects and so on.
-// Eventually a single session will be able to swap out different programs on
-// the fly.
+// Different programs can be swapped in during a single session.
 message Program {
   // The different implemented visual types.
   enum VisualType {
@@ -62,7 +61,7 @@ message Program {
   repeated string enabled_theme_name = 1;
   repeated VisualTypeConfig visual_type = 2;
 
-  // Ticks per second. Controls the global speed of everything; lower is faster,
+  // Ticks per second. Controls the global speed of everything; higher is faster,
   // default is 120.
   uint32 global_fps = 3;
 
