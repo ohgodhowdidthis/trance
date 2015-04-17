@@ -23,10 +23,10 @@ std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
   if (ext_is(settings.path, "webm")) {
     exporter = std::make_unique<WebmExporter>(settings);
   }
-  if (ext_is(settings.path, "mkv")) {
+  if (ext_is(settings.path, "h264")) {
     exporter = std::make_unique<H264Exporter>(settings);
   }
-  return exporter->success() ?
+  return exporter && exporter->success() ?
       std::move(exporter) : std::unique_ptr<Exporter>{};
 }
 
