@@ -9,10 +9,12 @@
 #include <mkvwriter.hpp>
 #include <SFML/Graphics.hpp>
 #include <vpx/vpx_codec.h>
+extern "C" {
+#include <x264.h>
+}
 #pragma warning(pop)
 
 struct vpx_image;
-struct x264_t;
 
 // In-memory image with load-on-request OpenGL texture which is ref-counted
 // and automatically unloaded once no longer used.
@@ -73,6 +75,7 @@ struct exporter_settings {
 class Exporter {
 public:
 
+  virtual bool success() const = 0;
   virtual bool requires_yuv_input() const = 0;
   virtual void encode_frame(const uint8_t* data) = 0;
 
@@ -82,6 +85,8 @@ class FrameExporter : public Exporter {
 public:
 
   FrameExporter(const exporter_settings& settings);
+
+  bool success() const override;
   bool requires_yuv_input() const override;
   void encode_frame(const uint8_t* data) override;
 
@@ -98,7 +103,7 @@ public:
   WebmExporter(const exporter_settings& settings);
   ~WebmExporter();
 
-  bool success() const;
+  bool success() const override;
   bool requires_yuv_input() const override;
   void encode_frame(const uint8_t* data) override;
 
@@ -126,13 +131,25 @@ public:
   H264Exporter(const exporter_settings& settings);
   ~H264Exporter();
 
+  bool success() const override;
   bool requires_yuv_input() const override;
   void encode_frame(const uint8_t* data) override;
 
 private:
 
+  bool add_frame(x264_picture_t* pic);
+
+  bool _success;
   exporter_settings _settings;
+  uint64_t _video_track;
+
+  mkvmuxer::MkvWriter _writer;
+  mkvmuxer::Segment _segment;
+
+  uint32_t _frame;
   x264_t* _encoder;
+  x264_picture_t _pic;
+  x264_picture_t _pic_out;
 
 };
 

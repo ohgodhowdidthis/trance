@@ -15,21 +15,19 @@
 
 std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
 {
+  std::unique_ptr<Exporter> exporter;
   if (ext_is(settings.path, "jpg") || ext_is(settings.path, "png") ||
       ext_is(settings.path, "bmp")) {
-    return std::make_unique<FrameExporter>(settings);
+    exporter = std::make_unique<FrameExporter>(settings);
   }
   if (ext_is(settings.path, "webm")) {
-    auto exporter = std::make_unique<WebmExporter>(settings);
-    if (!exporter->success()) {
-      return {};
-    }
-    return std::move(exporter);
+    exporter = std::make_unique<WebmExporter>(settings);
   }
   if (ext_is(settings.path, "mkv")) {
-    return std::make_unique<H264Exporter>(settings);
+    exporter = std::make_unique<H264Exporter>(settings);
   }
-  return {};
+  return exporter->success() ?
+      std::move(exporter) : std::unique_ptr<Exporter>{};
 }
 
 std::unique_ptr<sf::RenderWindow> create_window(
