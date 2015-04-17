@@ -8,9 +8,6 @@
 #include <mkvreader.hpp>
 #include <mkvparser.hpp>
 #include <SFML/OpenGL.hpp>
-extern "C" {
-#include <x264.h>
-}
 
 #define VPX_CODEC_DISABLE_COMPAT 1
 #include <vpx/vpx_decoder.h>
@@ -236,6 +233,41 @@ std::vector<Image> load_animation_webm(const std::string& path)
   return result;
 }
 
+bool initialise_mkv_writer(
+    mkvmuxer::MkvWriter& writer, mkvmuxer::Segment& segment,
+    uint64_t& video_track, const exporter_settings& settings)
+{
+  if (!writer.Open(settings.path.c_str())) {
+    std::cerr << "couldn't open " <<
+        settings.path << " for writing" << std::endl;
+    return false;
+  }
+
+  if (!segment.Init(&writer)) {
+    std::cerr << "couldn't initialise muxer segment" << std::endl;
+    return false;
+  }
+  segment.set_mode(mkvmuxer::Segment::kFile);
+  segment.OutputCues(true);
+  segment.GetSegmentInfo()->set_writing_app("trance");
+
+  video_track = segment.AddVideoTrack(settings.width, settings.height, 0);
+  if (!video_track) {
+    std::cerr << "couldn't add video track" << std::endl;
+    return false;
+  }
+
+  auto video = (mkvmuxer::VideoTrack*) segment.GetTrackByNumber(video_track);
+  if (!video) {
+    std::cerr << "couldn't get video track" << std::endl;
+    return false;
+  }
+  video->set_frame_rate(settings.fps);
+  // TODO: enable seeking somehow.
+  segment.CuesTrack(video_track);
+  return true;
+}
+
 }
 
 std::vector<GLuint> Image::textures_to_delete;
@@ -408,6 +440,11 @@ FrameExporter::FrameExporter(const exporter_settings& settings)
 {
 }
 
+bool FrameExporter::success() const
+{
+  return true;
+}
+
 bool FrameExporter::requires_yuv_input() const
 {
   return false;
@@ -437,39 +474,13 @@ WebmExporter::WebmExporter(const exporter_settings& settings)
 , _img{nullptr}
 , _frame_index{0}
 {
-  if (!_writer.Open(_settings.path.c_str())) {
-    std::cerr << "couldn't open " <<
-        _settings.path << " for writing" << std::endl;
+  if (!initialise_mkv_writer(_writer, _segment, _video_track, settings)) {
     return;
   }
-
-  if (!_segment.Init(&_writer)) {
-    std::cerr << "couldn't initialise muxer segment" << std::endl;
-    return;
-  }
-  _segment.set_mode(mkvmuxer::Segment::kFile);
-  _segment.OutputCues(true);
-  _segment.GetSegmentInfo()->set_writing_app("trance");
-
-  _video_track = _segment.AddVideoTrack(_settings.width, _settings.height, 0);
-  if (!_video_track) {
-    std::cerr << "couldn't add video track" << std::endl;
-    return;
-  }
-
-  auto video = (mkvmuxer::VideoTrack*)
-      _segment.GetTrackByNumber(_video_track);
-  if (!video) {
-    std::cerr << "couldn't get video track" << std::endl;
-    return;
-  }
-  video->set_frame_rate(_settings.fps);
-  _segment.CuesTrack(_video_track);
 
   // See http://www.webmproject.org/docs/encoder-parameters.
   // TODO: tweak this a bunch? Especially: 2-pass, buffer size, quality
   // options. Need sustained quality instead of running out of bitrate!
-  // Also, enable seeking somehow.
   vpx_codec_enc_cfg_t cfg;
   if (vpx_codec_enc_config_default(vpx_codec_vp8_cx(), &cfg, 0)) {
     std::cerr << "couldn't get default codec config" << std::endl;
@@ -595,12 +606,24 @@ WebmExporter::~WebmExporter()
 }
 
 H264Exporter::H264Exporter(const exporter_settings& settings)
-: _settings(settings)
-, _encoder(nullptr)
+: _success{false}
+, _settings(settings)
+, _video_track{0}
+, _frame{0}
+, _encoder{nullptr}
 {
+  // TODO: the libwebm mkvwriter only supports writing webm data. Need to use
+  // something else to write H264.
+  if (!initialise_mkv_writer(_writer, _segment, _video_track, settings)) {
+    return;
+  }
+
   x264_param_t param;
   // TODO: options for these?
-  x264_param_default_preset(&param, "slow", "film");
+  if (x264_param_default_preset(&param, "slow", "film") < 0) {
+    std::cerr << "couldn't get default preset" << std::endl;
+    return;
+  }
   // TODO: option for threads?
   param.i_threads = 3;
   param.i_lookahead_threads = 1;
@@ -613,14 +636,65 @@ H264Exporter::H264Exporter(const exporter_settings& settings)
   param.i_keyint_min = 0;
   param.i_keyint_max = settings.fps;
   param.b_intra_refresh = 1;
-  x264_param_apply_profile(&param, "high");
+  if (x264_param_apply_profile(&param, "high") < 0) {
+    std::cerr << "couldn't get apply profile" << std::endl;
+    return;
+  }
 
   _encoder = x264_encoder_open(&param);
+  if (!_encoder) {
+    std::cerr << "couldn't create encoder" << std::endl;
+    return;
+  }
+  if (x264_picture_alloc(&_pic, X264_CSP_I420,
+                         _settings.width, _settings.height) < 0) {
+    std::cerr << "couldn't allocate picture" << std::endl;
+    return;
+  }
+  _success = true;
 }
 
 H264Exporter::~H264Exporter()
 {
+  while (x264_encoder_delayed_frames(_encoder)) {
+    add_frame(nullptr);
+  }
+  x264_picture_clean(&_pic);
   x264_encoder_close(_encoder);
+
+  if (!_segment.Finalize()) {
+    std::cerr << "couldn't finalise muxer segment" << std::endl;
+    return;
+  }
+  _writer.Close();
+}
+
+bool H264Exporter::add_frame(x264_picture_t* pic)
+{
+  x264_nal_t* nal;
+  int i_nal;
+  int frame_size =
+      x264_encoder_encode(_encoder, &nal, &i_nal, pic, &_pic_out);
+  if (frame_size < 0) {
+    std::cerr << "couldn't encode frame" << std::endl;
+    return false;
+  }
+  if (frame_size) {
+    auto timestamp_ns = 1000000000 * _frame / _settings.fps;
+    bool result = _segment.AddFrame(
+        nal->p_payload, frame_size, _video_track,
+        timestamp_ns, _pic_out.b_keyframe);
+    if (!result) {
+      std::cerr << "couldn't add frame" << std::endl;
+      return false;
+    }
+  }
+  return true;
+}
+
+bool H264Exporter::success() const
+{
+  return _success;
 }
 
 bool H264Exporter::requires_yuv_input() const
@@ -630,4 +704,27 @@ bool H264Exporter::requires_yuv_input() const
 
 void H264Exporter::encode_frame(const uint8_t* data)
 {
+  // Convert YUV to YUV420.
+  for (uint32_t y = 0; y < _settings.height; ++y) {
+    for (uint32_t x = 0; x < _settings.width; ++x) {
+      _pic.img.plane[0][x + y * _settings.width] =
+          data[4 * (x + y * _settings.width)];
+    }
+  }
+  for (uint32_t y = 0; y < _settings.height / 2; ++y) {
+    for (uint32_t x = 0; x < _settings.width / 2; ++x) {
+      auto c00 = 4 * (2 * x + 2 * y * _settings.width);
+      auto c01 = 4 * (2 * x + (1 + 2 * y) * _settings.width);
+      auto c10 = 4 * (1 + 2 * x + 2 * y * _settings.width);
+      auto c11 = 4 * (1 + 2 * x + (1 + 2 * y) * _settings.width);
+
+      _pic.img.plane[1][x + y * _settings.width / 2] =
+          (data[1 + c00] + data[1 + c01] + data[1 + c10] + data[1 + c11]) / 4;
+      _pic.img.plane[2][x + y * _settings.width / 2] =
+          (data[2 + c00] + data[2 + c01] + data[2 + c10] + data[2 + c11]) / 4;
+    }
+  }
+  _pic.i_pts = _frame;
+  add_frame(&_pic);
+  _frame++;
 }
