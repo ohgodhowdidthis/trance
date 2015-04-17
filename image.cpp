@@ -233,41 +233,6 @@ std::vector<Image> load_animation_webm(const std::string& path)
   return result;
 }
 
-bool initialise_mkv_writer(
-    mkvmuxer::MkvWriter& writer, mkvmuxer::Segment& segment,
-    uint64_t& video_track, const exporter_settings& settings)
-{
-  if (!writer.Open(settings.path.c_str())) {
-    std::cerr << "couldn't open " <<
-        settings.path << " for writing" << std::endl;
-    return false;
-  }
-
-  if (!segment.Init(&writer)) {
-    std::cerr << "couldn't initialise muxer segment" << std::endl;
-    return false;
-  }
-  segment.set_mode(mkvmuxer::Segment::kFile);
-  segment.OutputCues(true);
-  segment.GetSegmentInfo()->set_writing_app("trance");
-
-  video_track = segment.AddVideoTrack(settings.width, settings.height, 0);
-  if (!video_track) {
-    std::cerr << "couldn't add video track" << std::endl;
-    return false;
-  }
-
-  auto video = (mkvmuxer::VideoTrack*) segment.GetTrackByNumber(video_track);
-  if (!video) {
-    std::cerr << "couldn't get video track" << std::endl;
-    return false;
-  }
-  video->set_frame_rate(settings.fps);
-  // TODO: enable seeking somehow.
-  segment.CuesTrack(video_track);
-  return true;
-}
-
 }
 
 std::vector<GLuint> Image::textures_to_delete;
@@ -474,9 +439,34 @@ WebmExporter::WebmExporter(const exporter_settings& settings)
 , _img{nullptr}
 , _frame_index{0}
 {
-  if (!initialise_mkv_writer(_writer, _segment, _video_track, settings)) {
+  if (!_writer.Open(settings.path.c_str())) {
+    std::cerr << "couldn't open " <<
+        settings.path << " for writing" << std::endl;
     return;
   }
+
+  if (!_segment.Init(&_writer)) {
+    std::cerr << "couldn't initialise muxer segment" << std::endl;
+    return;
+  }
+  _segment.set_mode(mkvmuxer::Segment::kFile);
+  _segment.OutputCues(true);
+  _segment.GetSegmentInfo()->set_writing_app("trance");
+
+  _video_track = _segment.AddVideoTrack(settings.width, settings.height, 0);
+  if (!_video_track) {
+    std::cerr << "couldn't add video track" << std::endl;
+    return;
+  }
+
+  auto video = (mkvmuxer::VideoTrack*) _segment.GetTrackByNumber(_video_track);
+  if (!video) {
+    std::cerr << "couldn't get video track" << std::endl;
+    return;
+  }
+  video->set_frame_rate(settings.fps);
+  // TODO: enable seeking somehow.
+  _segment.CuesTrack(_video_track);
 
   // See http://www.webmproject.org/docs/encoder-parameters.
   // TODO: tweak this a bunch? Especially: 2-pass, buffer size, quality
@@ -608,16 +598,10 @@ WebmExporter::~WebmExporter()
 H264Exporter::H264Exporter(const exporter_settings& settings)
 : _success{false}
 , _settings(settings)
-, _video_track{0}
+, _file{settings.path, std::ios::binary}
 , _frame{0}
 , _encoder{nullptr}
 {
-  // TODO: the libwebm mkvwriter only supports writing webm data. Need to use
-  // something else to write H264.
-  if (!initialise_mkv_writer(_writer, _segment, _video_track, settings)) {
-    return;
-  }
-
   x264_param_t param;
   // TODO: options for these?
   if (x264_param_default_preset(&param, "slow", "film") < 0) {
@@ -661,33 +645,21 @@ H264Exporter::~H264Exporter()
   }
   x264_picture_clean(&_pic);
   x264_encoder_close(_encoder);
-
-  if (!_segment.Finalize()) {
-    std::cerr << "couldn't finalise muxer segment" << std::endl;
-    return;
-  }
-  _writer.Close();
+  _file.close();
 }
 
 bool H264Exporter::add_frame(x264_picture_t* pic)
 {
   x264_nal_t* nal;
-  int i_nal;
+  int nal_size;
   int frame_size =
-      x264_encoder_encode(_encoder, &nal, &i_nal, pic, &_pic_out);
+      x264_encoder_encode(_encoder, &nal, &nal_size, pic, &_pic_out);
   if (frame_size < 0) {
     std::cerr << "couldn't encode frame" << std::endl;
     return false;
   }
   if (frame_size) {
-    auto timestamp_ns = 1000000000 * _frame / _settings.fps;
-    bool result = _segment.AddFrame(
-        nal->p_payload, frame_size, _video_track,
-        timestamp_ns, _pic_out.b_keyframe);
-    if (!result) {
-      std::cerr << "couldn't add frame" << std::endl;
-      return false;
-    }
+    _file.write((const char*) nal->p_payload, frame_size);
   }
   return true;
 }

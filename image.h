@@ -1,6 +1,7 @@
 #ifndef TRANCE_IMAGE_H
 #define TRANCE_IMAGE_H
 
+#include <fstream>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -141,10 +142,7 @@ private:
 
   bool _success;
   exporter_settings _settings;
-  uint64_t _video_track;
-
-  mkvmuxer::MkvWriter _writer;
-  mkvmuxer::Segment _segment;
+  std::ofstream _file;
 
   uint32_t _frame;
   x264_t* _encoder;
