@@ -169,6 +169,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="director.cpp" />
+    <ClCompile Include="export.cpp" />
     <ClCompile Include="font.cpp" />
     <ClCompile Include="giflib_5_1_0\lib\dgif_lib.c">
       <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
@@ -202,6 +203,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="director.h" />
+    <ClInclude Include="export.h" />
     <ClInclude Include="font.h" />
     <ClInclude Include="image.h" />
     <ClInclude Include="session.h" />
