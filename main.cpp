@@ -3,6 +3,7 @@
 #include <string>
 #include <thread>
 #include "director.h"
+#include "export.h"
 #include "session.h"
 #include "theme.h"
 
