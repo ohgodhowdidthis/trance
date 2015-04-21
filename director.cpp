@@ -6,7 +6,9 @@
 #include <iostream>
 
 #pragma warning(push, 0)
+extern "C" {
 #include <GL/glew.h>
+}
 #include <SFML/OpenGL.hpp>
 #include <trance.pb.h>
 #pragma warning(pop)
@@ -861,7 +863,6 @@ bool Director::init_oculus_rift()
   ovrHmd_SetEnabledCaps(_oculus.hmd, hmd_caps);
 
   auto distort_caps =
-      ovrDistortionCap_Chromatic |
       ovrDistortionCap_Vignette |
       ovrDistortionCap_TimeWarp |
       ovrDistortionCap_Overdrive;
