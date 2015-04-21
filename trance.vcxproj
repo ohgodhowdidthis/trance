@@ -168,9 +168,6 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="director.cpp" />
-    <ClCompile Include="export.cpp" />
-    <ClCompile Include="font.cpp" />
     <ClCompile Include="giflib_5_1_0\lib\dgif_lib.c">
       <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
       <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
@@ -189,43 +186,44 @@
       <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
       <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
     </ClCompile>
-    <ClCompile Include="image.cpp" />
     <ClCompile Include="jpeg\jpgd.cpp">
       <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
       <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
       <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
       <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
     </ClCompile>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="session.cpp" />
-    <ClCompile Include="theme.cpp" />
-    <ClCompile Include="visual.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="director.h" />
-    <ClInclude Include="export.h" />
-    <ClInclude Include="font.h" />
-    <ClInclude Include="image.h" />
-    <ClInclude Include="session.h" />
-    <ClInclude Include="theme.h" />
-    <ClInclude Include="util.h" />
-    <ClInclude Include="visual.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="trance.proto">
-      <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)trance.proto</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)trance.proto</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)trance.proto</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)trance.proto</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
-    </CustomBuild>
+    <ClCompile Include="src\director.cpp" />
+    <ClCompile Include="src\export.cpp" />
+    <ClCompile Include="src\font.cpp" />
+    <ClCompile Include="src\image.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\session.cpp" />
+    <ClCompile Include="src\theme.cpp" />
+    <ClCompile Include="src\visual.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="BUILDING" />
+    <CustomBuild Include="src\trance.proto">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\director.h" />
+    <ClInclude Include="src\export.h" />
+    <ClInclude Include="src\font.h" />
+    <ClInclude Include="src\image.h" />
+    <ClInclude Include="src\session.h" />
+    <ClInclude Include="src\theme.h" />
+    <ClInclude Include="src\util.h" />
+    <ClInclude Include="src\visual.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
