@@ -11,8 +11,8 @@
 
 #pragma warning(push, 0)
 #include <GL/glew.h>
-#include <OVR_CAPI.h>
-#include <OVR_CAPI_GL.h>
+#include <libovr/OVR_CAPI.h>
+#include <libovr/OVR_CAPI_GL.h>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)

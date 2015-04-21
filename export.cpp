@@ -2,12 +2,11 @@
 #include <iostream>
 
 #pragma warning(push, 0)
-#include <SFML/Graphics.hpp>
-
 #define VPX_CODEC_DISABLE_COMPAT 1
-#include <vpx/vpx_encoder.h>
-#include <vpx/vpx_image.h>
-#include <vpx/vp8cx.h>
+#include <libvpx/vpx_encoder.h>
+#include <libvpx/vpx_image.h>
+#include <libvpx/vp8cx.h>
+#include <SFML/Graphics.hpp>
 #pragma warning(pop)
 
 FrameExporter::FrameExporter(const exporter_settings& settings)

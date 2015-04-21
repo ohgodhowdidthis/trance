@@ -9,7 +9,7 @@
 
 #pragma warning(push, 0)
 #include <gflags/gflags.h>
-#include <OVR_CAPI.h>
+#include <libovr/OVR_CAPI.h>
 #include <SFML/Window.hpp>
 #include <trance.pb.h>
 #pragma warning(pop)
