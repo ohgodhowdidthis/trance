@@ -7,7 +7,7 @@
 #pragma warning(push, 0)
 #include <SFML/Graphics/Color.hpp>
 #include <google/protobuf/text_format.h>
-#include <trance.pb.cc>
+#include <src/trance.pb.cc>
 #pragma warning(pop)
 
 namespace {

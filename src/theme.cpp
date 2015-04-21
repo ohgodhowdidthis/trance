@@ -4,7 +4,7 @@
 #include <iostream>
 
 #pragma warning(push, 0)
-#include <trance.pb.h>
+#include <src/trance.pb.h>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)

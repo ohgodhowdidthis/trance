@@ -10,7 +10,7 @@ extern "C" {
 #include <GL/glew.h>
 }
 #include <SFML/OpenGL.hpp>
-#include <trance.pb.h>
+#include <src/trance.pb.h>
 #pragma warning(pop)
 
 static const uint32_t spiral_type_max = 7;

@@ -11,7 +11,7 @@
 #include <gflags/gflags.h>
 #include <libovr/OVR_CAPI.h>
 #include <SFML/Window.hpp>
-#include <trance.pb.h>
+#include <src/trance.pb.h>
 #pragma warning(pop)
 
 std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
