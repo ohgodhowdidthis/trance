@@ -4,8 +4,8 @@
 
 #define VPX_CODEC_DISABLE_COMPAT 1
 #pragma warning(push, 0)
-#include <gif_lib.h>
 #include <jpgd.h>
+#include <giflib/gif_lib.h>
 #include <libwebm/mkvreader.hpp>
 #include <libwebm/mkvparser.hpp>
 #include <libvpx/vpx_decoder.h>

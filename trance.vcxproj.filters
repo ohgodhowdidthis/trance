@@ -4,15 +4,6 @@
     <ClCompile Include="jpeg\jpgd.cpp">
       <Filter>jpeg</Filter>
     </ClCompile>
-    <ClCompile Include="giflib_5_1_0\lib\gif_err.c">
-      <Filter>gif</Filter>
-    </ClCompile>
-    <ClCompile Include="giflib_5_1_0\lib\dgif_lib.c">
-      <Filter>gif</Filter>
-    </ClCompile>
-    <ClCompile Include="giflib_5_1_0\lib\gifalloc.c">
-      <Filter>gif</Filter>
-    </ClCompile>
     <ClCompile Include="src\director.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -42,18 +33,12 @@
     <Filter Include="jpeg">
       <UniqueIdentifier>{faa220e2-e063-4c92-bdbe-b5a9aac9c57d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="gif">
-      <UniqueIdentifier>{3dba2b5a-f5ac-4326-b9fe-a815d386d3e5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src">
       <UniqueIdentifier>{9042966b-70ad-4cea-b183-84fdb0e92164}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="BUILDING" />
-    <None Include="src\trance.proto">
-      <Filter>src</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\director.h">
@@ -80,5 +65,10 @@
     <ClInclude Include="src\visual.h">
       <Filter>src</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="src\trance.proto">
+      <Filter>src</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>
