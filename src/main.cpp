@@ -270,7 +270,8 @@ DEFINE_uint64(export_width, 1280, "export video resolution width");
 DEFINE_uint64(export_height, 720, "export video resolution height");
 DEFINE_uint64(export_fps, 60, "export video frames per second");
 DEFINE_uint64(export_length, 300, "export video length in seconds");
-DEFINE_uint64(export_bitrate, 5000, "export video target bitrate");
+DEFINE_uint64(export_quality, 2, "export video quality (0 to 4, 0 is best)");
+DEFINE_uint64(export_threads, 4, "export video threads");
 
 int main(int argc, char** argv)
 {
@@ -283,7 +284,8 @@ int main(int argc, char** argv)
       FLAGS_export_path,
       uint32_t(FLAGS_export_width), uint32_t(FLAGS_export_height),
       uint32_t(FLAGS_export_fps), uint32_t(FLAGS_export_length),
-      uint32_t(FLAGS_export_bitrate)};
+      std::min(uint32_t(4), uint32_t(FLAGS_export_quality)),
+      uint32_t(FLAGS_export_threads)};
 
   std::string session_path{argc == 2 ? argv[1] : "./default_session.cfg"};
   trance_pb::Session session = load_session(session_path);
