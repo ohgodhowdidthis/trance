@@ -75,26 +75,27 @@ WebmExporter::WebmExporter(const exporter_settings& settings)
     return;
   }
   video->set_frame_rate(settings.fps);
-  // TODO: enable seeking somehow.
+  _segment.GetCues()->set_output_block_number(true);
   _segment.CuesTrack(_video_track);
 
   // See http://www.webmproject.org/docs/encoder-parameters.
-  // TODO: tweak this a bunch? Especially: 2-pass, buffer size, quality
-  // options. Need sustained quality instead of running out of bitrate!
   vpx_codec_enc_cfg_t cfg;
   if (vpx_codec_enc_config_default(vpx_codec_vp8_cx(), &cfg, 0)) {
     std::cerr << "couldn't get default codec config" << std::endl;
     return;
   }
+  auto area = _settings.width * _settings.height;
+  auto bitrate = (1 + 2 * (4 - _settings.quality)) * area / 1024;
+
   cfg.g_w = _settings.width;
   cfg.g_h = _settings.height;
   cfg.g_timebase.num = 1;
   cfg.g_timebase.den = _settings.fps;
   cfg.g_lag_in_frames = 24;
-  cfg.g_threads = 4;
+  cfg.g_threads = settings.threads;
   cfg.kf_min_dist = 0;
   cfg.kf_max_dist = 256;
-  cfg.rc_target_bitrate = _settings.bitrate;
+  cfg.rc_target_bitrate = bitrate;
 
   if (vpx_codec_enc_init(&_codec, vpx_codec_vp8_cx(), &cfg, 0)) {
     codec_error("couldn't initialise encoder");
@@ -108,6 +109,25 @@ WebmExporter::WebmExporter(const exporter_settings& settings)
     return;
   }
   _success = true;
+}
+
+WebmExporter::~WebmExporter()
+{
+  if (_img) {
+    vpx_img_free(_img);
+  }
+  // Flush encoder.
+  while (add_frame(nullptr));
+
+  if (vpx_codec_destroy(&_codec)) {
+    codec_error("failed to destroy codec");
+    return;
+  }
+  if (!_segment.Finalize()) {
+    std::cerr << "couldn't finalise muxer segment" << std::endl;
+    return;
+  }
+  _writer.Close();
 }
 
 bool WebmExporter::success() const
@@ -157,9 +177,9 @@ void WebmExporter::codec_error(const std::string& s)
 
 bool WebmExporter::add_frame(const vpx_image* data)
 {
-  // TODO: option for VPX_DL_BEST_QUALITY?
   auto result = vpx_codec_encode(
-      &_codec, data, _frame_index++, 1, 0, VPX_DL_GOOD_QUALITY);
+      &_codec, data, _frame_index++, 1, 0,
+      _settings.quality <= 1 ? VPX_DL_BEST_QUALITY : VPX_DL_GOOD_QUALITY);
   if (result != VPX_CODEC_OK) {
     codec_error("couldn't encode frame");
     return false;
@@ -186,25 +206,6 @@ bool WebmExporter::add_frame(const vpx_image* data)
   return found_packet;
 };
 
-WebmExporter::~WebmExporter()
-{
-  if (_img) {
-    vpx_img_free(_img);
-  }
-  // Flush encoder.
-  while (add_frame(nullptr));
-
-  if (vpx_codec_destroy(&_codec)) {
-    codec_error("failed to destroy codec");
-    return;
-  }
-  if (!_segment.Finalize()) {
-    std::cerr << "couldn't finalise muxer segment" << std::endl;
-    return;
-  }
-  _writer.Close();
-}
-
 H264Exporter::H264Exporter(const exporter_settings& settings)
 : _success{false}
 , _settings(settings)
@@ -213,14 +214,14 @@ H264Exporter::H264Exporter(const exporter_settings& settings)
 , _encoder{nullptr}
 {
   x264_param_t param;
-  // TODO: options for these?
-  if (x264_param_default_preset(&param, "slow", "film") < 0) {
+  // Best quality (0) -> "veryslow" (8); worst quality (4) -> "ultrafast" (0).
+  auto quality = std::to_string(2 * (4 - settings.quality));
+  if (x264_param_default_preset(&param, quality.c_str(), "film") < 0) {
     std::cerr << "couldn't get default preset" << std::endl;
     return;
   }
-  // TODO: option for threads?
-  param.i_threads = 3;
-  param.i_lookahead_threads = 1;
+  param.i_threads = settings.threads > 1 ? settings.threads - 1 : 1;
+  param.i_lookahead_threads = settings.threads > 1 ? 1 : 0;
 
   param.i_width = settings.width;
   param.i_height = settings.height;
@@ -249,6 +250,7 @@ H264Exporter::H264Exporter(const exporter_settings& settings)
 
 H264Exporter::~H264Exporter()
 {
+  // Flush encoder.
   while (x264_encoder_delayed_frames(_encoder)) {
     add_frame(nullptr);
   }

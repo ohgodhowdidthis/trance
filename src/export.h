@@ -19,12 +19,14 @@ struct exporter_settings {
   uint32_t height;
   uint32_t fps;
   uint32_t length;
-  uint32_t bitrate;
+  uint32_t quality;
+  uint32_t threads;
 };
 
 class Exporter {
 public:
 
+  virtual ~Exporter() {}
   virtual bool success() const = 0;
   virtual bool requires_yuv_input() const = 0;
   virtual void encode_frame(const uint8_t* data) = 0;

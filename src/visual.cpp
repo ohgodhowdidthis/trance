@@ -498,7 +498,7 @@ SuperFastVisual::SuperFastVisual(Director& director)
 : Visual{director}
 , _current{director.get_image()}
 , _start_timer{0}
-, _animation_timer{0}
+, _animation_timer{anim_length + random(anim_length)}
 , _animation_alt{false}
 , _timer{length}
 {
