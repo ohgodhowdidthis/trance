@@ -169,16 +169,11 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="jpeg\jpgd.cpp">
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TurnOffAllWarnings</WarningLevel>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TurnOffAllWarnings</WarningLevel>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TurnOffAllWarnings</WarningLevel>
-      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TurnOffAllWarnings</WarningLevel>
-    </ClCompile>
     <ClCompile Include="src\director.cpp" />
     <ClCompile Include="src\export.cpp" />
     <ClCompile Include="src\font.cpp" />
     <ClCompile Include="src\image.cpp" />
+    <ClCompile Include="src\jpgd\jpgd.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\session.cpp" />
     <ClCompile Include="src\theme.cpp" />
@@ -203,6 +198,7 @@
     <ClInclude Include="src\export.h" />
     <ClInclude Include="src\font.h" />
     <ClInclude Include="src\image.h" />
+    <ClInclude Include="src\jpgd\jpgd.h" />
     <ClInclude Include="src\session.h" />
     <ClInclude Include="src\theme.h" />
     <ClInclude Include="src\util.h" />
