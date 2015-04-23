@@ -1,9 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="jpeg\jpgd.cpp">
-      <Filter>jpeg</Filter>
-    </ClCompile>
     <ClCompile Include="src\director.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -28,13 +25,16 @@
     <ClCompile Include="src\visual.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\jpgd\jpgd.cpp">
+      <Filter>src\jpgd</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="jpeg">
-      <UniqueIdentifier>{faa220e2-e063-4c92-bdbe-b5a9aac9c57d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src">
       <UniqueIdentifier>{9042966b-70ad-4cea-b183-84fdb0e92164}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\jpgd">
+      <UniqueIdentifier>{2b35da42-6357-4fba-b924-ad803680551b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -64,6 +64,9 @@
     </ClInclude>
     <ClInclude Include="src\visual.h">
       <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\jpgd\jpgd.h">
+      <Filter>src\jpgd</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
