@@ -9,6 +9,9 @@ class Director;
 // Interface to an object which can render and control the visual state.
 // These visuals are swapped out by the Director every so often for different
 // styles.
+// TODO: fix the same image occasionally being picked twice in a row (breaks the
+// zoom effect).
+// TODO: fix missing images after speed-up change (maybe only in export mode?).
 class Visual {
 public:
 

@@ -170,6 +170,29 @@ void validate_program(trance_pb::Program* program)
   validate_colour(program->mutable_shadow_text_colour());
 }
 
+template<typename T>
+T load_proto(const std::string& path)
+{
+  T proto;
+  std::ifstream f{path};
+  if (f) {
+    std::string str{std::istreambuf_iterator<char>{f},
+                    std::istreambuf_iterator<char>{}};
+    if (google::protobuf::TextFormat::ParseFromString(str, &proto)) {
+      return proto;
+    }
+  }
+  throw std::runtime_error("couldn't load " + path);
+}
+
+void save_proto(const google::protobuf::Message& proto, const std::string& path)
+{
+  std::string str;
+  google::protobuf::TextFormat::PrintToString(proto, &str);
+  std::ofstream f{path};
+  f << str;
+}
+
 }
 
 sf::Color colour2sf(const trance_pb::Colour& colour)
@@ -191,44 +214,51 @@ trance_pb::Colour sf2colour(const sf::Color& colour)
   return result;
 }
 
+trance_pb::System load_system(const std::string& path)
+{
+  auto system = load_proto<trance_pb::System>(path);
+  validate_system(system);
+  return system;
+}
+
+void save_system(const trance_pb::System& system, const std::string& path)
+{
+  save_proto(system, path);
+}
+
+trance_pb::System get_default_system()
+{
+  trance_pb::System system;
+  system.set_enable_vsync(true);
+  system.set_enable_oculus_rift(true);
+  system.set_oculus_image_depth(1.f);
+  system.set_oculus_text_depth(1.f);
+  system.set_image_cache_size(64);
+  system.set_font_cache_size(16);
+  return system;
+}
+
+void validate_system(trance_pb::System& system)
+{
+  system.set_image_cache_size(std::max(6u, system.image_cache_size()));
+  system.set_font_cache_size(std::max(2u, system.font_cache_size()));
+}
+
 trance_pb::Session load_session(const std::string& path)
 {
-  trance_pb::Session session;
-  bool loaded_okay = false;
-  std::ifstream f{path};
-  if (f) {
-    std::string str{std::istreambuf_iterator<char>{f},
-                    std::istreambuf_iterator<char>{}};
-    loaded_okay = google::protobuf::TextFormat::ParseFromString(str, &session);
-  }
-
-  if (loaded_okay) {
-    validate_session(session);
-    return session;
-  }
-  return get_default_session();
+  auto session = load_proto<trance_pb::Session>(path);
+  validate_session(session);
+  return session;
 }
 
 void save_session(const trance_pb::Session& session, const std::string& path)
 {
-  std::string str;
-  google::protobuf::TextFormat::PrintToString(session, &str);
-  std::ofstream f{path};
-  f << str;
+  save_proto(session, path);
 }
 
 trance_pb::Session get_default_session()
 {
   trance_pb::Session session;
-
-  auto system = session.mutable_system();
-  system->set_enable_vsync(true);
-  system->set_enable_oculus_rift(true);
-  system->set_oculus_image_depth(1.f);
-  system->set_oculus_text_depth(1.f);
-  system->set_image_cache_size(64);
-  system->set_font_cache_size(16);
-
   set_default_program(session);
   validate_session(session);
   return session;
@@ -236,10 +266,6 @@ trance_pb::Session get_default_session()
 
 void validate_session(trance_pb::Session& session)
 {
-  auto system = session.mutable_system();
-  system->set_image_cache_size(std::max(6u, system->image_cache_size()));
-  system->set_font_cache_size(std::max(2u, system->font_cache_size()));
-
   if (session.playlist().empty()) {
     set_default_program(session);
   }

@@ -196,13 +196,16 @@ void main(void)
 }
 )";
 
-Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
+Director::Director(sf::RenderWindow& window,
+                   const trance_pb::Session& session,
+                   const trance_pb::System& system,
                    ThemeBank& themes, const trance_pb::Program& program,
                    bool realtime, bool convert_to_yuv)
 : _window{window}
 , _session{session}
+, _system{system}
 , _themes{themes}
-, _fonts{session.system().font_cache_size()}
+, _fonts{system.font_cache_size()}
 , _width{window.getSize().x}
 , _height{window.getSize().y}
 , _program{&program}
@@ -247,7 +250,7 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
     std::cerr << "OpenGL framebuffer objects not available" << std::endl;
   }
 
-  if (session.system().enable_oculus_rift()) {
+  if (system.enable_oculus_rift()) {
     if (_realtime) {
       _oculus.enabled = init_oculus_rift();
     }
@@ -890,8 +893,8 @@ sf::Vector2f Director::off3d(float multiplier, bool text) const
   float x = !_oculus.enabled || !multiplier ? 0.f :
       !_oculus.rendering_right ? _width / (8.f * multiplier) :
                                  _width / -(8.f * multiplier);
-  x *= (text ? _session.system().oculus_text_depth() :
-               _session.system().oculus_image_depth());
+  x *= (text ? _system.oculus_text_depth() :
+               _system.oculus_image_depth());
   return {x, 0};
 }
 

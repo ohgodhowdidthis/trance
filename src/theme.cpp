@@ -201,7 +201,7 @@ void Theme::unload_animation_internal()
 }
 
 ThemeBank::ThemeBank(
-    const trance_pb::Session& session,
+    const trance_pb::Session& session, const trance_pb::System& system,
     const std::unordered_set<std::string>& enabled_themes)
 : _theme_map{session.theme_map().begin(), session.theme_map().end()}
 , _themes{_theme_map.begin(), _theme_map.end()}
@@ -217,7 +217,7 @@ ThemeBank::ThemeBank(
 , _alt{&_theme_shuffler.next().second}
 , _next{&_theme_shuffler.next().second}
 , _swaps_to_match_theme{0}
-, _image_cache_size{session.system().image_cache_size()}
+, _image_cache_size{system.image_cache_size()}
 , _updates{0}
 , _cooldown{switch_cooldown}
 {

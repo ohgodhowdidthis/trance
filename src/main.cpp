@@ -32,7 +32,7 @@ std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
 }
 
 std::unique_ptr<sf::RenderWindow> create_window(
-    const trance_pb::SystemConfiguration& system,
+    const trance_pb::System& system,
     uint32_t width, uint32_t height, bool visible)
 {
   // Call ovr_Initialize() before getting an OpenGL context.
@@ -62,8 +62,7 @@ std::unique_ptr<sf::RenderWindow> create_window(
   return window;
 }
 
-void close_window(sf::RenderWindow& window,
-                  const trance_pb::SystemConfiguration& system)
+void close_window(sf::RenderWindow& window, const trance_pb::System& system)
 {
   window.close();
   if (system.enable_oculus_rift()) {
@@ -157,7 +156,8 @@ void print_info(const sf::Clock& clock,
 }
 
 void play_session(
-    const trance_pb::Session& session, const exporter_settings& settings)
+    const trance_pb::Session& session, const trance_pb::System& system,
+    const exporter_settings& settings)
 {
   bool realtime = settings.path.empty();
   auto exporter = create_exporter(settings);
@@ -172,12 +172,13 @@ void play_session(
       item->program().enabled_theme_name().begin(),
       item->program().enabled_theme_name().end()};
 
-  auto theme_bank = std::make_unique<ThemeBank>(session, enabled_themes);
+  auto theme_bank =
+      std::make_unique<ThemeBank>(session, system, enabled_themes);
   auto window = create_window(
-      session.system(),
+      system,
       realtime ? 0 : settings.width, realtime ? 0 : settings.height, realtime);
   auto director = std::make_unique<Director>(
-      *window, session, *theme_bank, item->program(),
+      *window, session, system, *theme_bank, item->program(),
       realtime, exporter && exporter->requires_yuv_input());
 
   std::thread async_thread;
@@ -262,7 +263,7 @@ void play_session(
   }
   // Destroy oculus HMD before calling ovr_Shutdown().
   director.reset();
-  close_window(*window, session.system());
+  close_window(*window, system);
 }
 
 DEFINE_string(export_path, "", "export video to this path");
@@ -276,8 +277,8 @@ DEFINE_uint64(export_threads, 4, "export video threads");
 int main(int argc, char** argv)
 {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
-  if (argc > 2) {
-    std::cerr << "too many command-line arguments" << std::endl;
+  if (argc > 3) {
+    std::cerr << "usage: " << argv[0] << " [session.cfg [system.cfg]]" << std::endl;
     return 1;
   }
   exporter_settings settings{
@@ -287,9 +288,28 @@ int main(int argc, char** argv)
       std::min(uint32_t(4), uint32_t(FLAGS_export_quality)),
       uint32_t(FLAGS_export_threads)};
 
-  std::string session_path{argc == 2 ? argv[1] : "./default_session.cfg"};
-  trance_pb::Session session = load_session(session_path);
-  save_session(session, session_path);
-  play_session(session, settings);
+  std::string session_path{argc >= 2 ? argv[1] : "./default_session.cfg"};
+  trance_pb::Session session;
+  try {
+    session = load_session(session_path);
+  }
+  catch (std::runtime_error& e) {
+    std::cerr << e.what() << std::endl;
+    session = get_default_session();
+    save_session(session, session_path);
+  }
+
+  std::string system_path{argc >= 3 ? argv[2] : "./system.cfg"};
+  trance_pb::System system;
+  try {
+    system = load_system(system_path);
+  }
+  catch (std::runtime_error& e) {
+    std::cerr << e.what() << std::endl;
+    system = get_default_system();
+    save_system(system, system_path);
+  }
+
+  play_session(session, system, settings);
   return 0;
 }
