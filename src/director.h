@@ -18,8 +18,9 @@
 #pragma warning(pop)
 
 namespace trance_pb {
-  class Session;
   class Program;
+  class Session;
+  class System;
 }
 
 struct Font;
@@ -29,7 +30,9 @@ class Visual;
 class Director {
 public:
 
-  Director(sf::RenderWindow& window, const trance_pb::Session& session,
+  Director(sf::RenderWindow& window,
+           const trance_pb::Session& session,
+           const trance_pb::System& system,
            ThemeBank& themes, const trance_pb::Program& program,
            bool realtime, bool convert_to_yuv);
   ~Director();
@@ -85,6 +88,7 @@ private:
 
   sf::RenderWindow& _window;
   const trance_pb::Session& _session;
+  const trance_pb::System& _system;
   ThemeBank& _themes;
   FontCache _fonts;
   uint32_t _width;

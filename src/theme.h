@@ -17,6 +17,7 @@
 
 namespace trance_pb {
   class Session;
+  class System;
   class Theme;
 }
 
@@ -88,7 +89,7 @@ private:
 class ThemeBank {
 public:
 
-  ThemeBank(const trance_pb::Session& session,
+  ThemeBank(const trance_pb::Session& session, const trance_pb::System& system,
             const std::unordered_set<std::string>& enabled_themes);
   void set_enabled_themes(
       const std::unordered_set<std::string>& enabled_themes);

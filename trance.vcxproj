@@ -187,10 +187,10 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\trance.pb.cc;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.cc;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.cc;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.cc;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.cc;%(Outputs)</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
