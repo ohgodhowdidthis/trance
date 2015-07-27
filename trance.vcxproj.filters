@@ -38,9 +38,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="BUILDING" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="src\director.h">
       <Filter>src</Filter>
     </ClInclude>
