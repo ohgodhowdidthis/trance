@@ -469,19 +469,17 @@ const uint8_t* Director::get_screen_data() const
 
 Image Director::get_image(bool alternate) const
 {
-  static const uint32_t attempts = 8;
   static const uint32_t recent_images = 8;
 
-  // Fail-safe: try to avoid showing the same image twice.
+  // Fail-safe: try to avoid showing the same image twice. This doesn't handle
+  // duplicate images in different sets.
   Image image;
-  sf::Image* raw;
-  for (uint32_t i = 0; i < attempts; ++i) {
+  while (true) {
     image = _themes.get(alternate).get_image();
-    raw = image.get_sf_image() ? image.get_sf_image()->get() : nullptr;
 
     bool found = false;
     for (const auto& p : _recent_images) {
-      if (p == raw) {
+      if (p == image.texture()) {
         found = true;
         break;
       }
@@ -489,12 +487,15 @@ Image Director::get_image(bool alternate) const
     if (!found) {
       break;
     }
+    if (!_recent_images.empty()) {
+      _recent_images.pop_back();
+    }
   }
 
   if (_recent_images.size() >= recent_images) {
-    _recent_images.erase(_recent_images.begin());
+    _recent_images.erase(--_recent_images.end());
   }
-  _recent_images.push_back(raw);
+  _recent_images.insert(_recent_images.begin(), image.texture());
   return image;
 }
 
