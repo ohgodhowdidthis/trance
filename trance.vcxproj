@@ -180,7 +180,6 @@
     <ClCompile Include="src\visual.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="BUILDING" />
     <CustomBuild Include="src\trance.proto">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
