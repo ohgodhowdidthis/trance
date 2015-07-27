@@ -127,6 +127,7 @@ private:
   std::string _current_font;
   std::string _current_subfont;
   std::vector<std::string> _subtext;
+  mutable std::vector<sf::Image*> _recent_images;
 
   uint32_t _switch_themes;
   std::unique_ptr<Visual> _visual;

@@ -469,7 +469,33 @@ const uint8_t* Director::get_screen_data() const
 
 Image Director::get_image(bool alternate) const
 {
-  return _themes.get(alternate).get_image();
+  static const uint32_t attempts = 8;
+  static const uint32_t recent_images = 8;
+
+  // Fail-safe: try to avoid showing the same image twice.
+  Image image;
+  sf::Image* raw;
+  for (uint32_t i = 0; i < attempts; ++i) {
+    image = _themes.get(alternate).get_image();
+    raw = image.get_sf_image() ? image.get_sf_image()->get() : nullptr;
+
+    bool found = false;
+    for (const auto& p : _recent_images) {
+      if (p == raw) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      break;
+    }
+  }
+
+  if (_recent_images.size() >= recent_images) {
+    _recent_images.erase(_recent_images.begin());
+  }
+  _recent_images.push_back(raw);
+  return image;
 }
 
 const std::string& Director::get_text(bool alternate) const
