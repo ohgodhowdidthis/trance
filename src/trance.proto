@@ -74,7 +74,7 @@ message Program {
   bool reverse_spiral_direction = 7;
 
   // Font settings for displayed text.
-  // TODO: better text options and handling.
+  // TODO: better text options and handling, sizing, etc.
   Colour main_text_colour = 8;
   Colour shadow_text_colour = 9;
 }

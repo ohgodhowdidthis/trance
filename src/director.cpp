@@ -577,13 +577,19 @@ void Director::render_text(const std::string& text, float multiplier) const
   uint32_t border = _oculus.enabled ? 250 : 100;
   auto fit_text = [&](uint32_t size, bool fix)
   {
+    auto target = std::max(size, view_width() - border);
+    int current_size = size;
+
     auto r = get_text_size(text, _fonts.get_font(_current_font, size));
-    int new_size = size;
-    while (!fix && r.x > view_width() - border) {
-      new_size = new_size * (view_width() - border) / int(r.x);
-      r = get_text_size(text, _fonts.get_font(_current_font, new_size));
+    while (!fix && r.x > target) {
+      int new_size = int(current_size * float(target) / r.x + 0.5f);
+      if (new_size >= current_size) {
+        break;
+      }
+      current_size = new_size;
+      r = get_text_size(text, _fonts.get_font(_current_font, current_size));
     }
-    return new_size;
+    return current_size;
   };
 
   auto main_size = fit_text(default_size, false);
