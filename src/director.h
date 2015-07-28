@@ -110,6 +110,7 @@ private:
     union ovrGLConfig gl_cfg;
     ovrGLTexture fb_ovr_tex[2];
     ovrEyeRenderDesc eye_desc[2];
+    ovrPosef pose[2];
 
     mutable bool rendering_right;
   } _oculus;
