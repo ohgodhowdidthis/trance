@@ -106,10 +106,9 @@ void AccelerateVisual::update()
 
 void AccelerateVisual::render() const
 {
+  auto z = float(_change_timer) / (2 * _change_speed);
   director().render_image(
-      _current, 1, 8.f + 48.f - _change_speed,
-      _change_faster ? .5f - float(_change_timer) / (2 * _change_speed) :
-      float(_change_timer) / (2 * _change_speed));
+      _current, 1, 8.f + 48.f - _change_speed, _change_faster ? .5f - z : z);
   director().render_animation_or_image(Director::Anim::ANIM, {}, .2f, 6.f);
   director().render_spiral();
   if (_change_faster && (_change_speed <= 4 || (_text_on && _text_timer)) ||
