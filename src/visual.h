@@ -9,7 +9,6 @@ class Director;
 // Interface to an object which can render and control the visual state.
 // These visuals are swapped out by the Director every so often for different
 // styles.
-// TODO: fix missing images after speed-up change (maybe only in export mode?).
 class Visual {
 public:
 
@@ -40,7 +39,7 @@ public:
 private:
 
   static const uint32_t max_speed = 48;
-  static const uint32_t min_speed = 0;
+  static const uint32_t min_speed = 1;
   static const uint32_t text_time = 4;
 
   Image _current;
