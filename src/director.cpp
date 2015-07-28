@@ -381,6 +381,8 @@ void Director::update()
     if (state.Displayed && ovr_GetTimeInSeconds() > state.DismissibleTime) {
       ovrHmd_DismissHSWDisplay(_oculus.hmd);
     }
+    _oculus.pose[0] = ovrHmd_GetHmdPosePerEye(_oculus.hmd, ovrEye_Left);
+    _oculus.pose[1] = ovrHmd_GetHmdPosePerEye(_oculus.hmd, ovrEye_Right);
   }
   ++_switch_themes;
   if (_old_visual) {
@@ -403,18 +405,14 @@ void Director::render() const
     _visual->render();
   }
   else if (to_oculus) {
-    // TODO: how much of this is really necessary, given that we don't actually
-    // care about head position at all?
     ovrHmd_BeginFrame(_oculus.hmd, 0);
-    ovrPosef pose[2];
     for (int i = 0; i < 2; ++i) {
       auto eye = _oculus.hmd->EyeRenderOrder[i];
-      pose[eye] = ovrHmd_GetHmdPosePerEye(_oculus.hmd, eye);
       _oculus.rendering_right = eye == ovrEye_Right;
       glViewport(_oculus.rendering_right * view_width(), 0, view_width(), _height);
       _visual->render();
     }
-    ovrHmd_EndFrame(_oculus.hmd, pose, &_oculus.fb_ovr_tex[0].Texture);
+    ovrHmd_EndFrame(_oculus.hmd, _oculus.pose, &_oculus.fb_ovr_tex[0].Texture);
   }
   else {
     for (int i = 0; i < 2; ++i) {
