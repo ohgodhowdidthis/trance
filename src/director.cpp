@@ -200,7 +200,7 @@ Director::Director(sf::RenderWindow& window,
                    const trance_pb::Session& session,
                    const trance_pb::System& system,
                    ThemeBank& themes, const trance_pb::Program& program,
-                   bool realtime, bool convert_to_yuv)
+                   bool realtime, bool oculus_rift, bool convert_to_yuv)
 : _window{window}
 , _session{session}
 , _system{system}
@@ -225,7 +225,7 @@ Director::Director(sf::RenderWindow& window,
 , _switch_themes{0}
 {
   _oculus.enabled = false;
-  _oculus.hmd = nullptr;
+  _oculus.session = nullptr;
 
   GLenum ok = glewInit();
   if (ok != GLEW_OK) {
@@ -250,7 +250,7 @@ Director::Director(sf::RenderWindow& window,
     std::cerr << "OpenGL framebuffer objects not available" << std::endl;
   }
 
-  if (system.enable_oculus_rift()) {
+  if (oculus_rift) {
     if (_realtime) {
       _oculus.enabled = init_oculus_rift();
     }
@@ -363,8 +363,8 @@ Director::Director(sf::RenderWindow& window,
 
 Director::~Director()
 {
-  if (_oculus.hmd) {
-    ovrHmd_Destroy(_oculus.hmd);
+  if (_oculus.session) {
+    ovr_Destroy(_oculus.session);
   }
 }
 
@@ -375,15 +375,6 @@ void Director::set_program(const trance_pb::Program& program)
 
 void Director::update()
 {
-  if (_oculus.enabled && _realtime) {
-    ovrHSWDisplayState state;
-    ovrHmd_GetHSWDisplayState(_oculus.hmd, &state);
-    if (state.Displayed && ovr_GetTimeInSeconds() > state.DismissibleTime) {
-      ovrHmd_DismissHSWDisplay(_oculus.hmd);
-    }
-    _oculus.pose[0] = ovrHmd_GetHmdPosePerEye(_oculus.hmd, ovrEye_Left);
-    _oculus.pose[1] = ovrHmd_GetHmdPosePerEye(_oculus.hmd, ovrEye_Right);
-  }
   ++_switch_themes;
   if (_old_visual) {
     _old_visual.reset(nullptr);
@@ -405,19 +396,33 @@ void Director::render() const
     _visual->render();
   }
   else if (to_oculus) {
-    ovrHmd_BeginFrame(_oculus.hmd, 0);
-    for (int i = 0; i < 2; ++i) {
-      auto eye = _oculus.hmd->EyeRenderOrder[i];
+    // TODO: fix flickering.
+    auto timing = ovr_GetPredictedDisplayTime(_oculus.session, 0);
+    auto tracking =
+        ovr_GetTrackingState(_oculus.session, timing, true /* ??? */);
+    ovr_CalcEyePoses(tracking.HeadPose.ThePose,
+                     _oculus.eye_view_offset, _oculus.layer.RenderPose);
+    _oculus.texture_set->CurrentIndex =
+        (_oculus.texture_set->CurrentIndex + 1) %
+        _oculus.texture_set->TextureCount;
+
+    glBindFramebuffer(
+        GL_FRAMEBUFFER, _oculus.fbo_ovr[_oculus.texture_set->CurrentIndex]);
+    glClear(GL_COLOR_BUFFER_BIT);
+    for (int eye = 0; eye < 2; ++eye) {
       _oculus.rendering_right = eye == ovrEye_Right;
-      glViewport(_oculus.rendering_right * view_width(), 0, view_width(), _height);
+      const auto& view = _oculus.layer.Viewport[eye];
+      glViewport(view.Pos.x, view.Pos.y, view.Size.w, view.Size.h);
       _visual->render();
     }
-    ovrHmd_EndFrame(_oculus.hmd, _oculus.pose, &_oculus.fb_ovr_tex[0].Texture);
+    const ovrLayerHeader* layers = &_oculus.layer.Header;
+    ovr_SubmitFrame(_oculus.session, 0, nullptr, &layers, 1);
   }
   else {
-    for (int i = 0; i < 2; ++i) {
-      _oculus.rendering_right = i;
-		  glViewport(_oculus.rendering_right * view_width(), 0, view_width(), _height);
+    for (int eye = 0; eye < 2; ++eye) {
+      _oculus.rendering_right = eye == ovrEye_Right;
+      glViewport(_oculus.rendering_right * view_width(), 0,
+                 view_width(), _height);
       _visual->render();
     }
   }
@@ -839,83 +844,68 @@ bool Director::init_framebuffer(uint32_t& fbo, uint32_t& fb_tex,
 
 bool Director::init_oculus_rift()
 {
-  _oculus.hmd = ovrHmd_Create(0);
-  if (!_oculus.hmd) {
-    std::cerr << "Oculus HMD failed" << std::endl;
-#ifndef DEBUG
+  if (ovr_Create(&_oculus.session, &_oculus.luid) != ovrSuccess) {
+    std::cerr << "Oculus session failed" << std::endl;
     return false;
-#endif
-    _oculus.hmd = ovrHmd_CreateDebug(ovrHmd_DK2);
-    if (!_oculus.hmd) {
-      std::cerr << "Oculus HMD debug mode failed" << std::endl;
+  }
+  // ???
+  ovr_SetBool(_oculus.session, "QueueAheadEnabled", ovrFalse);
+
+  auto desc = ovr_GetHmdDesc(_oculus.session);
+  ovrSizei eye_left = ovr_GetFovTextureSize(
+      _oculus.session, ovrEye_Left, desc.DefaultEyeFov[0], 1.0);
+  ovrSizei eye_right = ovr_GetFovTextureSize(
+      _oculus.session, ovrEye_Right, desc.DefaultEyeFov[0], 1.0);
+  int fw = eye_left.w + eye_right.w;
+  int fh = std::max(eye_left.h, eye_right.h);
+
+  auto result = ovr_CreateSwapTextureSetGL(
+      _oculus.session, GL_RGBA, fw, fh, &_oculus.texture_set);
+  if (result != ovrSuccess) {
+    std::cerr << "Oculus swap textures failed" << std::endl;
+  }
+  for (int i = 0; i < _oculus.texture_set->TextureCount; ++i) {
+    GLuint fbo;
+    GLuint fb_tex =
+        ((ovrGLTexture*) &_oculus.texture_set->Textures[i])->OGL.TexId;
+    _oculus.fbo_ovr.push_back(fbo);
+
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glBindTexture(GL_TEXTURE_2D, fb_tex);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                           GL_TEXTURE_2D, fb_tex, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+      std::cerr << "framebuffer failed" << std::endl;
       return false;
     }
   }
 
-  auto oculus_flags =
-      ovrTrackingCap_Orientation |
-      ovrTrackingCap_MagYawCorrection |
-      ovrTrackingCap_Position;
-  ovrHmd_ConfigureTracking(_oculus.hmd, oculus_flags, 0);
+  auto erd_left = ovr_GetRenderDesc(
+      _oculus.session, ovrEye_Left, desc.DefaultEyeFov[0]);
+  auto erd_right = ovr_GetRenderDesc(
+      _oculus.session, ovrEye_Right, desc.DefaultEyeFov[1]);
+  _oculus.eye_view_offset[0] = erd_left.HmdToEyeViewOffset;
+  _oculus.eye_view_offset[1] = erd_right.HmdToEyeViewOffset;
 
-  ovrSizei eye_left = ovrHmd_GetFovTextureSize(
-      _oculus.hmd, ovrEye_Left, _oculus.hmd->DefaultEyeFov[0], 1.0);
-  ovrSizei eye_right = ovrHmd_GetFovTextureSize(
-      _oculus.hmd, ovrEye_Right, _oculus.hmd->DefaultEyeFov[0], 1.0);
-  int fw = eye_left.w + eye_right.w;
-  int fh = std::max(eye_left.h, eye_right.h);
-  if (!init_framebuffer(_render_fbo, _render_fb_tex, fw, fh)) {
-    return false;
-  }
+  _oculus.layer.Header.Type = ovrLayerType_EyeFov;
+  _oculus.layer.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;
+  _oculus.layer.ColorTexture[0] = _oculus.texture_set;
+  _oculus.layer.ColorTexture[1] = _oculus.texture_set;
+  _oculus.layer.Fov[0] = erd_left.Fov;
+  _oculus.layer.Fov[1] = erd_right.Fov;
+  _oculus.layer.Viewport[0].Pos.x = 0;
+  _oculus.layer.Viewport[0].Pos.y = 0;
+  _oculus.layer.Viewport[0].Size.w = fw / 2;
+  _oculus.layer.Viewport[0].Size.h = fh;
+  _oculus.layer.Viewport[1].Pos.x = fw / 2;
+  _oculus.layer.Viewport[1].Pos.y = 0;
+  _oculus.layer.Viewport[1].Size.w = fw / 2;
+  _oculus.layer.Viewport[1].Size.h = fh;
 
-  for (int i = 0; i < 2; ++i) {
-    _oculus.fb_ovr_tex[i].OGL.Header.API = ovrRenderAPI_OpenGL;
-    _oculus.fb_ovr_tex[i].OGL.Header.TextureSize.w = fw;
-    _oculus.fb_ovr_tex[i].OGL.Header.TextureSize.h = fh;
-    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Pos.x = i * fw / 2;
-    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Pos.y = 0;
-    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Size.w = fw / 2;
-    _oculus.fb_ovr_tex[i].OGL.Header.RenderViewport.Size.h = fh;
-    _oculus.fb_ovr_tex[i].OGL.TexId = _render_fb_tex;
-  }
-
-  memset(&_oculus.gl_cfg, 0, sizeof(_oculus.gl_cfg));
-  _oculus.gl_cfg.OGL.Header.API = ovrRenderAPI_OpenGL;
-  _oculus.gl_cfg.OGL.Header.BackBufferSize = _oculus.hmd->Resolution;
-  _oculus.gl_cfg.OGL.Header.Multisample = 1;
-  _oculus.gl_cfg.OGL.Window = GetActiveWindow();
-  _oculus.gl_cfg.OGL.DC = wglGetCurrentDC();
-
-  if (!(_oculus.hmd->HmdCaps & ovrHmdCap_ExtendDesktop)) {
-    std::cerr << "Oculus direct HMD access unsupported" << std::endl;
-    return false;
-  }
-
-  auto hmd_caps =
-      ovrHmdCap_LowPersistence |
-      ovrHmdCap_DynamicPrediction;
-  ovrHmd_SetEnabledCaps(_oculus.hmd, hmd_caps);
-
-  auto distort_caps =
-      ovrDistortionCap_Vignette |
-      ovrDistortionCap_TimeWarp |
-      ovrDistortionCap_Overdrive;
-  if (!ovrHmd_ConfigureRendering(_oculus.hmd, &_oculus.gl_cfg.Config,
-                                 distort_caps, _oculus.hmd->DefaultEyeFov,
-                                 _oculus.eye_desc)) {
-    std::cerr << "Oculus rendering failed" << std::endl;
-    return false;
-  }
   _width = fw;
   _height = fh;
-  _window.setVerticalSyncEnabled(true);
-  _window.setFramerateLimit(75);
-  _window.setSize(sf::Vector2u(_oculus.hmd->Resolution.w,
-                               _oculus.hmd->Resolution.h));
-#ifndef DEBUG
-  _window.setPosition(sf::Vector2i(_oculus.hmd->WindowsPos.x,
-                                   _oculus.hmd->WindowsPos.y));
-#endif
+  _window.setSize(sf::Vector2u(0, 0));
   return true;
 }
 

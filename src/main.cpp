@@ -33,12 +33,8 @@ std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
 
 std::unique_ptr<sf::RenderWindow> create_window(
     const trance_pb::System& system,
-    uint32_t width, uint32_t height, bool visible)
+    uint32_t width, uint32_t height, bool visible, bool oculus_rift)
 {
-  // Call ovr_Initialize() before getting an OpenGL context.
-  if (system.enable_oculus_rift()) {
-    ovr_Initialize();
-  }
   auto window = std::make_unique<sf::RenderWindow>();
   glClearColor(0.f, 0.f, 0.f, 0.f);
   glClear(GL_COLOR_BUFFER_BIT);
@@ -48,7 +44,7 @@ std::unique_ptr<sf::RenderWindow> create_window(
     video_mode.width = width;
     video_mode.height = height;
   }
-  auto style = !visible || system.enable_oculus_rift() ?
+  auto style = !visible || oculus_rift ?
       sf::Style::None : sf::Style::Fullscreen;
   window->create(video_mode, "trance", style);
 
@@ -60,14 +56,6 @@ std::unique_ptr<sf::RenderWindow> create_window(
     window->display();
   }
   return window;
-}
-
-void close_window(sf::RenderWindow& window, const trance_pb::System& system)
-{
-  window.close();
-  if (system.enable_oculus_rift()) {
-    ovr_Shutdown();
-  }
 }
 
 const std::string& next_playlist_item(
@@ -174,12 +162,21 @@ void play_session(
 
   auto theme_bank =
       std::make_unique<ThemeBank>(session, system, enabled_themes);
+
+  // Call ovr_Initialize() before getting an OpenGL context.
+  bool oculus_rift = system.enable_oculus_rift();
+  if (oculus_rift) {
+    if (ovr_Initialize(nullptr) != ovrSuccess) {
+      std::cerr << "Oculus initialization failed" << std::endl;
+      oculus_rift = false;
+    }
+  }
   auto window = create_window(
-      system,
-      realtime ? 0 : settings.width, realtime ? 0 : settings.height, realtime);
+      system, realtime ? 0 : settings.width, realtime ? 0 : settings.height,
+      realtime, oculus_rift);
   auto director = std::make_unique<Director>(
       *window, session, system, *theme_bank, item->program(),
-      realtime, exporter && exporter->requires_yuv_input());
+      realtime, oculus_rift, exporter && exporter->requires_yuv_input());
 
   std::thread async_thread;
   std::atomic<bool> running = true;
@@ -263,7 +260,10 @@ void play_session(
   }
   // Destroy oculus HMD before calling ovr_Shutdown().
   director.reset();
-  close_window(*window, system);
+  window->close();
+  if (oculus_rift) {
+    ovr_Shutdown();
+  }
 }
 
 DEFINE_string(export_path, "", "export video to this path");
