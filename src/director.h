@@ -34,7 +34,7 @@ public:
            const trance_pb::Session& session,
            const trance_pb::System& system,
            ThemeBank& themes, const trance_pb::Program& program,
-           bool realtime, bool convert_to_yuv);
+           bool realtime, bool oculus_rift, bool convert_to_yuv);
   ~Director();
 
   // Called from play_session() in main.cpp.
@@ -105,13 +105,13 @@ private:
 
   struct {
     bool enabled;
-    ovrHmd hmd;
+    ovrSession session;
+    ovrGraphicsLuid luid;
+    ovrSwapTextureSet* texture_set;
+    std::vector<uint32_t> fbo_ovr;
+    ovrVector3f eye_view_offset[2];
 
-    union ovrGLConfig gl_cfg;
-    ovrGLTexture fb_ovr_tex[2];
-    ovrEyeRenderDesc eye_desc[2];
-    ovrPosef pose[2];
-
+    mutable ovrLayerEyeFov layer;
     mutable bool rendering_right;
   } _oculus;
 
