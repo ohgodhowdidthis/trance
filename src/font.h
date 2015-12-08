@@ -45,7 +45,7 @@ struct Font {
 namespace std {
   template<>
   struct hash<Font::key_t> {
-    std::size_t operator()(const Font::key_t& key)
+    std::size_t operator()(const Font::key_t& key) const
     {
       return std::hash<std::string>()(key.path) + key.char_size;
     }
