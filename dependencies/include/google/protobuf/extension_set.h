@@ -45,6 +45,7 @@
 
 
 #include <google/protobuf/stubs/common.h>
+#include <google/protobuf/stubs/logging.h>
 
 #include <google/protobuf/repeated_field.h>
 
@@ -194,7 +195,7 @@ class LIBPROTOBUF_EXPORT ExtensionSet {
   // directly, unless you are doing low-level memory management.
   //
   // When calling any of these accessors, the extension number requested
-  // MUST exist in the DescriptorPool provided to the constructor.  Otheriwse,
+  // MUST exist in the DescriptorPool provided to the constructor.  Otherwise,
   // the method will fail an assert.  Normally, though, you would not call
   // these directly; you would either call the generated accessors of your
   // message class (e.g. GetExtension()) or you would call the accessors
@@ -262,6 +263,9 @@ class LIBPROTOBUF_EXPORT ExtensionSet {
   void SetAllocatedMessage(int number, FieldType type,
                            const FieldDescriptor* descriptor,
                            MessageLite* message);
+  void UnsafeArenaSetAllocatedMessage(int number, FieldType type,
+                                      const FieldDescriptor* descriptor,
+                                      MessageLite* message);
   MessageLite* ReleaseMessage(int number, const MessageLite& prototype);
   MessageLite* UnsafeArenaReleaseMessage(
       int number, const MessageLite& prototype);
@@ -327,6 +331,8 @@ class LIBPROTOBUF_EXPORT ExtensionSet {
                           const MessageLite& prototype, desc);
   MessageLite* AddMessage(const FieldDescriptor* descriptor,
                           MessageFactory* factory);
+  void AddAllocatedMessage(const FieldDescriptor* descriptor,
+                           MessageLite* new_entry);
 #undef desc
 
   void RemoveLast(int number);
@@ -432,6 +438,7 @@ class LIBPROTOBUF_EXPORT ExtensionSet {
         const MessageLite& prototype) const = 0;
     virtual MessageLite* MutableMessage(const MessageLite& prototype) = 0;
     virtual void SetAllocatedMessage(MessageLite *message) = 0;
+    virtual void UnsafeArenaSetAllocatedMessage(MessageLite *message) = 0;
     virtual MessageLite* ReleaseMessage(const MessageLite& prototype) = 0;
     virtual MessageLite* UnsafeArenaReleaseMessage(
         const MessageLite& prototype) = 0;
@@ -573,6 +580,10 @@ class LIBPROTOBUF_EXPORT ExtensionSet {
   // already exist.  Returns true if the extension did not already exist.
   bool MaybeNewExtension(int number, const FieldDescriptor* descriptor,
                          Extension** result);
+
+  // Gets the repeated extension for the given descriptor, creating it if
+  // it does not exist.
+  Extension* MaybeNewRepeatedExtension(const FieldDescriptor* descriptor);
 
   // Parse a single MessageSet item -- called just after the item group start
   // tag has been read.

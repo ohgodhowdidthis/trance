@@ -54,6 +54,7 @@
 #include <string>
 #include <iterator>
 #include <google/protobuf/stubs/casts.h>
+#include <google/protobuf/stubs/logging.h>
 #include <google/protobuf/stubs/common.h>
 #include <google/protobuf/stubs/type_traits.h>
 #include <google/protobuf/arena.h>
@@ -361,7 +362,7 @@ class LIBPROTOBUF_EXPORT RepeatedPtrFieldBase {
 
   // To parse directly into a proto2 generated class, the upb class GMR_Handlers
   // needs to be able to modify a RepeatedPtrFieldBase directly.
-  friend class LIBPROTOBUF_EXPORT upb::google_opensource::GMR_Handlers;
+  friend class upb::google_opensource::GMR_Handlers;
 
   RepeatedPtrFieldBase();
   explicit RepeatedPtrFieldBase(::google::protobuf::Arena* arena);
@@ -408,7 +409,7 @@ class LIBPROTOBUF_EXPORT RepeatedPtrFieldBase {
   const typename TypeHandler::Type* const* data() const;
 
   template <typename TypeHandler>
-  inline void Swap(RepeatedPtrFieldBase* other) GOOGLE_ATTRIBUTE_ALWAYS_INLINE;
+  GOOGLE_ATTRIBUTE_ALWAYS_INLINE void Swap(RepeatedPtrFieldBase* other);
 
   void SwapElements(int index1, int index2);
 
@@ -458,22 +459,20 @@ class LIBPROTOBUF_EXPORT RepeatedPtrFieldBase {
   void AddAllocatedInternal(typename TypeHandler::Type* value,
                             google::protobuf::internal::false_type);
 
-  template <typename TypeHandler>
+  template <typename TypeHandler> GOOGLE_ATTRIBUTE_NOINLINE
   void AddAllocatedSlowWithCopy(typename TypeHandler::Type* value,
                                 Arena* value_arena,
-                                Arena* my_arena)
-      GOOGLE_ATTRIBUTE_NOINLINE;
-  template <typename TypeHandler>
-  void AddAllocatedSlowWithoutCopy(typename TypeHandler::Type* value)
-      GOOGLE_ATTRIBUTE_NOINLINE;
+                                Arena* my_arena);
+  template <typename TypeHandler> GOOGLE_ATTRIBUTE_NOINLINE
+  void AddAllocatedSlowWithoutCopy(typename TypeHandler::Type* value);
 
   template <typename TypeHandler>
   typename TypeHandler::Type* ReleaseLastInternal(google::protobuf::internal::true_type);
   template <typename TypeHandler>
   typename TypeHandler::Type* ReleaseLastInternal(google::protobuf::internal::false_type);
 
-  template<typename TypeHandler>
-  inline void SwapFallback(RepeatedPtrFieldBase* other) GOOGLE_ATTRIBUTE_NOINLINE;
+  template<typename TypeHandler> GOOGLE_ATTRIBUTE_NOINLINE
+  void SwapFallback(RepeatedPtrFieldBase* other);
 
   inline Arena* GetArenaNoVirtual() const {
     return arena_;
@@ -542,20 +541,10 @@ class GenericTypeHandler {
   }
   // We force NewFromPrototype() and Delete() to be non-inline to reduce code
   // size: else, several other methods get inlined copies of message types'
-  // constructors and destructors. Note that the GOOGLE_ATTRIBUTE_NOINLINE macro
-  // requires the 'inline' storage class here, which is somewhat confusing, but
-  // the compiler does the right thing.
-  static inline GenericType* NewFromPrototype(const GenericType* prototype,
-                                              ::google::protobuf::Arena* arena = NULL)
-    GOOGLE_ATTRIBUTE_NOINLINE {
-    return New(arena);
-  }
-  static inline void Delete(GenericType* value, Arena* arena)
-    GOOGLE_ATTRIBUTE_NOINLINE {
-    if (arena == NULL) {
-      delete value;
-    }
-  }
+  // constructors and destructors.
+  GOOGLE_ATTRIBUTE_NOINLINE static GenericType* NewFromPrototype(
+      const GenericType* prototype, ::google::protobuf::Arena* arena = NULL);
+  GOOGLE_ATTRIBUTE_NOINLINE static void Delete(GenericType* value, Arena* arena);
   static inline ::google::protobuf::Arena* GetArena(GenericType* value) {
     return ::google::protobuf::Arena::GetArena<Type>(value);
   }
@@ -564,10 +553,8 @@ class GenericTypeHandler {
   }
 
   static inline void Clear(GenericType* value) { value->Clear(); }
-  static inline void Merge(const GenericType& from, GenericType* to)
-      GOOGLE_ATTRIBUTE_NOINLINE {
-    to->MergeFrom(from);
-  }
+  GOOGLE_ATTRIBUTE_NOINLINE static void Merge(const GenericType& from,
+                                       GenericType* to);
   static inline int SpaceUsed(const GenericType& value) {
     return value.SpaceUsed();
   }
@@ -576,36 +563,44 @@ class GenericTypeHandler {
   }
 };
 
-// Macros for specializing GenericTypeHandler for base proto types, these are
-// are defined here, to allow inlining them at their callsites.
-#define DEFINE_SPECIALIZATIONS_FOR_BASE_PROTO_TYPES(Inline, TypeName)          \
-    template<> \
-    Inline TypeName* GenericTypeHandler<TypeName>::NewFromPrototype(           \
-        const TypeName* prototype, google::protobuf::Arena* arena) {                     \
-      return prototype->New(arena);                                            \
-    }                                                                          \
-    template<> \
-    Inline google::protobuf::Arena* GenericTypeHandler<TypeName>::GetArena(              \
-        TypeName* value) {                                                     \
-      return value->GetArena();                                                \
-    }                                                                          \
-    template<>                                                                 \
-    Inline void* GenericTypeHandler<TypeName>::GetMaybeArenaPointer(           \
-        TypeName* value) {                                                     \
-      return value->GetMaybeArenaPointer();                                    \
-    }
-#define DEFINE_SPECIALIZATIONS_FOR_BASE_PROTO_TYPES_NOINLINE(TypeName)         \
-    DEFINE_SPECIALIZATIONS_FOR_BASE_PROTO_TYPES(, TypeName)
-
-// Implements GenericTypeHandler specialization required by RepeatedPtrFields
-// to work with MessageLite type.
-template <>
-inline void GenericTypeHandler<MessageLite>::Merge(
-    const MessageLite& from, MessageLite* to) {
-  to->CheckTypeAndMergeFrom(from);
+template <typename GenericType>
+GenericType* GenericTypeHandler<GenericType>::NewFromPrototype(
+    const GenericType* prototype, ::google::protobuf::Arena* arena) {
+  return New(arena);
+}
+template <typename GenericType>
+void GenericTypeHandler<GenericType>::Delete(GenericType* value, Arena* arena) {
+  if (arena == NULL) {
+    delete value;
+  }
+}
+template <typename GenericType>
+void GenericTypeHandler<GenericType>::Merge(const GenericType& from,
+                                            GenericType* to) {
+  to->MergeFrom(from);
 }
 
-DEFINE_SPECIALIZATIONS_FOR_BASE_PROTO_TYPES(inline, MessageLite);
+// NewFromPrototype() and Merge() cannot be defined here; if they're declared
+// inline the compiler will complain about not matching GOOGLE_ATTRIBUTE_NOINLINE
+// above, and if not, compilation will result in multiple definitions.  These
+// are therefore declared as specializations here and defined in
+// message_lite.cc.
+template<>
+MessageLite* GenericTypeHandler<MessageLite>::NewFromPrototype(
+    const MessageLite* prototype, google::protobuf::Arena* arena);
+template<>
+inline google::protobuf::Arena* GenericTypeHandler<MessageLite>::GetArena(
+    MessageLite* value) {
+  return value->GetArena();
+}
+template<>
+inline void* GenericTypeHandler<MessageLite>::GetMaybeArenaPointer(
+    MessageLite* value) {
+  return value->GetMaybeArenaPointer();
+}
+template <>
+void GenericTypeHandler<MessageLite>::Merge(const MessageLite& from,
+                                            MessageLite* to);
 
 // Declarations of the specialization as we cannot define them here, as the
 // header that defines ProtocolMessage depends on types defined in this header.
@@ -626,7 +621,7 @@ DEFINE_SPECIALIZATIONS_FOR_BASE_PROTO_TYPES(inline, MessageLite);
 DECLARE_SPECIALIZATIONS_FOR_BASE_PROTO_TYPES(Message);
 
 
-#undef DECLARE_SPECIALIZATIONS_FOR_BASE_CLASSES
+#undef DECLARE_SPECIALIZATIONS_FOR_BASE_PROTO_TYPES
 
 template <>
 inline const MessageLite& GenericTypeHandler<MessageLite>::default_instance() {
@@ -1132,7 +1127,9 @@ template <typename Element>
 inline typename RepeatedField<Element>::iterator RepeatedField<Element>::erase(
     const_iterator first, const_iterator last) {
   size_type first_offset = first - cbegin();
-  Truncate(std::copy(last, cend(), begin() + first_offset) - cbegin());
+  if (first != last) {
+    Truncate(std::copy(last, cend(), begin() + first_offset) - cbegin());
+  }
   return begin() + first_offset;
 }
 
@@ -1226,15 +1223,20 @@ void RepeatedField<Element>::Reserve(int new_size) {
   Arena* arena = GetArenaNoVirtual();
   new_size = max(google::protobuf::internal::kMinRepeatedFieldAllocationSize,
                  max(total_size_ * 2, new_size));
+  GOOGLE_CHECK_LE(static_cast<size_t>(new_size),
+           (std::numeric_limits<size_t>::max() - kRepHeaderSize) /
+           sizeof(Element))
+      << "Requested size is too large to fit into size_t.";
   if (arena == NULL) {
     rep_ = reinterpret_cast<Rep*>(
-        new char[kRepHeaderSize + sizeof(Element)*new_size]);
+        new char[kRepHeaderSize + sizeof(Element) * new_size]);
   } else {
     rep_ = reinterpret_cast<Rep*>(
             ::google::protobuf::Arena::CreateArray<char>(arena,
-                kRepHeaderSize + sizeof(Element)*new_size));
+                kRepHeaderSize + sizeof(Element) * new_size));
   }
   rep_->arena = arena;
+  int old_total_size = total_size_;
   total_size_ = new_size;
   // Invoke placement-new on newly allocated elements. We shouldn't have to do
   // this, since Element is supposed to be POD, but a previous version of this
@@ -1253,15 +1255,17 @@ void RepeatedField<Element>::Reserve(int new_size) {
   if (current_size_ > 0) {
     MoveArray(rep_->elements, old_rep->elements, current_size_);
   }
-  // Likewise, we need to invoke destructors on the old array. If Element has no
-  // destructor, this loop will disappear.
-  e = &old_rep->elements[0];
-  limit = &old_rep->elements[current_size_];
-  for (; e < limit; e++) {
-    e->Element::~Element();
-  }
-  if (arena == NULL) {
-    delete[] reinterpret_cast<char*>(old_rep);
+  if (old_rep) {
+    // Likewise, we need to invoke destructors on the old array. If Element has
+    // no destructor, this loop will disappear.
+    e = &old_rep->elements[0];
+    limit = &old_rep->elements[old_total_size];
+    for (; e < limit; e++) {
+      e->Element::~Element();
+    }
+    if (arena == NULL) {
+      delete[] reinterpret_cast<char*>(old_rep);
+    }
   }
 }
 
@@ -1344,7 +1348,7 @@ inline void RepeatedPtrFieldBase::Swap(RepeatedPtrFieldBase* other) {
 }
 
 template <typename TypeHandler>
-inline void RepeatedPtrFieldBase::SwapFallback(RepeatedPtrFieldBase* other) {
+void RepeatedPtrFieldBase::SwapFallback(RepeatedPtrFieldBase* other) {
   GOOGLE_DCHECK(other->GetArenaNoVirtual() != GetArenaNoVirtual());
 
   // Copy semantics in this case. We try to improve efficiency by placing the
@@ -1418,7 +1422,7 @@ void RepeatedPtrFieldBase::Clear() {
   const int n = current_size_;
   GOOGLE_DCHECK_GE(n, 0);
   if (n > 0) {
-    void* const* elements = raw_data();
+    void* const* elements = rep_->elements;
     int i = 0;
     do {
       TypeHandler::Clear(cast<TypeHandler>(elements[i++]));
@@ -2264,7 +2268,7 @@ RepeatedPtrField<Element>::pointer_end() const {
 
 // Iterators and helper functions that follow the spirit of the STL
 // std::back_insert_iterator and std::back_inserter but are tailor-made
-// for RepeatedField and RepatedPtrField. Typical usage would be:
+// for RepeatedField and RepeatedPtrField. Typical usage would be:
 //
 //   std::copy(some_sequence.begin(), some_sequence.end(),
 //             google::protobuf::RepeatedFieldBackInserter(proto.mutable_sequence()));
