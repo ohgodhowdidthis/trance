@@ -98,11 +98,11 @@
 //
 //     // Use the reflection interface to examine the contents.
 //     const Reflection* reflection = foo->GetReflection();
-//     assert(reflection->GetString(foo, text_field) == "Hello World!");
-//     assert(reflection->FieldSize(foo, numbers_field) == 3);
-//     assert(reflection->GetRepeatedInt32(foo, numbers_field, 0) == 1);
-//     assert(reflection->GetRepeatedInt32(foo, numbers_field, 1) == 5);
-//     assert(reflection->GetRepeatedInt32(foo, numbers_field, 2) == 42);
+//     assert(reflection->GetString(*foo, text_field) == "Hello World!");
+//     assert(reflection->FieldSize(*foo, numbers_field) == 3);
+//     assert(reflection->GetRepeatedInt32(*foo, numbers_field, 0) == 1);
+//     assert(reflection->GetRepeatedInt32(*foo, numbers_field, 1) == 5);
+//     assert(reflection->GetRepeatedInt32(*foo, numbers_field, 2) == 42);
 //
 //     delete foo;
 //   }
@@ -134,12 +134,23 @@ class Reflection;
 class MessageFactory;
 
 // Defined in other files.
+class MapKey;
+class MapValueRef;
+class MapIterator;
+class MapReflectionTester;
+
+namespace internal {
+class MapFieldBase;
+}
 class UnknownFieldSet;         // unknown_field_set.h
 namespace io {
-  class ZeroCopyInputStream;   // zero_copy_stream.h
-  class ZeroCopyOutputStream;  // zero_copy_stream.h
-  class CodedInputStream;      // coded_stream.h
-  class CodedOutputStream;     // coded_stream.h
+class ZeroCopyInputStream;     // zero_copy_stream.h
+class ZeroCopyOutputStream;    // zero_copy_stream.h
+class CodedInputStream;        // coded_stream.h
+class CodedOutputStream;       // coded_stream.h
+}
+namespace python {
+class MapReflectionFriend;     // scalar_map_container.h
 }
 
 
@@ -208,7 +219,7 @@ class LIBPROTOBUF_EXPORT Message : public MessageLite {
   // This is much, much slower than IsInitialized() as it is implemented
   // purely via reflection.  Generally, you should not call this unless you
   // have already determined that an error exists by calling IsInitialized().
-  void FindInitializationErrors(vector<string>* errors) const;
+  void FindInitializationErrors(std::vector<string>* errors) const;
 
   // Like FindInitializationErrors, but joins all the strings, delimited by
   // commas, and returns them.
@@ -229,6 +240,11 @@ class LIBPROTOBUF_EXPORT Message : public MessageLite {
   // Computes (an estimate of) the total number of bytes currently used for
   // storing the message in memory.  The default implementation calls the
   // Reflection object's SpaceUsed() method.
+  //
+  // SpaceUsed() is noticeably slower than ByteSize(), as it is implemented
+  // using reflection (rather than the generated code implementation for
+  // ByteSize()). Like ByteSize(), its CPU time is linear in the number of
+  // fields defined for the proto.
   virtual int SpaceUsed() const;
 
   // Debugging & Testing----------------------------------------------
@@ -456,7 +472,7 @@ class LIBPROTOBUF_EXPORT Reflection {
   // Swap fields listed in fields vector of two messages.
   virtual void SwapFields(Message* message1,
                           Message* message2,
-                          const vector<const FieldDescriptor*>& fields)
+                          const std::vector<const FieldDescriptor*>& fields)
       const = 0;
 
   // Swap two elements of a repeated field.
@@ -470,8 +486,9 @@ class LIBPROTOBUF_EXPORT Reflection {
   // return true and repeated fields will only be listed if FieldSize(field)
   // would return non-zero.  Fields (both normal fields and extension fields)
   // will be listed ordered by field number.
-  virtual void ListFields(const Message& message,
-                          vector<const FieldDescriptor*>* output) const = 0;
+  virtual void ListFields(
+      const Message& message,
+      std::vector<const FieldDescriptor*>* output) const = 0;
 
   // Singular field getters ------------------------------------------
   // These get the value of a non-repeated field.  They return the default
@@ -523,7 +540,7 @@ class LIBPROTOBUF_EXPORT Reflection {
   //   regardless of the field's underlying representation.  When initializing
   //   a newly-constructed string, though, it's just as fast and more readable
   //   to use code like:
-  //     string str = reflection->GetString(field);
+  //     string str = reflection->GetString(message, field);
   virtual const string& GetStringReference(const Message& message,
                                            const FieldDescriptor* field,
                                            string* scratch) const = 0;
@@ -718,6 +735,14 @@ class LIBPROTOBUF_EXPORT Reflection {
                               const FieldDescriptor* field,
                               MessageFactory* factory = NULL) const = 0;
 
+  // Appends an already-allocated object 'new_entry' to the repeated field
+  // specifyed by 'field' passing ownership to the message.
+  // TODO(tmarek): Make virtual after all subclasses have been
+  // updated.
+  virtual void AddAllocatedMessage(Message* message,
+                                   const FieldDescriptor* field,
+                                   Message* new_entry) const {}
+
 
   // Get a RepeatedFieldRef object that can be used to read the underlying
   // repeated field. The type parameter T must be set according to the
@@ -842,6 +867,19 @@ class LIBPROTOBUF_EXPORT Reflection {
   // }
   virtual bool SupportsUnknownEnumValues() const { return false; }
 
+  // Returns the MessageFactory associated with this message.  This can be
+  // useful for determining if a message is a generated message or not, for
+  // example:
+  //
+  // if (message->GetReflection()->GetMessageFactory() ==
+  //     google::protobuf::MessageFactory::generated_factory()) {
+  //   // This is a generated message.
+  // }
+  //
+  // It can also be used to create more messages of this type, though
+  // Message::New() is an easier way to accomplish this.
+  virtual MessageFactory* GetMessageFactory() const;
+
   // ---------------------------------------------------------------------------
 
  protected:
@@ -849,12 +887,19 @@ class LIBPROTOBUF_EXPORT Reflection {
   //   on field->cpp_type(),
   //   on field->field_option().ctype() (if ctype >= 0)
   //   of field->message_type() (if message_type != NULL).
-  // We use 1 routine rather than 4 (const vs mutable) x (scalar vs pointer).
+  // We use 2 routine rather than 4 (const vs mutable) x (scalar vs pointer).
   virtual void* MutableRawRepeatedField(
       Message* message, const FieldDescriptor* field, FieldDescriptor::CppType,
       int ctype, const Descriptor* message_type) const = 0;
 
-  virtual MessageFactory* GetMessageFactory() const;
+  // TODO(jieluo) - make it pure virtual after updating all the subclasses.
+  virtual const void* GetRawRepeatedField(
+      const Message& message, const FieldDescriptor* field,
+      FieldDescriptor::CppType cpptype, int ctype,
+      const Descriptor* message_type) const {
+    return MutableRawRepeatedField(
+        const_cast<Message*>(&message), field, cpptype, ctype, message_type);
+  }
 
   // The following methods are used to implement (Mutable)RepeatedFieldRef.
   // A Ref object will store a raw pointer to the repeated field data (obtained
@@ -870,6 +915,8 @@ class LIBPROTOBUF_EXPORT Reflection {
   // "message_type" should be set to its descriptor. Otherwise "message_type"
   // should be set to NULL. Implementations of this method should check whether
   // "cpp_type"/"message_type" is consistent with the actual type of the field.
+  // We use 1 routine rather than 2 (const vs mutable) because it is protected
+  // and it doesn't change the message.
   virtual void* RepeatedFieldData(
       Message* message, const FieldDescriptor* field,
       FieldDescriptor::CppType cpp_type,
@@ -885,13 +932,72 @@ class LIBPROTOBUF_EXPORT Reflection {
   friend class RepeatedFieldRef;
   template<typename T, typename Enable>
   friend class MutableRepeatedFieldRef;
+  friend class ::google::protobuf::python::MapReflectionFriend;
 
   // Special version for specialized implementations of string.  We can't call
   // MutableRawRepeatedField directly here because we don't have access to
   // FieldOptions::* which are defined in descriptor.pb.h.  Including that
   // file here is not possible because it would cause a circular include cycle.
+  // We use 1 routine rather than 2 (const vs mutable) because it is private
+  // and mutable a repeated string field doesn't change the message.
   void* MutableRawRepeatedString(
       Message* message, const FieldDescriptor* field, bool is_string) const;
+
+  friend class MapReflectionTester;
+  // TODO(jieluo) - make the map APIs pure virtual after updating
+  // all the subclasses.
+  // Returns true if key is in map. Returns false if key is not in map field.
+  virtual bool ContainsMapKey(const Message& message,
+                              const FieldDescriptor* field,
+                              const MapKey& key) const {
+    return false;
+  }
+
+  // If key is in map field: Saves the value pointer to val and returns
+  // false. If key in not in map field: Insert the key into map, saves
+  // value pointer to val and retuns true.
+  virtual bool InsertOrLookupMapValue(Message* message,
+                                      const FieldDescriptor* field,
+                                      const MapKey& key,
+                                      MapValueRef* val) const {
+    return false;
+  }
+
+  // Delete and returns true if key is in the map field. Returns false
+  // otherwise.
+  virtual bool DeleteMapValue(Message* message,
+                              const FieldDescriptor* field,
+                              const MapKey& key) const {
+    return false;
+  }
+
+  // Returns a MaIterator referring to the first element in the map field.
+  // If the map field is empty, this function returns the same as
+  // reflection::MapEnd. Mutation to the field may invalidate the iterator.
+  virtual MapIterator MapBegin(
+      Message* message,
+      const FieldDescriptor* field) const;
+
+  // Returns a MapIterator referring to the theoretical element that would
+  // follow the last element in the map field. It does not point to any
+  // real element. Mutation to the field may invalidate the iterator.
+  virtual MapIterator MapEnd(
+      Message* message,
+      const FieldDescriptor* field) const;
+
+  // Get the number of <key, value> pair of a map field. The result may be
+  // different from FieldSize which can have duplicate keys.
+  virtual int MapSize(const Message& message,
+                      const FieldDescriptor* field) const {
+    return 0;
+  }
+
+  // Help method for MapIterator.
+  friend class MapIterator;
+  virtual internal::MapFieldBase* MapData(
+      Message* message, const FieldDescriptor* field) const {
+    return NULL;
+  }
 
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(Reflection);
 };
@@ -1008,10 +1114,9 @@ inline RepeatedPtrField<string>* Reflection::MutableRepeatedPtrField<string>(
 template<>
 inline const RepeatedPtrField<Message>& Reflection::GetRepeatedPtrField(
     const Message& message, const FieldDescriptor* field) const {
-  return *static_cast<RepeatedPtrField<Message>* >(
-      MutableRawRepeatedField(const_cast<Message*>(&message), field,
-          FieldDescriptor::CPPTYPE_MESSAGE, -1,
-          NULL));
+  return *static_cast<const RepeatedPtrField<Message>* >(
+      GetRawRepeatedField(message, field, FieldDescriptor::CPPTYPE_MESSAGE,
+                          -1, NULL));
 }
 
 template<>
@@ -1026,10 +1131,9 @@ inline RepeatedPtrField<Message>* Reflection::MutableRepeatedPtrField(
 template<typename PB>
 inline const RepeatedPtrField<PB>& Reflection::GetRepeatedPtrField(
     const Message& message, const FieldDescriptor* field) const {
-  return *static_cast<RepeatedPtrField<PB>* >(
-      MutableRawRepeatedField(const_cast<Message*>(&message), field,
-          FieldDescriptor::CPPTYPE_MESSAGE, -1,
-          PB::default_instance().GetDescriptor()));
+  return *static_cast<const RepeatedPtrField<PB>* >(
+      GetRawRepeatedField(message, field, FieldDescriptor::CPPTYPE_MESSAGE,
+                          -1, PB::default_instance().GetDescriptor()));
 }
 
 template<typename PB>
