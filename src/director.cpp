@@ -399,7 +399,7 @@ void Director::render() const
     // TODO: fix flickering.
     auto timing = ovr_GetPredictedDisplayTime(_oculus.session, 0);
     auto tracking =
-        ovr_GetTrackingState(_oculus.session, timing, true /* ??? */);
+        ovr_GetTrackingState(_oculus.session, timing, true);
     ovr_CalcEyePoses(tracking.HeadPose.ThePose,
                      _oculus.eye_view_offset, _oculus.layer.RenderPose);
     _oculus.texture_set->CurrentIndex =
@@ -598,32 +598,32 @@ void Director::render_image(const Image& image, float alpha,
 
 void Director::render_text(const std::string& text, float multiplier) const
 {
-  static const std::size_t default_size = 200;
-  static const std::size_t shadow_extra = 60;
+  static const uint32_t minimum_size = 2 * FontCache::char_size_lock;
+  static const uint32_t increment = FontCache::char_size_lock;
+  static const uint32_t maximum_size = 20 * FontCache::char_size_lock;
   if (_current_font.empty()) {
     return;
   }
 
   uint32_t border = _oculus.enabled ? 250 : 100;
-  auto fit_text = [&](uint32_t size, bool fix)
+  auto fit_text = [&](uint32_t size)
   {
-    auto target = std::max(size, view_width() - border);
-    int current_size = size;
-
-    auto r = get_text_size(text, _fonts.get_font(_current_font, size));
-    while (!fix && r.x > target) {
-      int new_size = int(current_size * float(target) / r.x + 0.5f);
-      if (new_size >= current_size) {
+    auto target = view_width() - border;
+    auto last_result = 0.f;
+    while (size < maximum_size) {
+      const auto& font = _fonts.get_font(_current_font, size + increment);
+      auto result = get_text_size(text, font).x;
+      if (result > target || result == last_result) {
         break;
       }
-      current_size = new_size;
-      r = get_text_size(text, _fonts.get_font(_current_font, current_size));
+      last_result = result;
+      size += increment;
     }
-    return current_size;
+    return size;
   };
 
-  auto main_size = fit_text(default_size, false);
-  auto shadow_size = fit_text(default_size + shadow_extra, true);
+  auto main_size = fit_text(minimum_size);
+  auto shadow_size = main_size + increment;
   render_raw_text(
       text, _fonts.get_font(_current_font, shadow_size),
       colour2sf(_program->shadow_text_colour()), off3d(1.f + multiplier, true),
@@ -848,19 +848,18 @@ bool Director::init_oculus_rift()
     std::cerr << "Oculus session failed" << std::endl;
     return false;
   }
-  // ???
+  auto desc = ovr_GetHmdDesc(_oculus.session);
   ovr_SetBool(_oculus.session, "QueueAheadEnabled", ovrFalse);
 
-  auto desc = ovr_GetHmdDesc(_oculus.session);
   ovrSizei eye_left = ovr_GetFovTextureSize(
-      _oculus.session, ovrEye_Left, desc.DefaultEyeFov[0], 1.0);
+      _oculus.session, ovrEyeType(0), desc.DefaultEyeFov[0], 1.0);
   ovrSizei eye_right = ovr_GetFovTextureSize(
-      _oculus.session, ovrEye_Right, desc.DefaultEyeFov[0], 1.0);
+      _oculus.session, ovrEyeType(1), desc.DefaultEyeFov[0], 1.0);
   int fw = eye_left.w + eye_right.w;
   int fh = std::max(eye_left.h, eye_right.h);
 
   auto result = ovr_CreateSwapTextureSetGL(
-      _oculus.session, GL_RGBA, fw, fh, &_oculus.texture_set);
+      _oculus.session, GL_SRGB8_ALPHA8, fw, fh, &_oculus.texture_set);
   if (result != ovrSuccess) {
     std::cerr << "Oculus swap textures failed" << std::endl;
   }

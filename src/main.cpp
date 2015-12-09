@@ -49,7 +49,7 @@ std::unique_ptr<sf::RenderWindow> create_window(
   window->create(video_mode, "trance", style);
 
   window->setVerticalSyncEnabled(system.enable_vsync());
-  window->setFramerateLimit(60);
+  window->setFramerateLimit(0);
   window->setVisible(visible);
   window->setActive();
   if (visible) {
