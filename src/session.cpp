@@ -69,10 +69,10 @@ void search_resources(trance_pb::Session& session)
       if (jt == it->path().end()) {
         continue;
       }
-      auto theme_name = jt == --it->path().end() ? wildcards : *jt;
+      auto theme_name = jt == --it->path().end() ? wildcards : jt->string();
 
       if (ext_is(it->path().string(), "ttf")) {
-        themes[theme_name.string()].add_font_path(it->path().string());
+        themes[theme_name].add_font_path(it->path().string());
       }
       else if (ext_is(it->path().string(), "txt")) {
         std::ifstream f(it->path());
@@ -84,19 +84,19 @@ void search_resources(trance_pb::Session& session)
           for (auto& c : line) {
             c = toupper(c);
           }
-          themes[theme_name.string()].add_text_line(split_text_line(line));
+          themes[theme_name].add_text_line(split_text_line(line));
         }
       }
       // Should really check is_gif_animated(), but it takes far too long.
       else if (ext_is(it->path().string(), "webm") ||
                ext_is(it->path().string(), "gif")) {
-        themes[theme_name.string()].add_animation_path(it->path().string());
+        themes[theme_name].add_animation_path(it->path().string());
       }
       else if (ext_is(it->path().string(), "png") ||
                ext_is(it->path().string(), "bmp") ||
                ext_is(it->path().string(), "jpg") ||
                ext_is(it->path().string(), "jpeg")) {
-        themes[theme_name.string()].add_image_path(it->path().string());
+        themes[theme_name].add_image_path(it->path().string());
       }
     }
   }
