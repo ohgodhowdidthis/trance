@@ -65,7 +65,7 @@ public:
 
   FontCache(uint32_t font_cache_size);
 
-  static const std::size_t char_size_lock = 20;
+  static const uint32_t char_size_lock = 20;
   const Font& get_font(
       const std::string& font_path, uint32_t char_size) const;
 
