@@ -403,7 +403,7 @@ Director::Director(sf::RenderWindow& window,
   change_spiral();
   change_visual(0);
   change_subtext();
-  if (_realtime) {
+  if (_realtime && !_oculus.enabled) {
     _window.setVisible(true);
     _window.setActive();
     _window.display();
@@ -437,20 +437,20 @@ void Director::render() const
   bool to_window = _realtime && !_oculus.enabled;
   bool to_oculus = _realtime && _oculus.enabled;
 
-  glBindFramebuffer(GL_FRAMEBUFFER, to_window ? 0 : _render_fbo);
-  glClear(GL_COLOR_BUFFER_BIT);
-
   if (!_oculus.enabled) {
+    glBindFramebuffer(GL_FRAMEBUFFER, to_window ? 0 : _render_fbo);
+    glClear(GL_COLOR_BUFFER_BIT);
     _oculus.rendering_right = false;
     _visual->render();
   }
   else if (to_oculus) {
-    // TODO: fix flickering.
     auto timing = ovr_GetPredictedDisplayTime(_oculus.session, 0);
+    auto sensorTime = ovr_GetTimeInSeconds();
     auto tracking =
         ovr_GetTrackingState(_oculus.session, timing, true);
     ovr_CalcEyePoses(tracking.HeadPose.ThePose,
                      _oculus.eye_view_offset, _oculus.layer.RenderPose);
+
     _oculus.texture_set->CurrentIndex =
         (_oculus.texture_set->CurrentIndex + 1) %
         _oculus.texture_set->TextureCount;
@@ -464,10 +464,14 @@ void Director::render() const
       glViewport(view.Pos.x, view.Pos.y, view.Size.w, view.Size.h);
       _visual->render();
     }
+
+    _oculus.layer.SensorSampleTime = sensorTime;
     const ovrLayerHeader* layers = &_oculus.layer.Header;
     ovr_SubmitFrame(_oculus.session, 0, nullptr, &layers, 1);
   }
   else {
+    glBindFramebuffer(GL_FRAMEBUFFER, to_window ? 0 : _render_fbo);
+    glClear(GL_COLOR_BUFFER_BIT);
     for (int eye = 0; eye < 2; ++eye) {
       _oculus.rendering_right = eye == ovrEye_Right;
       glViewport(_oculus.rendering_right * view_width(), 0,
@@ -896,9 +900,10 @@ bool Director::init_oculus_rift()
     GLuint fbo;
     GLuint fb_tex =
         ((ovrGLTexture*) &_oculus.texture_set->Textures[i])->OGL.TexId;
-    _oculus.fbo_ovr.push_back(fbo);
 
     glGenFramebuffers(1, &fbo);
+    _oculus.fbo_ovr.push_back(fbo);
+
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glBindTexture(GL_TEXTURE_2D, fb_tex);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
