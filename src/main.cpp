@@ -44,8 +44,9 @@ std::unique_ptr<sf::RenderWindow> create_window(
     video_mode.width = width;
     video_mode.height = height;
   }
-  auto style = !visible || oculus_rift ?
-      sf::Style::None : sf::Style::Fullscreen;
+  auto style =
+      !visible || oculus_rift ? sf::Style::None :
+      system.windowed() ? sf::Style::Default : sf::Style::Fullscreen;
   window->create(video_mode, "trance", style);
 
   window->setVerticalSyncEnabled(system.enable_vsync());
