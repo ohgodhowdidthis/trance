@@ -28,6 +28,9 @@ message System {
   // Number of font sizes to keep in memory at a time. Each character size of a
   // single font uses up another slot in the cache. Uses up video card memory.
   uint32 font_cache_size = 6;
+
+  // Windowed mode.
+  bool windowed = 7;
 }
 
 // Configuration for a single program, i.e. a combination of a selection of
