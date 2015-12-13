@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 #include "font.h"
 
@@ -128,6 +129,7 @@ private:
   std::string _current_font;
   std::string _current_subfont;
   std::vector<std::string> _subtext;
+  std::unordered_map<std::string, uint32_t> _text_size_cache;
   mutable std::vector<uint32_t> _recent_images;
 
   uint32_t _switch_themes;

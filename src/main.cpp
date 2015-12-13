@@ -51,11 +51,8 @@ std::unique_ptr<sf::RenderWindow> create_window(
 
   window->setVerticalSyncEnabled(system.enable_vsync());
   window->setFramerateLimit(0);
-  window->setVisible(visible);
-  window->setActive();
-  if (visible) {
-    window->display();
-  }
+  window->setVisible(false);
+  window->setActive(true);
   return window;
 }
 

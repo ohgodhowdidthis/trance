@@ -355,10 +355,59 @@ Director::Director(sf::RenderWindow& window,
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, tex_data, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+  static const uint32_t minimum_size = 2 * FontCache::char_size_lock;
+  static const uint32_t increment = FontCache::char_size_lock;
+  static const uint32_t maximum_size = 40 * FontCache::char_size_lock;
+  uint32_t border = _oculus.enabled ? 250 : 100;
+  auto fit_text = [&](const std::string& font, const std::string& text)
+  {
+    uint32_t size = minimum_size;
+    auto target = view_width() - border;
+    auto last_result = 0.f;
+    while (size < maximum_size) {
+      const auto& loaded_font = _fonts.get_font(font, size);
+      auto result = get_text_size(text, loaded_font).x;
+      if (result > target || result == last_result) {
+        break;
+      }
+      last_result = result;
+      size *= 2;
+    }
+    size /= 2;
+    last_result = 0.f;
+    while (size < maximum_size) {
+      const auto& loaded_font = _fonts.get_font(font, size + increment);
+      auto result = get_text_size(text, loaded_font).x;
+      if (result > target || result == last_result) {
+        break;
+      }
+      last_result = result;
+      size += increment;
+    }
+    return size;
+  };
+  for (const auto& pair : session.theme_map()) {
+    for (const auto& font : pair.second.font_path()) {
+      for (const auto& text : pair.second.text_line()) {
+        auto cache_key = font + "/\t/\t/" + text;
+        auto cache_it = _text_size_cache.find(cache_key);
+        if (cache_it == _text_size_cache.end()) {
+          _text_size_cache[cache_key] = fit_text(font, text);
+          std::cout << "-";
+        }
+      }
+    }
+  }
+
   change_font(true);
   change_spiral();
   change_visual(0);
   change_subtext();
+  if (_realtime) {
+    _window.setVisible(true);
+    _window.setActive();
+    _window.display();
+  }
 }
 
 Director::~Director()
@@ -598,32 +647,12 @@ void Director::render_image(const Image& image, float alpha,
 
 void Director::render_text(const std::string& text, float multiplier) const
 {
-  static const uint32_t minimum_size = 2 * FontCache::char_size_lock;
-  static const uint32_t increment = FontCache::char_size_lock;
-  static const uint32_t maximum_size = 20 * FontCache::char_size_lock;
   if (_current_font.empty()) {
     return;
   }
-
-  uint32_t border = _oculus.enabled ? 250 : 100;
-  auto fit_text = [&](uint32_t size)
-  {
-    auto target = view_width() - border;
-    auto last_result = 0.f;
-    while (size < maximum_size) {
-      const auto& font = _fonts.get_font(_current_font, size + increment);
-      auto result = get_text_size(text, font).x;
-      if (result > target || result == last_result) {
-        break;
-      }
-      last_result = result;
-      size += increment;
-    }
-    return size;
-  };
-
-  auto main_size = fit_text(minimum_size);
-  auto shadow_size = main_size + increment;
+  auto cache_key = _current_font + "/\t/\t/" + text;
+  auto main_size = _text_size_cache.find(cache_key)->second;
+  auto shadow_size = main_size + FontCache::char_size_lock;
   render_raw_text(
       text, _fonts.get_font(_current_font, shadow_size),
       colour2sf(_program->shadow_text_colour()), off3d(1.f + multiplier, true),
