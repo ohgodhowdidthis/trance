@@ -355,44 +355,13 @@ Director::Director(sf::RenderWindow& window,
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, tex_data, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  static const uint32_t minimum_size = 2 * FontCache::char_size_lock;
-  static const uint32_t increment = FontCache::char_size_lock;
-  static const uint32_t maximum_size = 40 * FontCache::char_size_lock;
-  uint32_t border = _oculus.enabled ? 250 : 100;
-  auto fit_text = [&](const std::string& font, const std::string& text)
-  {
-    uint32_t size = minimum_size;
-    auto target = view_width() - border;
-    auto last_result = 0.f;
-    while (size < maximum_size) {
-      const auto& loaded_font = _fonts.get_font(font, size);
-      auto result = get_text_size(text, loaded_font).x;
-      if (result > target || result == last_result) {
-        break;
-      }
-      last_result = result;
-      size *= 2;
-    }
-    size /= 2;
-    last_result = 0.f;
-    while (size < maximum_size) {
-      const auto& loaded_font = _fonts.get_font(font, size + increment);
-      auto result = get_text_size(text, loaded_font).x;
-      if (result > target || result == last_result) {
-        break;
-      }
-      last_result = result;
-      size += increment;
-    }
-    return size;
-  };
   for (const auto& pair : session.theme_map()) {
     for (const auto& font : pair.second.font_path()) {
       for (const auto& text : pair.second.text_line()) {
         auto cache_key = font + "/\t/\t/" + text;
         auto cache_it = _text_size_cache.find(cache_key);
         if (cache_it == _text_size_cache.end()) {
-          _text_size_cache[cache_key] = fit_text(font, text);
+          _text_size_cache[cache_key] = get_cached_text_size(text, font);
           std::cout << "-";
         }
       }
@@ -1073,6 +1042,42 @@ void Director::render_raw_text(const std::string& text, const Font& font,
   glVertexAttribPointer(tloc, 2, GL_FLOAT, false, sizeof(vertex), data + 8);
   glDrawArrays(GL_QUADS, 0, (GLsizei) vertices.size());
 }
+
+uint32_t Director::get_cached_text_size(const std::string& text,
+                                        const std::string& font) const
+{
+  static const uint32_t minimum_size = 2 * FontCache::char_size_lock;
+  static const uint32_t increment = FontCache::char_size_lock;
+  static const uint32_t maximum_size = 40 * FontCache::char_size_lock;
+  static const uint32_t border_x = 250;
+  static const uint32_t border_y = 150;
+
+  uint32_t size = minimum_size;
+  auto target_x = view_width() - border_x;
+  auto target_y = _height - border_y;
+  sf::Vector2f last_result;
+  while (size < maximum_size) {
+    const auto& loaded_font = _fonts.get_font(font, size);
+    auto result = get_text_size(text, loaded_font);
+    if (result.x > target_x || result.y > target_y || result == last_result) {
+      break;
+    }
+    last_result = result;
+    size *= 2;
+  }
+  size /= 2;
+  last_result = sf::Vector2f{};
+  while (size < maximum_size) {
+    const auto& loaded_font = _fonts.get_font(font, size + increment);
+    auto result = get_text_size(text, loaded_font);
+    if (result.x > target_x || result.y > target_y || result == last_result) {
+      break;
+    }
+    last_result = result;
+    size += increment;
+  }
+  return size;
+};
 
 sf::Vector2f Director::get_text_size(
     const std::string& text, const Font& font) const
