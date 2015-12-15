@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{802A41E1-54A4-4977-B8E7-6A015DEB1F0B}</ProjectGuid>
+    <ProjectGuid>{825CE08E-78CD-44E8-99F0-10777FDE5DE4}</ProjectGuid>
     <RootNamespace>trance</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -68,33 +68,33 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(Platform)\$(Configuration)\trance\</IntDir>
+    <IntDir>$(Platform)\$(Configuration)\creator\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(Platform)\$(Configuration)\trance\</IntDir>
+    <IntDir>$(Platform)\$(Configuration)\creator\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IntDir>$(Platform)\$(Configuration)\trance\</IntDir>
+    <IntDir>$(Platform)\$(Configuration)\creator\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IntDir>$(Platform)\$(Configuration)\trance\</IntDir>
+    <IntDir>$(Platform)\$(Configuration)\creator\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\jpeg;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;OVR_OS_WIN32;DEBUG;_SCL_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;_CRT_SECURE_NO_WARNINGS;DEBUG;_SCL_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\dependencies\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;opengl32.lib;glew.lib;freetype.lib;jpeg.lib;libgif.a;sfml-system-s-d.lib;sfml-window-s-d.lib;sfml-graphics-s-d.lib;libx264.lib;libwebm.lib;vpxmdd.lib;LibOVR.lib;libprotobuf.lib;gflags.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
     <PreBuildEvent>
@@ -106,17 +106,17 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\jpeg;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;OVR_OS_WIN32;DEBUG;_SCL_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;_CRT_SECURE_NO_WARNINGS;DEBUG;_SCL_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\dependencies\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;opengl32.lib;glew.lib;freetype.lib;jpeg.lib;libgif.a;sfml-system-s-d.lib;sfml-window-s-d.lib;sfml-graphics-s-d.lib;libx264.lib;libwebm.lib;vpxmdd.lib;LibOVR.lib;libprotobuf.lib;gflags.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
     <PreBuildEvent>
@@ -130,8 +130,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\jpeg;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;OVR_OS_WIN32;D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;_CRT_SECURE_NO_WARNINGS;D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
@@ -140,9 +140,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\dependencies\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;opengl32.lib;glew.lib;freetype.lib;jpeg.lib;libgif.a;sfml-system-s.lib;sfml-window-s.lib;sfml-graphics-s.lib;libx264.lib;libwebm.lib;vpxmd.lib;LibOVR.lib;libprotobuf.lib;gflags.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <PreBuildEvent>
@@ -156,8 +156,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\jpeg;$(SolutionDir)\giflib_5_1_0\lib;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;OVR_OS_WIN32;D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;_CRT_SECURE_NO_WARNINGS;D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
@@ -166,9 +166,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\dependencies\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;opengl32.lib;glew.lib;freetype.lib;jpeg.lib;libgif.a;sfml-system-s.lib;sfml-window-s.lib;sfml-graphics-s.lib;libx264.lib;libwebm.lib;vpxmd.lib;LibOVR.lib;libprotobuf.lib;gflags.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
     </Link>
     <PreBuildEvent>
       <Command>
@@ -176,38 +176,8 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\director.cpp" />
-    <ClCompile Include="src\export.cpp" />
-    <ClCompile Include="src\font.cpp" />
-    <ClCompile Include="src\image.cpp" />
-    <ClCompile Include="src\jpgd\jpgd.cpp" />
-    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\creator\main.cpp" />
     <ClCompile Include="src\session.cpp" />
-    <ClCompile Include="src\theme.cpp" />
-    <ClCompile Include="src\visual.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="src\trance.proto">
-      <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir) $(SolutionDir)src\trance.proto</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.cc;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.cc;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.cc;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\trance.pb.cc;%(Outputs)</Outputs>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\director.h" />
-    <ClInclude Include="src\export.h" />
-    <ClInclude Include="src\font.h" />
-    <ClInclude Include="src\image.h" />
-    <ClInclude Include="src\jpgd\jpgd.h" />
-    <ClInclude Include="src\theme.h" />
-    <ClInclude Include="src\util.h" />
-    <ClInclude Include="src\visual.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

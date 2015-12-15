@@ -16,9 +16,6 @@
     <ClCompile Include="src\main.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\session.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="src\theme.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -27,6 +24,9 @@
     </ClCompile>
     <ClCompile Include="src\jpgd\jpgd.cpp">
       <Filter>src\jpgd</Filter>
+    </ClCompile>
+    <ClCompile Include="src\session.cpp">
+      <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -48,9 +48,6 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\image.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="src\session.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\theme.h">

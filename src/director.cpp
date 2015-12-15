@@ -196,6 +196,15 @@ void main(void)
 }
 )";
 
+static sf::Color colour2sf(const trance_pb::Colour& colour)
+{
+  return sf::Color(
+    sf::Uint8(colour.r() * 255),
+    sf::Uint8(colour.g() * 255),
+    sf::Uint8(colour.b() * 255),
+    sf::Uint8(colour.a() * 255));
+}
+
 Director::Director(sf::RenderWindow& window,
                    const trance_pb::Session& session,
                    const trance_pb::System& system,

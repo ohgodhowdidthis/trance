@@ -5,12 +5,21 @@
 #include <fstream>
 
 #pragma warning(push, 0)
-#include <SFML/Graphics/Color.hpp>
 #include <google/protobuf/text_format.h>
 #include <src/trance.pb.cc>
 #pragma warning(pop)
 
 namespace {
+
+trance_pb::Colour make_colour(float r, float g, float b, float a)
+{
+  trance_pb::Colour colour;
+  colour.set_r(r);
+  colour.set_g(g);
+  colour.set_b(b);
+  colour.set_a(a);
+  return colour;
+}
 
 std::string split_text_line(const std::string& text)
 {
@@ -138,12 +147,12 @@ void set_default_program(trance_pb::Session& session)
   set_default_visual_types(program);
   program->set_global_fps(120);
   program->set_zoom_intensity(.2f);
-  *program->mutable_spiral_colour_a() = sf2colour({255, 150, 200, 50});
-  *program->mutable_spiral_colour_b() = sf2colour({0, 0, 0, 50});
+  *program->mutable_spiral_colour_a() = make_colour(255, 150, 200, 50);
+  *program->mutable_spiral_colour_b() = make_colour(0, 0, 0, 50);
   program->set_reverse_spiral_direction(false);
 
-  *program->mutable_main_text_colour() = sf2colour({255, 150, 200, 224});
-  *program->mutable_shadow_text_colour() = sf2colour({0, 0, 0, 192});
+  *program->mutable_main_text_colour() = make_colour(255, 150, 200, 224);
+  *program->mutable_shadow_text_colour() = make_colour(0, 0, 0, 192);
   search_resources(session);
 }
 
@@ -196,25 +205,6 @@ void save_proto(const google::protobuf::Message& proto, const std::string& path)
   f << str;
 }
 
-}
-
-sf::Color colour2sf(const trance_pb::Colour& colour)
-{
-  return sf::Color(
-      sf::Uint8(colour.r() * 255),
-      sf::Uint8(colour.g() * 255),
-      sf::Uint8(colour.b() * 255),
-      sf::Uint8(colour.a() * 255));
-}
-
-trance_pb::Colour sf2colour(const sf::Color& colour)
-{
-  trance_pb::Colour result;
-  result.set_r(colour.r / 255.f);
-  result.set_g(colour.g / 255.f);
-  result.set_b(colour.b / 255.f);
-  result.set_a(colour.a / 255.f);
-  return result;
 }
 
 trance_pb::System load_system(const std::string& path)
