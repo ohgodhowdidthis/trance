@@ -6,8 +6,9 @@
 #define _UNICODE
 #include <src/trance.pb.h>
 #include <wx/wx.h>
-#include <wx/stdpaths.h>
 #include <wx/cmdline.h>
+#include <wx/notebook.h>
+#include <wx/stdpaths.h>
 #pragma warning(pop)
 
 static const std::string session_file_pattern =
@@ -23,21 +24,31 @@ public:
     : wxFrame{nullptr, wxID_ANY, "creator", wxPoint{128, 128}, wxSize{480, 640}}
     , _session_dirty{false}
     , _executable_path{executable_path}
-    , _menuFile{new wxMenu}
-    , _menuBar{new wxMenuBar}
   {
-    _menuFile->Append(wxID_OPEN);
-    _menuFile->Append(wxID_SAVE);
-    _menuFile->Append(wxID_SAVEAS);
-    _menuFile->AppendSeparator();
-    _menuFile->Append(ID_EDIT_SYSTEM_CONFIG, "&Edit system settings...\tCtrl+E",
+    auto menuFile = new wxMenu;
+    auto menuBar = new wxMenuBar;
+    menuFile->Append(wxID_OPEN);
+    menuFile->Append(wxID_SAVE);
+    menuFile->Append(wxID_SAVEAS);
+    menuFile->AppendSeparator();
+    menuFile->Append(ID_EDIT_SYSTEM_CONFIG, "&Edit system settings...\tCtrl+E",
       "Edit global system settings that apply to all sessions");
-    _menuFile->AppendSeparator();
-    _menuFile->Append(wxID_EXIT);
-    _menuBar->Append(_menuFile, "&File");
-    SetMenuBar(_menuBar);
+    menuFile->AppendSeparator();
+    menuFile->Append(wxID_EXIT);
+    menuBar->Append(menuFile, "&File");
+    SetMenuBar(menuBar);
     CreateStatusBar();
     SetStatusText("Running in " + _executable_path);
+
+    auto panel = new wxPanel(this);
+    auto sizer = new wxBoxSizer(wxHORIZONTAL);
+    auto notebook = new wxNotebook(panel, 0);
+    sizer->Add(notebook, 1, wxEXPAND | wxALL, 0);
+    panel->SetSizer(sizer);
+    notebook->AddPage(new wxNotebookPage(notebook, wxID_ANY), "Themes");
+    notebook->AddPage(new wxNotebookPage(notebook, wxID_ANY), "Programs");
+    notebook->AddPage(new wxNotebookPage(notebook, wxID_ANY), "Playlist");
+
     if (!parameter.empty()) {
       OpenSession(parameter);
     }
@@ -48,9 +59,6 @@ private:
   bool _session_dirty;
   std::string _session_path;
   std::string _executable_path;
-
-  wxMenu* _menuFile;
-  wxMenuBar* _menuBar;
 
   bool ConfirmDiscardChanges()
   {
@@ -66,7 +74,7 @@ private:
   {
     try {
       _session = load_session(path);
-      _session_path = path;
+      SetSessionPath(path);
       SetStatusText("Read " + _session_path);
       _session_dirty = false;
       return true;
@@ -74,6 +82,12 @@ private:
       wxMessageBox(std::string(e.what()), "", wxICON_ERROR, this);
       return false;
     }
+  }
+
+  void SetSessionPath(const std::string& path)
+  {
+    _session_path = path;
+    SetTitle("creator - " + _session_path);
   }
 
   void OnOpen(wxCommandEvent& event)
@@ -108,7 +122,7 @@ private:
     if (dialog.ShowModal() == wxID_CANCEL) {
       return;
     }
-    _session_path = dialog.GetPath();
+    SetSessionPath(std::string(dialog.GetPath()));
     OnSave(event);
   }
 
