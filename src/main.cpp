@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include "common.h"
 #include "director.h"
 #include "export.h"
 #include "session.h"
@@ -286,7 +287,7 @@ int main(int argc, char** argv)
       std::min(uint32_t(4), uint32_t(FLAGS_export_quality)),
       uint32_t(FLAGS_export_threads)};
 
-  std::string session_path{argc >= 2 ? argv[1] : "./default_session.cfg"};
+  std::string session_path{argc >= 2 ? argv[1] : "./" + DEFAULT_SESSION_PATH};
   trance_pb::Session session;
   try {
     session = load_session(session_path);
@@ -297,7 +298,7 @@ int main(int argc, char** argv)
     save_session(session, session_path);
   }
 
-  std::string system_path{argc >= 3 ? argv[2] : "./system.cfg"};
+  std::string system_path{argc >= 3 ? argv[2] : "./" + SYSTEM_CONFIG_PATH};
   trance_pb::System system;
   try {
     system = load_system(system_path);
