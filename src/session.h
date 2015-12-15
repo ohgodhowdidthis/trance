@@ -9,13 +9,6 @@ namespace trance_pb {
   class System;
 }
 
-namespace sf {
-  class Color;
-}
-
-sf::Color colour2sf(const trance_pb::Colour& colour);
-trance_pb::Colour sf2colour(const sf::Color& colour);
-
 trance_pb::System load_system(const std::string& path);
 void save_system(const trance_pb::System&, const std::string& path);
 trance_pb::System get_default_system();
