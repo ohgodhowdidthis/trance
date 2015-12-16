@@ -21,15 +21,18 @@ public:
   };
 
   CreatorFrame(const std::string& executable_path, const std::string& parameter)
-    : wxFrame{nullptr, wxID_ANY, "creator", wxPoint{128, 128}, wxSize{480, 640}}
-    , _session_dirty{false}
-    , _executable_path{executable_path}
+  : wxFrame{nullptr, wxID_ANY, "creator", wxPoint{128, 128}, wxSize{480, 640}}
+  , _session_dirty{false}
+  , _executable_path{executable_path}
+  , _main_panel{new wxPanel{this}}
+  , _main_sizer{new wxBoxSizer{wxHORIZONTAL}}
+  , _main_notebook{new wxNotebook{_main_panel, 0}}
   {
     auto menuFile = new wxMenu;
     auto menuBar = new wxMenuBar;
+    menuFile->Append(wxID_NEW);
     menuFile->Append(wxID_OPEN);
     menuFile->Append(wxID_SAVE);
-    menuFile->Append(wxID_SAVEAS);
     menuFile->AppendSeparator();
     menuFile->Append(ID_EDIT_SYSTEM_CONFIG, "&Edit system settings...\tCtrl+E",
       "Edit global system settings that apply to all sessions");
@@ -40,14 +43,15 @@ public:
     CreateStatusBar();
     SetStatusText("Running in " + _executable_path);
 
-    auto panel = new wxPanel(this);
-    auto sizer = new wxBoxSizer(wxHORIZONTAL);
-    auto notebook = new wxNotebook(panel, 0);
-    sizer->Add(notebook, 1, wxEXPAND | wxALL, 0);
-    panel->SetSizer(sizer);
-    notebook->AddPage(new wxNotebookPage(notebook, wxID_ANY), "Themes");
-    notebook->AddPage(new wxNotebookPage(notebook, wxID_ANY), "Programs");
-    notebook->AddPage(new wxNotebookPage(notebook, wxID_ANY), "Playlist");
+    _main_notebook->AddPage(
+        new wxNotebookPage{_main_notebook, wxID_ANY}, "Themes");
+    _main_notebook->AddPage(
+        new wxNotebookPage{_main_notebook, wxID_ANY}, "Programs");
+    _main_notebook->AddPage(
+        new wxNotebookPage{_main_notebook, wxID_ANY}, "Playlist");
+    _main_sizer->Add(_main_notebook, 1, wxEXPAND | wxALL, 0);
+    _main_panel->SetSizer(_main_sizer);
+    _main_panel->Hide();
 
     if (!parameter.empty()) {
       OpenSession(parameter);
@@ -60,34 +64,24 @@ private:
   std::string _session_path;
   std::string _executable_path;
 
-  bool ConfirmDiscardChanges()
-  {
-    if (!_session_dirty) {
-      return true;
-    }
-    return wxMessageBox(
-        "Current session has unsaved changes! Proceed?", "",
-        wxICON_QUESTION | wxYES_NO, this) == wxYES;
-  }
+  wxPanel* _main_panel;
+  wxSizer* _main_sizer;
+  wxNotebook* _main_notebook;
 
-  bool OpenSession(const std::string& path)
+  void OnNew(wxCommandEvent& event)
   {
-    try {
-      _session = load_session(path);
-      SetSessionPath(path);
-      SetStatusText("Read " + _session_path);
-      _session_dirty = false;
-      return true;
-    } catch (const std::exception& e) {
-      wxMessageBox(std::string(e.what()), "", wxICON_ERROR, this);
-      return false;
+    if (!ConfirmDiscardChanges()) {
+      return;
     }
-  }
-
-  void SetSessionPath(const std::string& path)
-  {
-    _session_path = path;
-    SetTitle("creator - " + _session_path);
+    wxFileDialog dialog{
+      this, "Choose session location", _executable_path, DEFAULT_SESSION_PATH,
+      session_file_pattern, wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
+    if (dialog.ShowModal() == wxID_CANCEL) {
+      return;
+    }
+    SetSessionPath(std::string(dialog.GetPath()));
+    _session = {};
+    _session_dirty = true;
   }
 
   void OnOpen(wxCommandEvent& event)
@@ -105,25 +99,9 @@ private:
 
   void OnSave(wxCommandEvent& event)
   {
-    if (_session_path.empty()) {
-      OnSaveAs(event);
-      return;
-    }
     save_session(_session, _session_path);
     _session_dirty = false;
     SetStatusText("Wrote " + _session_path);
-  }
-
-  void OnSaveAs(wxCommandEvent& event)
-  {
-    wxFileDialog dialog{
-        this, "Save session file", _executable_path, DEFAULT_SESSION_PATH,
-        session_file_pattern, wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
-    if (dialog.ShowModal() == wxID_CANCEL) {
-      return;
-    }
-    SetSessionPath(std::string(dialog.GetPath()));
-    OnSave(event);
   }
 
   void OnEditSystemConfig(wxCommandEvent& event)
@@ -144,13 +122,45 @@ private:
     Destroy();
   }
 
+  bool ConfirmDiscardChanges()
+  {
+    if (!_session_dirty) {
+      return true;
+    }
+    return wxMessageBox(
+      "Current session has unsaved changes! Proceed?", "",
+      wxICON_QUESTION | wxYES_NO, this) == wxYES;
+  }
+
+  bool OpenSession(const std::string& path)
+  {
+    try {
+      _session = load_session(path);
+      SetSessionPath(path);
+      SetStatusText("Read " + _session_path);
+      _session_dirty = false;
+      return true;
+    } catch (const std::exception& e) {
+      wxMessageBox(std::string(e.what()), "", wxICON_ERROR, this);
+      return false;
+    }
+  }
+
+  void SetSessionPath(const std::string& path)
+  {
+    _session_path = path;
+    _main_panel->Show();
+    _main_panel->Layout();
+    SetTitle("creator - " + _session_path);
+  }
+
   wxDECLARE_EVENT_TABLE();
 };
 
 wxBEGIN_EVENT_TABLE(CreatorFrame, wxFrame)
+EVT_MENU(wxID_NEW, CreatorFrame::OnNew)
 EVT_MENU(wxID_OPEN, CreatorFrame::OnOpen)
 EVT_MENU(wxID_SAVE, CreatorFrame::OnSave)
-EVT_MENU(wxID_SAVEAS, CreatorFrame::OnSaveAs)
 EVT_MENU(CreatorFrame::ID_EDIT_SYSTEM_CONFIG, CreatorFrame::OnEditSystemConfig)
 EVT_MENU(wxID_EXIT, CreatorFrame::OnExit)
 EVT_CLOSE(CreatorFrame::OnClose)
