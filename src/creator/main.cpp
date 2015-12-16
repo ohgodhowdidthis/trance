@@ -1,161 +1,21 @@
+#include "main.h"
+#include "settings.h"
 #include "../common.h"
 #include "../session.h"
 #include <filesystem>
 
 #pragma warning(push, 0)
-#define _UNICODE
-#include <src/trance.pb.h>
-#include <wx/wx.h>
+#include <wx/app.h>
 #include <wx/cmdline.h>
-#include <wx/notebook.h>
+#include <wx/filedlg.h>
+#include <wx/menu.h>
+#include <wx/msgdlg.h>
+#include <wx/sizer.h>
 #include <wx/stdpaths.h>
 #pragma warning(pop)
 
 static const std::string session_file_pattern =
     "Session files (*.session)|*.session";
-
-class CreatorFrame : public wxFrame {
-public:
-  enum {
-    ID_EDIT_SYSTEM_CONFIG = 1,
-  };
-
-  CreatorFrame(const std::string& executable_path, const std::string& parameter)
-  : wxFrame{nullptr, wxID_ANY, "creator", wxPoint{128, 128}, wxSize{480, 640}}
-  , _session_dirty{false}
-  , _executable_path{executable_path}
-  , _main_panel{new wxPanel{this}}
-  , _main_sizer{new wxBoxSizer{wxHORIZONTAL}}
-  , _main_notebook{new wxNotebook{_main_panel, 0}}
-  {
-    auto menuFile = new wxMenu;
-    auto menuBar = new wxMenuBar;
-    menuFile->Append(wxID_NEW);
-    menuFile->Append(wxID_OPEN);
-    menuFile->Append(wxID_SAVE);
-    menuFile->AppendSeparator();
-    menuFile->Append(ID_EDIT_SYSTEM_CONFIG, "&Edit system settings...\tCtrl+E",
-      "Edit global system settings that apply to all sessions");
-    menuFile->AppendSeparator();
-    menuFile->Append(wxID_EXIT);
-    menuBar->Append(menuFile, "&File");
-    SetMenuBar(menuBar);
-    CreateStatusBar();
-    SetStatusText("Running in " + _executable_path);
-
-    _main_notebook->AddPage(
-        new wxNotebookPage{_main_notebook, wxID_ANY}, "Themes");
-    _main_notebook->AddPage(
-        new wxNotebookPage{_main_notebook, wxID_ANY}, "Programs");
-    _main_notebook->AddPage(
-        new wxNotebookPage{_main_notebook, wxID_ANY}, "Playlist");
-    _main_sizer->Add(_main_notebook, 1, wxEXPAND | wxALL, 0);
-    _main_panel->SetSizer(_main_sizer);
-    _main_panel->Hide();
-
-    if (!parameter.empty()) {
-      OpenSession(parameter);
-    }
-  }
-
-private:
-  trance_pb::Session _session;
-  bool _session_dirty;
-  std::string _session_path;
-  std::string _executable_path;
-
-  wxPanel* _main_panel;
-  wxSizer* _main_sizer;
-  wxNotebook* _main_notebook;
-
-  void OnNew(wxCommandEvent& event)
-  {
-    if (!ConfirmDiscardChanges()) {
-      return;
-    }
-    wxFileDialog dialog{
-      this, "Choose session location", _executable_path, DEFAULT_SESSION_PATH,
-      session_file_pattern, wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
-    if (dialog.ShowModal() == wxID_CANCEL) {
-      return;
-    }
-    SetSessionPath(std::string(dialog.GetPath()));
-    _session = {};
-    _session_dirty = true;
-  }
-
-  void OnOpen(wxCommandEvent& event)
-  {
-    if (!ConfirmDiscardChanges()) {
-      return;
-    }
-    wxFileDialog dialog{this, "Open session file", _executable_path, "",
-        session_file_pattern, wxFD_OPEN | wxFD_FILE_MUST_EXIST};
-    if (dialog.ShowModal() == wxID_CANCEL) {
-      return;
-    }
-    OpenSession(std::string(dialog.GetPath()));
-  }
-
-  void OnSave(wxCommandEvent& event)
-  {
-    save_session(_session, _session_path);
-    _session_dirty = false;
-    SetStatusText("Wrote " + _session_path);
-  }
-
-  void OnEditSystemConfig(wxCommandEvent& event)
-  {
-  }
-
-  void OnExit(wxCommandEvent& event)
-  {
-    Close(false);
-  }
-
-  void OnClose(wxCloseEvent& event)
-  {
-    if (event.CanVeto() && !ConfirmDiscardChanges()) {
-      event.Veto();
-      return;
-    }
-    Destroy();
-  }
-
-  bool ConfirmDiscardChanges()
-  {
-    if (!_session_dirty) {
-      return true;
-    }
-    return wxMessageBox(
-      "Current session has unsaved changes! Proceed?", "",
-      wxICON_QUESTION | wxYES_NO, this) == wxYES;
-  }
-
-  bool OpenSession(const std::string& path)
-  {
-    try {
-      _session = load_session(path);
-      SetSessionPath(path);
-      SetStatusText("Read " + _session_path);
-      _session_dirty = false;
-      return true;
-    } catch (const std::exception& e) {
-      wxMessageBox(std::string(e.what()), "", wxICON_ERROR, this);
-      return false;
-    }
-  }
-
-  void SetSessionPath(const std::string& path)
-  {
-    _session_path = path;
-    _main_panel->Show();
-    _main_panel->Layout();
-    SetTitle("creator - " + _session_path);
-  }
-
-  wxDECLARE_EVENT_TABLE();
-};
 
 wxBEGIN_EVENT_TABLE(CreatorFrame, wxFrame)
 EVT_MENU(wxID_NEW, CreatorFrame::OnNew)
@@ -166,6 +26,130 @@ EVT_MENU(wxID_EXIT, CreatorFrame::OnExit)
 EVT_CLOSE(CreatorFrame::OnClose)
 wxEND_EVENT_TABLE()
 
+CreatorFrame::CreatorFrame(const std::string& executable_path, 
+                           const std::string& parameter)
+: wxFrame{nullptr, wxID_ANY, "Creator", wxDefaultPosition, wxSize{480, 640}}
+, _session_dirty{false}
+, _executable_path{executable_path}
+, _panel{new wxPanel{this}}
+, _sizer{new wxBoxSizer{wxHORIZONTAL}}
+, _notebook{new wxNotebook{_panel, 0}}
+{
+  auto menuFile = new wxMenu;
+  auto menuBar = new wxMenuBar;
+  menuFile->Append(wxID_NEW);
+  menuFile->Append(wxID_OPEN);
+  menuFile->Append(wxID_SAVE);
+  menuFile->AppendSeparator();
+  menuFile->Append(ID_EDIT_SYSTEM_CONFIG, "&Edit system settings...\tCtrl+E",
+                   "Edit global system settings that apply to all sessions");
+  menuFile->AppendSeparator();
+  menuFile->Append(wxID_EXIT);
+  menuBar->Append(menuFile, "&File");
+  SetMenuBar(menuBar);
+  CreateStatusBar();
+  SetStatusText("Running in " + _executable_path);
+
+  _notebook->AddPage(new wxNotebookPage{_notebook, wxID_ANY}, "Themes");
+  _notebook->AddPage(new wxNotebookPage{_notebook, wxID_ANY}, "Programs");
+  _notebook->AddPage(new wxNotebookPage{_notebook, wxID_ANY}, "Playlist");
+  _sizer->Add(_notebook, 1, wxEXPAND | wxALL, 0);
+  _panel->SetSizer(_sizer);
+  _panel->Hide();
+  Show(true);
+
+  if (!parameter.empty()) {
+    OpenSession(parameter);
+  }
+}
+
+void CreatorFrame::OnNew(wxCommandEvent& event)
+{
+  if (!ConfirmDiscardChanges()) {
+    return;
+  }
+  wxFileDialog dialog{
+      this, "Choose session location", _executable_path, DEFAULT_SESSION_PATH,
+      session_file_pattern, wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
+  if (dialog.ShowModal() == wxID_CANCEL) {
+    return;
+  }
+  SetSessionPath(std::string(dialog.GetPath()));
+  _session = {};
+  _session_dirty = true;
+}
+
+void CreatorFrame::OnOpen(wxCommandEvent& event)
+{
+  if (!ConfirmDiscardChanges()) {
+    return;
+  }
+  wxFileDialog dialog{this, "Open session file", _executable_path, "",
+      session_file_pattern, wxFD_OPEN | wxFD_FILE_MUST_EXIST};
+  if (dialog.ShowModal() == wxID_CANCEL) {
+    return;
+  }
+  OpenSession(std::string(dialog.GetPath()));
+}
+
+void CreatorFrame::OnSave(wxCommandEvent& event)
+{
+  save_session(_session, _session_path);
+  _session_dirty = false;
+  SetStatusText("Wrote " + _session_path);
+}
+
+void CreatorFrame::OnEditSystemConfig(wxCommandEvent& event)
+{
+  new SettingsFrame{this, _executable_path};
+}
+
+void CreatorFrame::OnExit(wxCommandEvent& event)
+{
+  Close(false);
+}
+
+void CreatorFrame::OnClose(wxCloseEvent& event)
+{
+  if (event.CanVeto() && !ConfirmDiscardChanges()) {
+    event.Veto();
+    return;
+  }
+  Destroy();
+}
+
+bool CreatorFrame::ConfirmDiscardChanges()
+{
+  if (!_session_dirty) {
+    return true;
+  }
+  return wxMessageBox(
+      "Current session has unsaved changes! Proceed?", "",
+      wxICON_QUESTION | wxYES_NO, this) == wxYES;
+}
+
+bool CreatorFrame::OpenSession(const std::string& path)
+{
+  try {
+    _session = load_session(path);
+    SetSessionPath(path);
+    SetStatusText("Read " + _session_path);
+    _session_dirty = false;
+    return true;
+  } catch (const std::exception& e) {
+    wxMessageBox(std::string(e.what()), "", wxICON_ERROR, this);
+    return false;
+  }
+}
+
+void CreatorFrame::SetSessionPath(const std::string& path)
+{
+  _session_path = path;
+  _panel->Show();
+  _panel->Layout();
+  SetTitle("creator - " + _session_path);
+}
+
 class CreatorApp : public wxApp {
 public:
   CreatorApp() : _frame{nullptr} {}
@@ -175,7 +159,7 @@ public:
     std::tr2::sys::path path(
         std::string(wxStandardPaths::Get().GetExecutablePath()));
     _frame = new CreatorFrame{path.parent_path().string(), _parameter};
-    _frame->Show(true);
+    SetTopWindow(_frame);
     return true;
   };
 
