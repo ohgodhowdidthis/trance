@@ -8,13 +8,14 @@
 #include <wx/panel.h>
 #pragma warning(pop)
 
+class SettingsFrame;
 class CreatorFrame : public wxFrame {
 public:
   enum {
     ID_EDIT_SYSTEM_CONFIG = 1,
   };
-
   CreatorFrame(const std::string& executable_path, const std::string& parameter);
+  void SettingsClosed();
 
 private:
   trance_pb::Session _session;
@@ -22,22 +23,13 @@ private:
   std::string _session_path;
   std::string _executable_path;
 
+  SettingsFrame* _settings;
   wxPanel* _panel;
-  wxSizer* _sizer;
-  wxNotebook* _notebook;
-
-  void OnNew(wxCommandEvent& event);
-  void OnOpen(wxCommandEvent& event);
-  void OnSave(wxCommandEvent& event);
-  void OnEditSystemConfig(wxCommandEvent& event);
-  void OnExit(wxCommandEvent& event);
-  void OnClose(wxCloseEvent& event);
+  wxMenuBar* _menu_bar;
 
   bool ConfirmDiscardChanges();
   bool OpenSession(const std::string& path);
   void SetSessionPath(const std::string& path);
-
-  wxDECLARE_EVENT_TABLE();
 };
 
 #endif

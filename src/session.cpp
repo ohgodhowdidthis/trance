@@ -224,7 +224,7 @@ trance_pb::System get_default_system()
 {
   trance_pb::System system;
   system.set_enable_vsync(true);
-  system.set_enable_oculus_rift(true);
+  system.set_enable_oculus_rift(false);
   system.set_oculus_image_depth(1.f);
   system.set_oculus_text_depth(1.f);
   system.set_image_cache_size(64);
