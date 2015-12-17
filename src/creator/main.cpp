@@ -1,5 +1,6 @@
 #include "main.h"
 #include "settings.h"
+#include "theme.h"
 #include "../common.h"
 #include "../session.h"
 #include <filesystem>
@@ -42,9 +43,14 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   SetStatusText("Running in " + _executable_path);
 
   auto notebook = new wxNotebook{_panel, wxID_ANY};
-  notebook->AddPage(new wxNotebookPage{notebook, wxID_ANY}, "Themes");
-  notebook->AddPage(new wxNotebookPage{notebook, wxID_ANY}, "Programs");
-  notebook->AddPage(new wxNotebookPage{notebook, wxID_ANY}, "Playlist");
+  auto theme_page = new wxNotebookPage{notebook, wxID_ANY};
+  auto program_page = new wxNotebookPage{notebook, wxID_ANY};
+  auto playlist_page = new wxNotebookPage{notebook, wxID_ANY};
+
+  notebook->AddPage(theme_page, "Themes");
+  notebook->AddPage(program_page, "Programs");
+  notebook->AddPage(playlist_page, "Playlist");
+  new ThemePanel{theme_page, _session};
 
   auto sizer = new wxBoxSizer{wxHORIZONTAL};
   sizer->Add(notebook, 1, wxEXPAND, 0);
@@ -62,13 +68,16 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
       return;
     }
     wxFileDialog dialog{
-        this, "Choose session location", _executable_path, DEFAULT_SESSION_PATH,
-        session_file_pattern, wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
+        this, "Choose session location", GetLastRootDirectory(),
+        DEFAULT_SESSION_PATH, session_file_pattern,
+        wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
     if (dialog.ShowModal() == wxID_CANCEL) {
       return;
     }
+    _session = get_default_session();
+    std::tr2::sys::path path{std::string(dialog.GetPath())};
+    search_resources(_session, path.parent_path().string());
     SetSessionPath(std::string(dialog.GetPath()));
-    _session = {};
     _session_dirty = true;
   }, wxID_NEW);
 
@@ -77,8 +86,8 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     if (!ConfirmDiscardChanges()) {
       return;
     }
-    wxFileDialog dialog{this, "Open session file", _executable_path, "",
-        session_file_pattern, wxFD_OPEN | wxFD_FILE_MUST_EXIST};
+    wxFileDialog dialog{this, "Open session file", GetLastRootDirectory(),
+        "", session_file_pattern, wxFD_OPEN | wxFD_FILE_MUST_EXIST};
     if (dialog.ShowModal() == wxID_CANCEL) {
       return;
     }
@@ -150,8 +159,33 @@ void CreatorFrame::SetSessionPath(const std::string& path)
   _session_path = path;
   _panel->Show();
   _panel->Layout();
+  Fit(); // TODO: resizes the window to default?
   _menu_bar->Enable(wxID_SAVE, true);
   SetTitle("Creator - " + _session_path);
+
+  auto system_config_path = _executable_path + "/" + SYSTEM_CONFIG_PATH;
+  trance_pb::System system;
+  try {
+    system = load_system(system_config_path);
+  } catch (std::runtime_error&) {
+    system = get_default_system();
+  }
+  auto parent = std::tr2::sys::path{path}.parent_path().string();
+  system.set_last_root_directory(parent);
+  save_system(system, system_config_path);
+  if (_settings) {
+    _settings->SetLastRootDirectory(parent);
+  }
+}
+
+std::string CreatorFrame::GetLastRootDirectory() const
+{
+  std::string path;
+  try {
+    auto system_config_path = _executable_path + "/" + SYSTEM_CONFIG_PATH;
+    path = load_system(system_config_path).last_root_directory();
+  } catch (std::runtime_error&) {}
+  return path.empty() ? _executable_path : path;
 }
 
 class CreatorApp : public wxApp {
@@ -160,8 +194,8 @@ public:
 
   bool OnInit() override {
     wxApp::OnInit();
-    std::tr2::sys::path path(
-        std::string(wxStandardPaths::Get().GetExecutablePath()));
+    std::tr2::sys::path path{
+        std::string(wxStandardPaths::Get().GetExecutablePath())};
     _frame = new CreatorFrame{path.parent_path().string(), _parameter};
     SetTopWindow(_frame);
     return true;

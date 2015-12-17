@@ -214,7 +214,7 @@ Director::Director(sf::RenderWindow& window,
 , _session{session}
 , _system{system}
 , _themes{themes}
-, _fonts{system.font_cache_size()}
+, _fonts{_themes.get_root_path(), system.font_cache_size()}
 , _width{window.getSize().x}
 , _height{window.getSize().y}
 , _program{&program}

@@ -2,8 +2,9 @@
 #include "director.h"
 #include "util.h"
 
-FontCache::FontCache(uint32_t font_cache_size)
-: _font_cache_size{font_cache_size}
+FontCache::FontCache(const std::string& root_path, uint32_t font_cache_size)
+: _root_path{root_path}
+, _font_cache_size{font_cache_size}
 {
 }
 
@@ -11,7 +12,7 @@ const Font& FontCache::get_font(
     const std::string& font_path, uint32_t char_size) const
 {
   char_size -= char_size % char_size_lock;
-  Font::key_t k{font_path, char_size};
+  Font::key_t k{_root_path + "/" + font_path, char_size};
 
   auto it = _map.find(k);
   if (it != _map.end()) {
@@ -23,7 +24,7 @@ const Font& FontCache::get_font(
     return *it->second;
   }
 
-  _list.emplace_front(font_path, char_size);
+  _list.emplace_front(_root_path + "/" + font_path, char_size);
   _map.emplace(k, &_list.front());
   if (_list.size() > _font_cache_size) {
     _map.erase(_list.back().key);

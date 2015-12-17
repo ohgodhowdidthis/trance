@@ -20,6 +20,7 @@ public:
     ID_APPLY = 3,
   };
   SettingsFrame(CreatorFrame* parent, const std::string& executable_path);
+  void SetLastRootDirectory(const std::string& path);
 
 private:
   const std::string _system_path;
