@@ -9,6 +9,8 @@ namespace trance_pb {
   class System;
 }
 
+void search_resources(trance_pb::Session& session, const std::string& root);
+
 trance_pb::System load_system(const std::string& path);
 void save_system(const trance_pb::System&, const std::string& path);
 trance_pb::System get_default_system();

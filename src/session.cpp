@@ -15,10 +15,10 @@ namespace {
 trance_pb::Colour make_colour(float r, float g, float b, float a)
 {
   trance_pb::Colour colour;
-  colour.set_r(r);
-  colour.set_g(g);
-  colour.set_b(b);
-  colour.set_a(a);
+  colour.set_r(r / 255);
+  colour.set_g(g / 255);
+  colour.set_b(b / 255);
+  colour.set_a(a / 255);
   return colour;
 }
 
@@ -47,11 +47,11 @@ std::string split_text_line(const std::string& text)
   return text;
 }
 
-void set_default_visual_types(trance_pb::Program* program)
+void set_default_visual_types(trance_pb::Program& program)
 {
-  program->clear_visual_type();
+  program.clear_visual_type();
   auto add = [&](trance_pb::Program::VisualType type_enum) {
-    auto type = program->add_visual_type();
+    auto type = program.add_visual_type();
     type->set_type(type_enum);
     type->set_random_weight(1);
   };
@@ -66,25 +66,120 @@ void set_default_visual_types(trance_pb::Program* program)
   add(trance_pb::Program_VisualType_SUPER_FAST);
 }
 
-void search_resources(trance_pb::Session& session)
+void set_default_program(trance_pb::Session& session, const std::string& name)
+{
+  auto& program = (*session.mutable_program_map())[name];
+  set_default_visual_types(program);
+  program.set_global_fps(120);
+  program.set_zoom_intensity(.2f);
+  *program.mutable_spiral_colour_a() = make_colour(255, 150, 200, 50);
+  *program.mutable_spiral_colour_b() = make_colour(0, 0, 0, 50);
+  program.set_reverse_spiral_direction(false);
+
+  *program.mutable_main_text_colour() = make_colour(255, 150, 200, 224);
+  *program.mutable_shadow_text_colour() = make_colour(0, 0, 0, 192);
+}
+
+void set_default_playlist(trance_pb::Session& session,
+                          const std::string& program)
+{
+  (*session.mutable_playlist())["default"].set_program(program);
+}
+
+void validate_colour(trance_pb::Colour& colour)
+{
+  colour.set_r(std::max(0.f, std::min(1.f, colour.r())));
+  colour.set_g(std::max(0.f, std::min(1.f, colour.g())));
+  colour.set_b(std::max(0.f, std::min(1.f, colour.b())));
+  colour.set_a(std::max(0.f, std::min(1.f, colour.a())));
+}
+
+void validate_program(trance_pb::Program& program)
+{
+  uint32_t count = 0;
+  for (const auto& type : program.visual_type()) {
+    count += type.random_weight();
+  }
+  if (!count) {
+    set_default_visual_types(program);
+  }
+  program.set_global_fps(std::max(1u, std::min(240u, program.global_fps())));
+  program.set_zoom_intensity(
+    std::max(0.f, std::min(1.f, program.zoom_intensity())));
+  validate_colour(*program.mutable_spiral_colour_a());
+  validate_colour(*program.mutable_spiral_colour_b());
+  validate_colour(*program.mutable_main_text_colour());
+  validate_colour(*program.mutable_shadow_text_colour());
+}
+
+template<typename T>
+T load_proto(const std::string& path)
+{
+  T proto;
+  std::ifstream f{path};
+  if (f) {
+    std::string str{std::istreambuf_iterator<char>{f},
+                    std::istreambuf_iterator<char>{}};
+    if (google::protobuf::TextFormat::ParseFromString(str, &proto)) {
+      return proto;
+    }
+  }
+  throw std::runtime_error("couldn't load " + path);
+}
+
+void save_proto(const google::protobuf::Message& proto, const std::string& path)
+{
+  std::string str;
+  google::protobuf::TextFormat::PrintToString(proto, &str);
+  std::ofstream f{path};
+  f << str;
+}
+
+std::tr2::sys::path make_relative(const std::tr2::sys::path& from,
+                                  const std::tr2::sys::path& to)
+{
+  auto cfrom = std::tr2::sys::canonical(from);
+  auto cto = std::tr2::sys::canonical(to);
+
+  auto from_it = cfrom.begin();
+  auto to_it = cto.begin();
+  while (from_it != cfrom.end() && to_it != cto.end() && *from_it == *to_it) {
+    ++from_it;
+    ++to_it;
+  }
+  if (from_it != cfrom.end()) {
+    return to;
+  }
+  std::tr2::sys::path result = ".";
+  while (to_it != cto.end()) {
+    result.append(*to_it);
+    ++to_it;
+  }
+  return result;
+}
+
+} // anonymous namespace
+
+void search_resources(trance_pb::Session& session, const std::string& root)
 {
   static const std::string wildcards = "/wildcards/";
   auto& themes = *session.mutable_theme_map();
 
-  std::tr2::sys::path path(".");
-  for (auto it = std::tr2::sys::recursive_directory_iterator(path);
+  std::tr2::sys::path root_path(root);
+  for (auto it = std::tr2::sys::recursive_directory_iterator(root_path);
        it != std::tr2::sys::recursive_directory_iterator(); ++it) {
     if (std::tr2::sys::is_regular_file(it->status())) {
-      auto jt = ++it->path().begin();
-      if (jt == it->path().end()) {
+      auto relative_path = make_relative(root_path, it->path());
+      auto jt = ++relative_path.begin();
+      if (jt == relative_path.end()) {
         continue;
       }
-      auto theme_name = jt == --it->path().end() ? wildcards : jt->string();
+      auto theme_name = jt == --relative_path.end() ? wildcards : jt->string();
 
-      if (ext_is(it->path().string(), "ttf")) {
-        themes[theme_name].add_font_path(it->path().string());
+      if (ext_is(relative_path.string(), "ttf")) {
+        themes[theme_name].add_font_path(relative_path.string());
       }
-      else if (ext_is(it->path().string(), "txt")) {
+      else if (ext_is(relative_path.string(), "txt")) {
         std::ifstream f(it->path());
         std::string line;
         while (std::getline(f, line)) {
@@ -98,15 +193,15 @@ void search_resources(trance_pb::Session& session)
         }
       }
       // Should really check is_gif_animated(), but it takes far too long.
-      else if (ext_is(it->path().string(), "webm") ||
-               ext_is(it->path().string(), "gif")) {
-        themes[theme_name].add_animation_path(it->path().string());
+      else if (ext_is(relative_path.string(), "webm") ||
+               ext_is(relative_path.string(), "gif")) {
+        themes[theme_name].add_animation_path(relative_path.string());
       }
-      else if (ext_is(it->path().string(), "png") ||
-               ext_is(it->path().string(), "bmp") ||
-               ext_is(it->path().string(), "jpg") ||
-               ext_is(it->path().string(), "jpeg")) {
-        themes[theme_name].add_image_path(it->path().string());
+      else if (ext_is(relative_path.string(), "png") ||
+               ext_is(relative_path.string(), "bmp") ||
+               ext_is(relative_path.string(), "jpg") ||
+               ext_is(relative_path.string(), "jpeg")) {
+        themes[theme_name].add_image_path(relative_path.string());
       }
     }
   }
@@ -135,77 +230,12 @@ void search_resources(trance_pb::Session& session)
     themes["default"] = themes[wildcards];
   }
   themes.erase(wildcards);
-  auto& item = (*session.mutable_playlist())["default"];
+  set_default_playlist(session, "default");
+  auto& program = (*session.mutable_program_map())["default"];
   for (auto& pair : themes) {
-    item.mutable_program()->add_enabled_theme_name(pair.first);
+    program.add_enabled_theme_name(pair.first);
   }
   session.set_first_playlist_item("default");
-}
-
-void set_default_program(trance_pb::Session& session)
-{
-  auto program = (*session.mutable_playlist())["default"].mutable_program();
-  set_default_visual_types(program);
-  program->set_global_fps(120);
-  program->set_zoom_intensity(.2f);
-  *program->mutable_spiral_colour_a() = make_colour(255, 150, 200, 50);
-  *program->mutable_spiral_colour_b() = make_colour(0, 0, 0, 50);
-  program->set_reverse_spiral_direction(false);
-
-  *program->mutable_main_text_colour() = make_colour(255, 150, 200, 224);
-  *program->mutable_shadow_text_colour() = make_colour(0, 0, 0, 192);
-  search_resources(session);
-}
-
-void validate_colour(trance_pb::Colour* colour)
-{
-  colour->set_r(std::max(0.f, std::min(1.f, colour->r())));
-  colour->set_g(std::max(0.f, std::min(1.f, colour->g())));
-  colour->set_b(std::max(0.f, std::min(1.f, colour->b())));
-  colour->set_a(std::max(0.f, std::min(1.f, colour->a())));
-}
-
-void validate_program(trance_pb::Program* program)
-{
-  uint32_t count = 0;
-  for (const auto& type : program->visual_type()) {
-    count += type.random_weight();
-  }
-  if (!count) {
-    set_default_visual_types(program);
-  }
-  program->set_global_fps(std::max(1u, std::min(240u, program->global_fps())));
-  program->set_zoom_intensity(
-    std::max(0.f, std::min(1.f, program->zoom_intensity())));
-  validate_colour(program->mutable_spiral_colour_a());
-  validate_colour(program->mutable_spiral_colour_b());
-  validate_colour(program->mutable_main_text_colour());
-  validate_colour(program->mutable_shadow_text_colour());
-}
-
-template<typename T>
-T load_proto(const std::string& path)
-{
-  T proto;
-  std::ifstream f{path};
-  if (f) {
-    std::string str{std::istreambuf_iterator<char>{f},
-                    std::istreambuf_iterator<char>{}};
-    if (google::protobuf::TextFormat::ParseFromString(str, &proto)) {
-      return proto;
-    }
-  }
-  throw std::runtime_error("couldn't load " + path);
-}
-
-void save_proto(const google::protobuf::Message& proto, const std::string& path)
-{
-  std::string str;
-  google::protobuf::TextFormat::PrintToString(proto, &str);
-  std::ofstream f{path};
-  f << str;
-}
-
 }
 
 trance_pb::System load_system(const std::string& path)
@@ -253,18 +283,29 @@ void save_session(const trance_pb::Session& session, const std::string& path)
 trance_pb::Session get_default_session()
 {
   trance_pb::Session session;
-  set_default_program(session);
+  set_default_playlist(session, "default");
+  set_default_program(session, "default");
   validate_session(session);
   return session;
 }
 
 void validate_session(trance_pb::Session& session)
 {
+  if (session.playlist().empty() && session.program_map().empty()) {
+    set_default_playlist(session, "default");
+    set_default_program(session, "default");
+  }
   if (session.playlist().empty()) {
-    set_default_program(session);
+    set_default_playlist(session, session.program_map().begin()->first);
+  }
+  if (session.program_map().empty()) {
+    set_default_program(session, session.playlist().begin()->second.program());
   }
   for (auto& pair : *session.mutable_playlist()) {
-    validate_program(pair.second.mutable_program());
+    auto it = session.program_map().find(pair.second.program());
+    if (it == session.program_map().end()) {
+      set_default_program(session, pair.second.program());
+    }
 
     bool has_next_item = false;
     for (const auto& next_item : pair.second.next_item()) {
@@ -277,6 +318,9 @@ void validate_session(trance_pb::Session& session)
     if (!has_next_item) {
       pair.second.set_play_time_seconds(0);
     }
+  }
+  for (auto& pair : *session.mutable_program_map()) {
+    validate_program(pair.second);
   }
   auto it = session.playlist().find(session.first_playlist_item());
   if (it == session.playlist().end()) {

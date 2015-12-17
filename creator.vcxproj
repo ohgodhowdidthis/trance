@@ -178,11 +178,13 @@
   <ItemGroup>
     <ClCompile Include="src\creator\main.cpp" />
     <ClCompile Include="src\creator\settings.cpp" />
+    <ClCompile Include="src\creator\theme.cpp" />
     <ClCompile Include="src\session.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\creator\main.h" />
     <ClInclude Include="src\creator\settings.h" />
+    <ClInclude Include="src\creator\theme.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

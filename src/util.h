@@ -151,7 +151,7 @@ public:
 
 private:
 
-  T& _data;
+  T _data;
   std::vector<bool> _enabled;
   std::size_t _enabled_count;
   mutable std::size_t _last_enabled_id;

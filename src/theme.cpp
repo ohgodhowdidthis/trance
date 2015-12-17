@@ -8,14 +8,14 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)
-
 Theme::Theme()
-: Theme{trance_pb::Theme{}}
+: Theme{"", trance_pb::Theme{}}
 {
 }
 
-Theme::Theme(const trance_pb::Theme& proto)
-: _image_paths{proto.image_path()}
+Theme::Theme(const std::string& root_path, const trance_pb::Theme& proto)
+: _root_path{root_path}
+, _image_paths{proto.image_path()}
 , _animation_paths{proto.animation_path()}
 , _font_paths{proto.font_path()}
 , _text_lines{proto.text_line()}
@@ -25,7 +25,8 @@ Theme::Theme(const trance_pb::Theme& proto)
 
 // TODO: get rid of this somehow. Copying needs mutexes, technically.
 Theme::Theme(const Theme& theme)
-: _image_paths{theme._image_paths}
+: _root_path{theme._root_path}
+, _image_paths{theme._image_paths}
 , _animation_paths{theme._animation_paths}
 , _font_paths{theme._font_paths}
 , _text_lines{theme._text_lines}
@@ -159,7 +160,7 @@ void Theme::load_image_internal()
   _image_mutex.unlock();
 
   auto path = _image_paths.get(index);
-  Image image = load_image(path);
+  Image image = load_image(_root_path + "/" + path);
   _image_mutex.lock();
   _image_paths.set_enabled(index, false);
   _images.emplace(index, image ? image : Image{});
@@ -180,7 +181,8 @@ void Theme::unload_image_internal()
 void Theme::load_animation_internal()
 {
   auto index = _animation_paths.next_index();
-  std::vector<Image> images = load_animation(_animation_paths.get(index));
+  std::vector<Image> images =
+      load_animation(_root_path + "/" + _animation_paths.get(index));
   if (images.empty()) {
     // Don't try to load again.
     _animation_paths.set_enabled(index, false);
@@ -201,10 +203,18 @@ void Theme::unload_animation_internal()
 }
 
 ThemeBank::ThemeBank(
-    const trance_pb::Session& session, const trance_pb::System& system,
+    const std::string& root_path, const trance_pb::Session& session,
+    const trance_pb::System& system,
     const std::unordered_set<std::string>& enabled_themes)
-: _theme_map{session.theme_map().begin(), session.theme_map().end()}
-, _themes{_theme_map.begin(), _theme_map.end()}
+: _root_path{root_path}
+, _theme_map{session.theme_map().begin(), session.theme_map().end()}
+, _themes{[&]{
+  std::vector<std::pair<std::string, Theme>> result;
+  for (const auto& pair : _theme_map) {
+    result.emplace_back(pair.first, Theme{root_path, pair.second});
+  }
+  return result;
+}()}
 , _theme_shuffler{[&]{
   Shuffler<std::vector<std::pair<std::string, Theme>>> result{_themes};
   for (std::size_t i = 0; i < result.size(); ++i) {
@@ -247,6 +257,11 @@ void ThemeBank::set_enabled_themes(
 const Theme& ThemeBank::get(bool alternate) const
 {
   return alternate ? *_alt : *_main;
+}
+
+const std::string& ThemeBank::get_root_path() const
+{
+  return _root_path;
 }
 
 void ThemeBank::maybe_upload_next()

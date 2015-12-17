@@ -50,7 +50,7 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent,
 : wxFrame{parent, wxID_ANY, "System Settings",
           wxDefaultPosition, wxDefaultSize,
           wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN}
-, _system_path{executable_path + "\\" + SYSTEM_CONFIG_PATH}
+, _system_path{executable_path + "/" + SYSTEM_CONFIG_PATH}
 , _system_dirty{false}
 , _parent{parent}
 {
@@ -149,6 +149,11 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent,
     _parent->SettingsClosed();
     Destroy();
   });
+}
+
+void SettingsFrame::SetLastRootDirectory(const std::string& path)
+{
+  _system.set_last_root_directory(path);
 }
 
 void SettingsFrame::Changed()

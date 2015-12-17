@@ -1,7 +1,3 @@
-#include <chrono>
-#include <iostream>
-#include <string>
-#include <thread>
 #include "common.h"
 #include "director.h"
 #include "export.h"
@@ -14,6 +10,12 @@
 #include <SFML/Window.hpp>
 #include <src/trance.pb.h>
 #pragma warning(pop)
+
+#include <chrono>
+#include <iostream>
+#include <filesystem>
+#include <string>
+#include <thread>
 
 std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
 {
@@ -143,8 +145,8 @@ void print_info(const sf::Clock& clock,
 }
 
 void play_session(
-    const trance_pb::Session& session, const trance_pb::System& system,
-    const exporter_settings& settings)
+    const std::string& root_path, const trance_pb::Session& session,
+    const trance_pb::System& system, const exporter_settings& settings)
 {
   bool realtime = settings.path.empty();
   auto exporter = create_exporter(settings);
@@ -155,12 +157,16 @@ void play_session(
 
   const trance_pb::PlaylistItem* item =
       &session.playlist().find(session.first_playlist_item())->second;
+  auto program = [&]() -> const trance_pb::Program&
+  {
+    return session.program_map().find(item->program())->second;
+  };
   std::unordered_set<std::string> enabled_themes{
-      item->program().enabled_theme_name().begin(),
-      item->program().enabled_theme_name().end()};
+      program().enabled_theme_name().begin(),
+      program().enabled_theme_name().end()};
 
   auto theme_bank =
-      std::make_unique<ThemeBank>(session, system, enabled_themes);
+      std::make_unique<ThemeBank>(root_path, session, system, enabled_themes);
 
   // Call ovr_Initialize() before getting an OpenGL context.
   bool oculus_rift = system.enable_oculus_rift();
@@ -174,7 +180,7 @@ void play_session(
       system, realtime ? 0 : settings.width, realtime ? 0 : settings.height,
       realtime, oculus_rift);
   auto director = std::make_unique<Director>(
-      *window, session, system, *theme_bank, item->program(),
+      *window, session, system, *theme_bank, program(),
       realtime, oculus_rift, exporter && exporter->requires_yuv_input());
 
   std::thread async_thread;
@@ -225,16 +231,16 @@ void play_session(
         auto next = next_playlist_item(item);
         item = &session.playlist().find(next)->second;
         theme_bank->set_enabled_themes({
-            item->program().enabled_theme_name().begin(),
-            item->program().enabled_theme_name().end()});
-        director->set_program(item->program());
+            program().enabled_theme_name().begin(),
+            program().enabled_theme_name().end()});
+        director->set_program(program());
       }
       if (theme_bank->swaps_to_match_theme()) {
         theme_bank->change_themes();
       }
 
       bool update = false;
-      float frame_time = 1.f / item->program().global_fps();
+      float frame_time = 1.f / program().global_fps();
       while (update_time >= frame_time) {
         update = true;
         update_time -= frame_time;
@@ -295,6 +301,7 @@ int main(int argc, char** argv)
   catch (std::runtime_error& e) {
     std::cerr << e.what() << std::endl;
     session = get_default_session();
+    search_resources(session, ".");
     save_session(session, session_path);
   }
 
@@ -309,6 +316,7 @@ int main(int argc, char** argv)
     save_system(system, system_path);
   }
 
-  play_session(session, system, settings);
+  auto root_path = std::tr2::sys::path{session_path}.parent_path().string();
+  play_session(root_path, session, system, settings);
   return 0;
 }

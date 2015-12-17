@@ -31,6 +31,9 @@ message System {
 
   // Windowed mode.
   bool windowed = 7;
+
+  // Last known root directory.
+  string last_root_directory = 8;
 }
 
 // Configuration for a single program, i.e. a combination of a selection of
@@ -83,7 +86,7 @@ message Program {
 }
 
 message PlaylistItem {
-  Program program = 1;
+  string program = 1;
 
   // How long to play this item before choosing a new one.
   uint32 play_time_seconds = 2;
@@ -112,8 +115,11 @@ message Theme {
 
 message Session {
   // The playlist of programs.
-  string first_playlist_item = 2;
-  map<string, PlaylistItem> playlist = 3;
+  string first_playlist_item = 1;
+  map<string, PlaylistItem> playlist = 2;
+
+  // Available programs.
+  map<string, Program> program_map = 3;
 
   // Available themes.
   map<string, Theme> theme_map = 4;

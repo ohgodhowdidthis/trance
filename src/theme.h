@@ -26,7 +26,7 @@ class Theme {
 public:
 
   Theme();
-  Theme(const trance_pb::Theme& proto);
+  Theme(const std::string& root_path, const trance_pb::Theme& proto);
   Theme(const Theme& theme);
 
   // Get a random loaded in-memory Image, text string, etc.
@@ -65,6 +65,7 @@ private:
   void load_animation_internal();
   void unload_animation_internal();
 
+  std::string _root_path;
   using StringShuffler =
       Shuffler<const google::protobuf::RepeatedPtrField<std::string>>;
   StringShuffler _image_paths;
@@ -89,13 +90,15 @@ private:
 class ThemeBank {
 public:
 
-  ThemeBank(const trance_pb::Session& session, const trance_pb::System& system,
+  ThemeBank(const std::string& root_path, const trance_pb::Session& session,
+            const trance_pb::System& system,
             const std::unordered_set<std::string>& enabled_themes);
   void set_enabled_themes(
       const std::unordered_set<std::string>& enabled_themes);
 
   // Get the main or alternate theme.
   const Theme& get(bool alternate = false) const;
+  const std::string& get_root_path() const;
 
   // Call to upload a random image from the next theme which has been loaded
   // into RAM but not video memory.
@@ -117,6 +120,7 @@ private:
   uint32_t cache_per_theme() const;
   static const std::size_t switch_cooldown = 500;
 
+  std::string _root_path;
   std::unordered_map<std::string, trance_pb::Theme> _theme_map;
   std::vector<std::pair<std::string, Theme>> _themes;
   Shuffler<std::vector<std::pair<std::string, Theme>>> _theme_shuffler;

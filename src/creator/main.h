@@ -30,6 +30,7 @@ private:
   bool ConfirmDiscardChanges();
   bool OpenSession(const std::string& path);
   void SetSessionPath(const std::string& path);
+  std::string GetLastRootDirectory() const;
 };
 
 #endif

@@ -63,14 +63,14 @@ namespace std {
 class FontCache {
 public:
 
-  FontCache(uint32_t font_cache_size);
+  FontCache(const std::string& root_path, uint32_t font_cache_size);
 
   static const uint32_t char_size_lock = 20;
   const Font& get_font(
       const std::string& font_path, uint32_t char_size) const;
 
 private:
-
+  std::string _root_path;
   std::vector<std::string> _paths;
   uint32_t _font_cache_size;
   mutable std::size_t _last_id;
