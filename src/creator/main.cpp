@@ -151,7 +151,7 @@ void CreatorFrame::SetSessionPath(const std::string& path)
   _panel->Show();
   _panel->Layout();
   _menu_bar->Enable(wxID_SAVE, true);
-  SetTitle("creator - " + _session_path);
+  SetTitle("Creator - " + _session_path);
 }
 
 class CreatorApp : public wxApp {
