@@ -234,7 +234,7 @@ trance_pb::System get_default_system()
 
 void validate_system(trance_pb::System& system)
 {
-  system.set_image_cache_size(std::max(6u, system.image_cache_size()));
+  system.set_image_cache_size(std::max(8u, system.image_cache_size()));
   system.set_font_cache_size(std::max(2u, system.font_cache_size()));
 }
 
