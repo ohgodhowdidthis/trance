@@ -247,6 +247,7 @@ Image::Image(uint32_t width, uint32_t height, unsigned char* data)
 , _texture{0}
 , _sf_image{new std::shared_ptr<sf::Image>{new sf::Image}}
 {
+  // TODO: this is leaking memory?
   (*_sf_image)->create(width, height, data);
 }
 

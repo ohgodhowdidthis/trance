@@ -86,11 +86,11 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent,
   _enable_vsync->SetToolTip(VSYNC_TOOLTIP);
   _enable_vsync->SetValue(_system.enable_vsync());
   _image_cache_size->SetToolTip(IMAGE_CACHE_SIZE_TOOLTIP);
-  _image_cache_size->SetValue(_system.image_cache_size());
   _image_cache_size->SetRange(8, 1024);
+  _image_cache_size->SetValue(_system.image_cache_size());
   _font_cache_size->SetToolTip(FONT_CACHE_SIZE_TOOLTIP);
-  _font_cache_size->SetValue(_system.font_cache_size());
   _font_cache_size->SetRange(2, 256);
+  _font_cache_size->SetValue(_system.font_cache_size());
   _enable_oculus_rift->SetToolTip(OCULUS_RIFT_TOOLTIP);
   _enable_oculus_rift->SetValue(_system.enable_oculus_rift());
   _image_depth->SetToolTip(IMAGE_DEPTH_TOOLTIP);
