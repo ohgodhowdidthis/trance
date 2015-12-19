@@ -245,17 +245,16 @@ Image::Image(uint32_t width, uint32_t height, unsigned char* data)
 : _width{width}
 , _height{height}
 , _texture{0}
-, _sf_image{new std::shared_ptr<sf::Image>{new sf::Image}}
+, _sf_image{new sf::Image}
 {
-  // TODO: this is leaking memory?
-  (*_sf_image)->create(width, height, data);
+  _sf_image->create(width, height, data);
 }
 
 Image::Image(const sf::Image& image)
 : _width{image.getSize().x}
 , _height{image.getSize().y}
 , _texture{0}
-, _sf_image{new std::shared_ptr<sf::Image>{new sf::Image{image}}}
+, _sf_image{new sf::Image{image}}
 {
 }
 
@@ -296,7 +295,7 @@ bool Image::ensure_texture_uploaded() const
   glBindTexture(GL_TEXTURE_2D, _texture);
   glTexImage2D(
       GL_TEXTURE_2D, 0, GL_RGBA, _width, _height,
-      0, GL_RGBA, GL_UNSIGNED_BYTE, (*_sf_image)->getPixelsPtr());
+      0, GL_RGBA, GL_UNSIGNED_BYTE, _sf_image->getPixelsPtr());
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -307,7 +306,7 @@ bool Image::ensure_texture_uploaded() const
   return true;
 }
 
-Image::sf_image_ptr& Image::get_sf_image() const
+const std::shared_ptr<sf::Image>& Image::get_sf_image() const
 {
   return _sf_image;
 }

@@ -79,7 +79,7 @@ private:
   mutable std::mutex _image_mutex;
   mutable std::mutex _animation_mutex;
   mutable std::mutex _purge_mutex;
-  mutable std::vector<Image::sf_image_ptr> _purgeable_images;
+  mutable std::vector<std::shared_ptr<sf::Image>> _purgeable_images;
 
 };
 
