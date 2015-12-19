@@ -25,11 +25,9 @@ public:
   uint32_t height() const;
   uint32_t texture() const;
 
-  // Double-indirection for easy purging.
-  typedef std::shared_ptr<std::shared_ptr<sf::Image>> sf_image_ptr;
   // Call from OpenGL context thread only!
   bool ensure_texture_uploaded() const;
-  sf_image_ptr& get_sf_image() const;
+  const std::shared_ptr<sf::Image>& get_sf_image() const;
   static void delete_textures();
 
 private:
@@ -50,7 +48,7 @@ private:
   uint32_t _height;
 
   mutable uint32_t _texture;
-  mutable sf_image_ptr _sf_image;
+  mutable std::shared_ptr<sf::Image> _sf_image;
   mutable std::shared_ptr<texture_deleter> _deleter;
 };
 
