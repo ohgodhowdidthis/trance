@@ -5,7 +5,7 @@
 #pragma warning(pop)
 
 ThemePanel::ThemePanel(wxNotebookPage* parent, trance_pb::Session& session)
-: wxPanel{parent, wxID_ANY}
+: wxPanel{parent}
 , _session(session)
 {
   auto sizer = new wxBoxSizer{wxVERTICAL};

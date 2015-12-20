@@ -50,7 +50,7 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent,
 : wxFrame{parent, wxID_ANY, "System Settings",
           wxDefaultPosition, wxDefaultSize,
           wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN}
-, _system_path{executable_path + "/" + SYSTEM_CONFIG_PATH}
+, _system_path{get_system_config_path(executable_path)}
 , _system_dirty{false}
 , _parent{parent}
 {
