@@ -3,16 +3,25 @@
 
 #pragma warning(push, 0)
 #include <src/trance.pb.h>
+#include <wx/frame.h>
 #include <wx/notebook.h>
-#include <wx/panel.h>
 #pragma warning(pop)
 
-class ThemePanel : public wxPanel {
+#include <memory>
+
+template<typename T>
+class ItemList;
+
+class ThemePage : public wxNotebookPage {
 public:
-  ThemePanel(wxNotebookPage* parent, trance_pb::Session& session);
+  ThemePage(wxNotebook* parent, trance_pb::Session& session);
+  ~ThemePage();
+  void RefreshData();
 
 private:
   trance_pb::Session& _session;
+  std::string _item_selected;
+  std::unique_ptr<ItemList<trance_pb::Theme>> _item_list;
 };
 
 #endif

@@ -24,6 +24,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
 , _session_dirty{false}
 , _executable_path{executable_path}
 , _settings{nullptr}
+, _theme_page{nullptr}
 , _panel{new wxPanel{this}}
 , _menu_bar{new wxMenuBar}
 {
@@ -47,14 +48,13 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   SetStatusText("Running in " + _executable_path);
 
   auto notebook = new wxNotebook{_panel, wxID_ANY};
-  auto theme_page = new wxNotebookPage{notebook, wxID_ANY};
+  _theme_page = new ThemePage{notebook, _session};
   auto program_page = new wxNotebookPage{notebook, wxID_ANY};
   auto playlist_page = new wxNotebookPage{notebook, wxID_ANY};
 
-  notebook->AddPage(theme_page, "Themes");
+  notebook->AddPage(_theme_page, "Themes");
   notebook->AddPage(program_page, "Programs");
   notebook->AddPage(playlist_page, "Playlist");
-  new ThemePanel{theme_page, _session};
 
   auto sizer = new wxBoxSizer{wxHORIZONTAL};
   sizer->Add(notebook, 1, wxEXPAND, 0);
@@ -66,7 +66,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     OpenSession(parameter);
   }
 
-  Bind(wxEVT_COMMAND_MENU_SELECTED, [&](wxCommandEvent& event)
+  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
   {
     if (!ConfirmDiscardChanges()) {
       return;
@@ -85,7 +85,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     _session_dirty = true;
   }, wxID_NEW);
 
-  Bind(wxEVT_COMMAND_MENU_SELECTED, [&](wxCommandEvent& event)
+  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
   {
     if (!ConfirmDiscardChanges()) {
       return;
@@ -98,14 +98,14 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     OpenSession(std::string(dialog.GetPath()));
   }, wxID_OPEN);
 
-  Bind(wxEVT_COMMAND_MENU_SELECTED, [&](wxCommandEvent& event)
+  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
   {
     save_session(_session, _session_path);
     _session_dirty = false;
     SetStatusText("Wrote " + _session_path);
   }, wxID_SAVE);
 
-  Bind(wxEVT_COMMAND_MENU_SELECTED, [&](wxCommandEvent& event)
+  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
   {
     auto trance_exe_path = get_trance_exe_path(_executable_path);
     auto system_config_path = get_system_config_path(_executable_path);
@@ -115,7 +115,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     wxExecute(command_line, wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE);
   }, ID_LAUNCH_SESSION);
 
-  Bind(wxEVT_COMMAND_MENU_SELECTED, [&](wxCommandEvent& event)
+  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
   {
     if (_settings) {
       _settings->Raise();
@@ -124,7 +124,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     _settings = new SettingsFrame{this, _executable_path};
   }, ID_EDIT_SYSTEM_CONFIG);
 
-  Bind(wxEVT_COMMAND_MENU_SELECTED, [&](wxCommandEvent& event)
+  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
   {
     Close(false);
   }, wxID_EXIT);
@@ -137,6 +137,11 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     }
     Destroy();
   });
+}
+
+void CreatorFrame::RefreshData()
+{
+  _theme_page->RefreshData();
 }
 
 void CreatorFrame::SettingsClosed()
@@ -171,12 +176,12 @@ bool CreatorFrame::OpenSession(const std::string& path)
 void CreatorFrame::SetSessionPath(const std::string& path)
 {
   _session_path = path;
-  _panel->Show();
-  _panel->Layout();
-  Fit(); // TODO: resizes the window to default?
   _menu_bar->Enable(wxID_SAVE, true);
   _menu_bar->Enable(ID_LAUNCH_SESSION, true);
   SetTitle("Creator - " + _session_path);
+  _panel->Show();
+  _panel->Layout();
+  RefreshData();
 
   auto system_config_path = get_system_config_path(_executable_path);
   trance_pb::System system;
