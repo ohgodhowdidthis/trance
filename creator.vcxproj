@@ -182,6 +182,7 @@
     <ClCompile Include="src\session.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\creator\item_list.h" />
     <ClInclude Include="src\creator\main.h" />
     <ClInclude Include="src\creator\settings.h" />
     <ClInclude Include="src\creator\theme.h" />
