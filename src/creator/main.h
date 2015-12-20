@@ -13,6 +13,7 @@ class CreatorFrame : public wxFrame {
 public:
   enum {
     ID_EDIT_SYSTEM_CONFIG = 1,
+    ID_LAUNCH_SESSION = 2,
   };
   CreatorFrame(const std::string& executable_path, const std::string& parameter);
   void SettingsClosed();

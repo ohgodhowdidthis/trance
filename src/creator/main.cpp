@@ -32,12 +32,16 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   menu_file->Append(wxID_OPEN);
   menu_file->Append(wxID_SAVE);
   menu_file->AppendSeparator();
+  menu_file->Append(ID_LAUNCH_SESSION, "&Launch session\tCtrl+L",
+                   "Launch the current session");
+  menu_file->AppendSeparator();
   menu_file->Append(ID_EDIT_SYSTEM_CONFIG, "&Edit system settings...\tCtrl+E",
                    "Edit global system settings that apply to all sessions");
   menu_file->AppendSeparator();
   menu_file->Append(wxID_EXIT);
   _menu_bar->Append(menu_file, "&File");
   _menu_bar->Enable(wxID_SAVE, false);
+  _menu_bar->Enable(ID_LAUNCH_SESSION, false);
   SetMenuBar(_menu_bar);
   CreateStatusBar();
   SetStatusText("Running in " + _executable_path);
@@ -103,8 +107,13 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
 
   Bind(wxEVT_COMMAND_MENU_SELECTED, [&](wxCommandEvent& event)
   {
-    Close(false);
-  }, wxID_EXIT);
+    auto trance_exe_path = get_trance_exe_path(_executable_path);
+    auto system_config_path = get_system_config_path(_executable_path);
+    auto command_line = trance_exe_path +
+        " \"" + _session_path + "\" \"" + system_config_path + "\"";
+    SetStatusText("Running " + command_line);
+    wxExecute(command_line, wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE);
+  }, ID_LAUNCH_SESSION);
 
   Bind(wxEVT_COMMAND_MENU_SELECTED, [&](wxCommandEvent& event)
   {
@@ -114,6 +123,11 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     }
     _settings = new SettingsFrame{this, _executable_path};
   }, ID_EDIT_SYSTEM_CONFIG);
+
+  Bind(wxEVT_COMMAND_MENU_SELECTED, [&](wxCommandEvent& event)
+  {
+    Close(false);
+  }, wxID_EXIT);
 
   Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event)
   {
@@ -161,9 +175,10 @@ void CreatorFrame::SetSessionPath(const std::string& path)
   _panel->Layout();
   Fit(); // TODO: resizes the window to default?
   _menu_bar->Enable(wxID_SAVE, true);
+  _menu_bar->Enable(ID_LAUNCH_SESSION, true);
   SetTitle("Creator - " + _session_path);
 
-  auto system_config_path = _executable_path + "/" + SYSTEM_CONFIG_PATH;
+  auto system_config_path = get_system_config_path(_executable_path);
   trance_pb::System system;
   try {
     system = load_system(system_config_path);
@@ -182,7 +197,7 @@ std::string CreatorFrame::GetLastRootDirectory() const
 {
   std::string path;
   try {
-    auto system_config_path = _executable_path + "/" + SYSTEM_CONFIG_PATH;
+    auto system_config_path = get_system_config_path(_executable_path);
     path = load_system(system_config_path).last_root_directory();
   } catch (std::runtime_error&) {}
   return path.empty() ? _executable_path : path;
