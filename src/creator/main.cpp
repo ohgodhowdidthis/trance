@@ -52,7 +52,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   SetStatusText("Running in " + _executable_path);
 
   auto notebook = new wxNotebook{_panel, wxID_ANY};
-  _theme_page = new ThemePage{notebook, _session, _complete_theme};
+  _theme_page = new ThemePage{notebook, _session, _complete_theme, _session_path};
   _program_page = new ProgramPage{notebook, _session};
   _playlist_page = new PlaylistPage{notebook, _session};
 
