@@ -50,7 +50,6 @@ public:
     _list->Bind(wxEVT_SIZE, [&](wxSizeEvent&)
     {
       _list->SetColumnWidth(0, wxLIST_AUTOSIZE_USEHEADER);
-      _list->SetColumnWidth(0, _list->GetColumnWidth(0) - 1);
     }, wxID_ANY);
 
     parent->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
@@ -130,12 +129,17 @@ public:
 
   void RefreshData()
   {
-    _list->DeleteAllItems();
     std::vector<std::string> items;
     for (const auto& pair : _data) {
       items.push_back(pair.first);
     }
     std::sort(items.begin(), items.end());
+    while (_list->GetItemCount() < items.size()) {
+      _list->InsertItem(_list->GetItemCount(), "");
+    }
+    while (_list->GetItemCount() > items.size()) {
+      _list->DeleteItem(_list->GetItemCount() - 1);
+    }
     if (std::find(items.begin(), items.end(), _selection) == items.end()) {
       if (items.empty()) {
         SetSelection("");
@@ -148,7 +152,7 @@ public:
       }
     }
     for (std::size_t i = 0; i < items.size(); ++i) {
-      _list->InsertItem((long) i, items[i]);
+      _list->SetItemText((long) i, items[i]);
       if (items[i] == _selection) {
         _list->SetItemState(
             (long) i, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
