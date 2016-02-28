@@ -28,7 +28,7 @@ private:
   trance_pb::Session& _session;
   const trance_pb::Theme& _complete_theme;
   std::string _item_selected;
-  std::unique_ptr<ItemList<trance_pb::Theme>> _item_list;
+  ItemList<trance_pb::Theme>* _item_list;
   std::unordered_map<std::string, wxTreeListItem> _tree_lookup;
   wxTreeListCtrl* _tree;
 };

@@ -21,7 +21,7 @@ public:
 private:
   trance_pb::Session& _session;
   std::string _item_selected;
-  std::unique_ptr<ItemList<trance_pb::PlaylistItem>> _item_list;
+  ItemList<trance_pb::PlaylistItem>* _item_list;
 };
 
 #endif

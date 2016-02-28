@@ -14,14 +14,15 @@
 #include <functional>
 
 template<typename T>
-class ItemList {
+class ItemList : public wxPanel {
 public:
   using map_type = google::protobuf::Map<std::string, T>;
 
-  ItemList(wxWindow* parent, wxSizer* parent_sizer, map_type& data,
+  ~ItemList() override {}
+  ItemList(wxWindow* parent, map_type& data,
            std::function<void(const std::string&)> on_change)
-  : _data{data}
-  , _parent{parent}
+  : wxPanel{parent, wxID_ANY}
+  , _data{data}
   , _list{nullptr}
   , _on_change{on_change}
   {
@@ -29,30 +30,30 @@ public:
     auto right = new wxBoxSizer{wxVERTICAL};
 
     _list = new wxListCtrl{
-        parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxLC_REPORT | wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_EDIT_LABELS};
     _list->InsertColumn(0, "Name", wxLIST_FORMAT_LEFT,
                         wxLIST_AUTOSIZE_USEHEADER);
 
-    _button_new = new wxButton{parent, ID_NEW, "New"};
-    _button_rename = new wxButton{parent, ID_RENAME, "Rename"};
-    _button_duplicate = new wxButton{parent, ID_DUPLICATE, "Duplicate"};
-    _button_delete = new wxButton{parent, ID_DELETE, "Delete"};
+    _button_new = new wxButton{this, ID_NEW, "New"};
+    _button_rename = new wxButton{this, ID_RENAME, "Rename"};
+    _button_duplicate = new wxButton{this, ID_DUPLICATE, "Duplicate"};
+    _button_delete = new wxButton{this, ID_DELETE, "Delete"};
 
-    parent_sizer->Add(sizer, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
     sizer->Add(_list, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
     sizer->Add(right, 0, wxEXPAND, 0);
     right->Add(_button_new, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
     right->Add(_button_rename, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
     right->Add(_button_duplicate, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
     right->Add(_button_delete, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+    SetSizer(sizer);
 
     _list->Bind(wxEVT_SIZE, [&](wxSizeEvent&)
     {
       _list->SetColumnWidth(0, wxLIST_AUTOSIZE_USEHEADER);
     }, wxID_ANY);
 
-    parent->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
     {
       static const std::string new_name = "New session";
       auto name = new_name;
@@ -66,7 +67,7 @@ public:
       RefreshData();
     }, ID_NEW);
 
-    parent->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
     {
       for (int i = 0; i < _list->GetItemCount(); ++i) {
         if (_list->GetItemText(i) == _selection) {
@@ -75,7 +76,7 @@ public:
       }
     }, ID_RENAME);
 
-    parent->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
     {
       auto name = _selection + " copy";
       int number = 0;
@@ -88,23 +89,23 @@ public:
       RefreshData();
     }, ID_DUPLICATE);
 
-    parent->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&,parent](wxCommandEvent&)
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
     {
       if (wxMessageBox(
         "Really delete session '" + _selection + "'?", "",
-        wxICON_QUESTION | wxYES_NO, parent) == wxYES) {
+        wxICON_QUESTION | wxYES_NO, this) == wxYES) {
         _data.erase(_selection);
         RefreshData();
       }
     }, ID_DELETE);
 
-    parent->Bind(wxEVT_LIST_ITEM_SELECTED, [&](wxListEvent& e)
+    Bind(wxEVT_LIST_ITEM_SELECTED, [&](wxListEvent& e)
     {
       std::string text = _list->GetItemText(e.GetIndex());
       SetSelection(text);
     }, wxID_ANY);
 
-    parent->Bind(wxEVT_LIST_END_LABEL_EDIT, [&](wxListEvent& e)
+    Bind(wxEVT_LIST_END_LABEL_EDIT, [&](wxListEvent& e)
     {
       if (e.IsEditCancelled()) {
         return;
@@ -179,7 +180,6 @@ private:
   std::string _selection;
   std::function<void(const std::string&)> _on_change;
 
-  wxWindow* _parent;
   wxButton* _button_new;
   wxButton* _button_rename;
   wxButton* _button_duplicate;
