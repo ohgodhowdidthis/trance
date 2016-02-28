@@ -160,6 +160,28 @@ std::tr2::sys::path make_relative(const std::tr2::sys::path& from,
 
 } // anonymous namespace
 
+bool is_image(const std::string& path)
+{
+  return ext_is(path, "png") || ext_is(path, "bmp") ||
+         ext_is(path, "jpg") || ext_is(path, "jpeg");
+}
+
+bool is_animation(const std::string& path)
+{
+  // Should really check is_gif_animated(), but it takes far too long.
+  return ext_is(path, "webm") || ext_is(path, "gif");
+}
+
+bool is_font(const std::string& path)
+{
+  return ext_is(path, "ttf");
+}
+
+bool is_text_file(const std::string& path)
+{
+  return ext_is(path, "txt");
+}
+
 void search_resources(trance_pb::Session& session, const std::string& root)
 {
   static const std::string wildcards = "/wildcards/";
@@ -176,10 +198,11 @@ void search_resources(trance_pb::Session& session, const std::string& root)
       }
       auto theme_name = jt == --relative_path.end() ? wildcards : jt->string();
 
-      if (ext_is(relative_path.string(), "ttf")) {
-        themes[theme_name].add_font_path(relative_path.string());
+      auto rel_str = relative_path.string();
+      if (is_font(rel_str)) {
+        themes[theme_name].add_font_path(rel_str);
       }
-      else if (ext_is(relative_path.string(), "txt")) {
+      else if (is_text_file(rel_str)) {
         std::ifstream f(it->path());
         std::string line;
         while (std::getline(f, line)) {
@@ -192,16 +215,11 @@ void search_resources(trance_pb::Session& session, const std::string& root)
           themes[theme_name].add_text_line(split_text_line(line));
         }
       }
-      // Should really check is_gif_animated(), but it takes far too long.
-      else if (ext_is(relative_path.string(), "webm") ||
-               ext_is(relative_path.string(), "gif")) {
-        themes[theme_name].add_animation_path(relative_path.string());
+      else if (is_animation(rel_str)) {
+        themes[theme_name].add_animation_path(rel_str);
       }
-      else if (ext_is(relative_path.string(), "png") ||
-               ext_is(relative_path.string(), "bmp") ||
-               ext_is(relative_path.string(), "jpg") ||
-               ext_is(relative_path.string(), "jpeg")) {
-        themes[theme_name].add_image_path(relative_path.string());
+      else if (is_image(rel_str)) {
+        themes[theme_name].add_image_path(rel_str);
       }
     }
   }
@@ -236,6 +254,31 @@ void search_resources(trance_pb::Session& session, const std::string& root)
     program.add_enabled_theme_name(pair.first);
   }
   session.set_first_playlist_item("default");
+}
+
+void search_resources(trance_pb::Theme& theme, const std::string& root)
+{
+  std::tr2::sys::path root_path(root);
+  for (auto it = std::tr2::sys::recursive_directory_iterator(root_path);
+       it != std::tr2::sys::recursive_directory_iterator(); ++it) {
+    if (std::tr2::sys::is_regular_file(it->status())) {
+      auto relative_path = make_relative(root_path, it->path());
+      auto jt = ++relative_path.begin();
+      if (jt == relative_path.end()) {
+        continue;
+      }
+      auto rel_str = relative_path.string();
+      if (is_font(rel_str)) {
+        theme.add_font_path(rel_str);
+      }
+      else if (is_animation(rel_str)) {
+        theme.add_animation_path(rel_str);
+      }
+      else if (is_image(rel_str)) {
+        theme.add_image_path(rel_str);
+      }
+    }
+  }
 }
 
 trance_pb::System load_system(const std::string& path)

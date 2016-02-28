@@ -52,7 +52,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   SetStatusText("Running in " + _executable_path);
 
   auto notebook = new wxNotebook{_panel, wxID_ANY};
-  _theme_page = new ThemePage{notebook, _session};
+  _theme_page = new ThemePage{notebook, _session, _complete_theme};
   _program_page = new ProgramPage{notebook, _session};
   _playlist_page = new PlaylistPage{notebook, _session};
 
@@ -146,6 +146,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
 
 void CreatorFrame::RefreshData()
 {
+  _theme_page->RefreshRoot();
   _theme_page->RefreshData();
   _program_page->RefreshData();
   _playlist_page->RefreshData();
@@ -188,6 +189,9 @@ void CreatorFrame::SetSessionPath(const std::string& path)
   SetTitle("Creator - " + _session_path);
   _panel->Show();
   _panel->Layout();
+  auto parent = std::tr2::sys::path{path}.parent_path().string();
+  _complete_theme = trance_pb::Theme{};
+  search_resources(_complete_theme, parent);
   RefreshData();
 
   auto system_config_path = get_system_config_path(_executable_path);
@@ -197,7 +201,6 @@ void CreatorFrame::SetSessionPath(const std::string& path)
   } catch (std::runtime_error&) {
     system = get_default_system();
   }
-  auto parent = std::tr2::sys::path{path}.parent_path().string();
   system.set_last_root_directory(parent);
   save_system(system, system_config_path);
   if (_settings) {
