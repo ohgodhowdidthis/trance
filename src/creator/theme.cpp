@@ -4,6 +4,7 @@
 
 #pragma warning(push, 0)
 #include <wx/sizer.h>
+#include <wx/splitter.h>
 #pragma warning(pop)
 
 #include <filesystem>
@@ -16,18 +17,28 @@ ThemePage::ThemePage(wxNotebook* parent, trance_pb::Session& session,
 , _tree{nullptr}
 {
   auto sizer = new wxBoxSizer{wxVERTICAL};
+  auto splitter = new wxSplitterWindow{
+      this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+      wxSP_THIN_SASH | wxSP_LIVE_UPDATE};
+  splitter->SetSashGravity(0.5);
+  splitter->SetMinimumPaneSize(64);
+
+  auto bottom_panel = new wxPanel{splitter, wxID_ANY};
   auto bottom = new wxBoxSizer{wxHORIZONTAL};
 
-  _item_list.reset(new ItemList<trance_pb::Theme>{
-      this, sizer, *session.mutable_theme_map(),
-      [&](const std::string& s) { _item_selected = s; RefreshOurData(); }});
-  sizer->Add(bottom, 2, wxEXPAND | wxALL, DEFAULT_BORDER);
+  _item_list = new ItemList<trance_pb::Theme>{
+      splitter, *session.mutable_theme_map(),
+      [&](const std::string& s) { _item_selected = s; RefreshOurData(); }};
 
   _tree = new wxTreeListCtrl{
-      this, 0, wxDefaultPosition, wxDefaultSize,
+      bottom_panel, 0, wxDefaultPosition, wxDefaultSize,
       wxTL_SINGLE | wxTL_CHECKBOX | wxTL_3STATE | wxTL_NO_HEADER};
   _tree->AppendColumn("");
   bottom->Add(_tree, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  bottom_panel->SetSizer(bottom);
+
+  sizer->Add(splitter, 1, wxEXPAND, 0);
+  splitter->SplitHorizontally(_item_list, bottom_panel);
   SetSizer(sizer);
 
   Bind(wxEVT_TREELIST_ITEM_CHECKED, [&](wxTreeListEvent& e)
