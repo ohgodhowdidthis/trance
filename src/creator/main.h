@@ -8,6 +8,8 @@
 #include <wx/panel.h>
 #pragma warning(pop)
 
+class PlaylistPage;
+class ProgramPage;
 class ThemePage;
 class SettingsFrame;
 class CreatorFrame : public wxFrame {
@@ -28,6 +30,8 @@ private:
 
   SettingsFrame* _settings;
   ThemePage* _theme_page;
+  ProgramPage* _program_page;
+  PlaylistPage* _playlist_page;
   wxPanel* _panel;
   wxMenuBar* _menu_bar;
 
