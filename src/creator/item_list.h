@@ -11,16 +11,19 @@
 #pragma warning(pop)
 
 #include <algorithm>
+#include <functional>
 
 template<typename T>
 class ItemList {
 public:
   using map_type = google::protobuf::Map<std::string, T>;
 
-  ItemList(wxWindow* parent, wxSizer* parent_sizer, map_type& data)
+  ItemList(wxWindow* parent, wxSizer* parent_sizer, map_type& data,
+           std::function<void(const std::string&)> on_change)
   : _data{data}
   , _parent{parent}
   , _list{nullptr}
+  , _on_change{on_change}
   {
     auto sizer = new wxBoxSizer{wxHORIZONTAL};
     auto right = new wxBoxSizer{wxVERTICAL};
@@ -60,7 +63,7 @@ public:
         ++number;
       }
       _data[name] = {};
-      _selection = name;
+      SetSelection(name);
       RefreshData();
     }, ID_NEW);
 
@@ -82,7 +85,7 @@ public:
         ++number;
       }
       _data[name] = _data[_selection];
-      _selection = name;
+      SetSelection(name);
       RefreshData();
     }, ID_DUPLICATE);
 
@@ -98,7 +101,8 @@ public:
 
     parent->Bind(wxEVT_LIST_ITEM_SELECTED, [&](wxListEvent& e)
     {
-      _selection = _list->GetItemText(e.GetIndex());
+      std::string text = _list->GetItemText(e.GetIndex());
+      SetSelection(text);
     }, wxID_ANY);
 
     parent->Bind(wxEVT_LIST_END_LABEL_EDIT, [&](wxListEvent& e)
@@ -119,7 +123,7 @@ public:
       }
       _data[new_name] = _data[old_name];
       _data.erase(old_name);
-      _selection = new_name;
+      SetSelection(new_name);
       RefreshData();
     }, wxID_ANY);
   }
@@ -134,13 +138,13 @@ public:
     std::sort(items.begin(), items.end());
     if (std::find(items.begin(), items.end(), _selection) == items.end()) {
       if (items.empty()) {
-        _selection = "";
+        SetSelection("");
       } else {
         std::size_t i = 0;
         while (1 + i < items.size() && _selection > items[i]) {
           ++i;
         }
-        _selection = items[i];
+        SetSelection(items[i]);
       }
     }
     for (std::size_t i = 0; i < items.size(); ++i) {
@@ -156,6 +160,11 @@ public:
   }
 
 private:
+  void SetSelection(const std::string& selection) {
+    _selection = selection;
+    _on_change(selection);
+  }
+
   enum {
     ID_NEW = 10,
     ID_RENAME = 11,
@@ -164,6 +173,7 @@ private:
   };
   map_type& _data;
   std::string _selection;
+  std::function<void(const std::string&)> _on_change;
 
   wxWindow* _parent;
   wxButton* _button_new;

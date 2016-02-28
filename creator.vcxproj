@@ -177,6 +177,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\creator\main.cpp" />
+    <ClCompile Include="src\creator\playlist.cpp" />
+    <ClCompile Include="src\creator\program.cpp" />
     <ClCompile Include="src\creator\settings.cpp" />
     <ClCompile Include="src\creator\theme.cpp" />
     <ClCompile Include="src\session.cpp" />
@@ -184,6 +186,8 @@
   <ItemGroup>
     <ClInclude Include="src\creator\item_list.h" />
     <ClInclude Include="src\creator\main.h" />
+    <ClInclude Include="src\creator\playlist.h" />
+    <ClInclude Include="src\creator\program.h" />
     <ClInclude Include="src\creator\settings.h" />
     <ClInclude Include="src\creator\theme.h" />
   </ItemGroup>
