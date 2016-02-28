@@ -7,9 +7,16 @@ namespace trance_pb {
   class Colour;
   class Session;
   class System;
+  class Theme;
 }
 
+bool is_image(const std::string& path);
+bool is_animation(const std::string& path);
+bool is_font(const std::string& path);
+bool is_text_file(const std::string& path);
+
 void search_resources(trance_pb::Session& session, const std::string& root);
+void search_resources(trance_pb::Theme& theme, const std::string& root);
 
 trance_pb::System load_system(const std::string& path);
 void save_system(const trance_pb::System&, const std::string& path);
