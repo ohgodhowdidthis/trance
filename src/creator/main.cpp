@@ -103,6 +103,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     save_session(_session, _session_path);
     _session_dirty = false;
     SetStatusText("Wrote " + _session_path);
+    _menu_bar->Enable(ID_LAUNCH_SESSION, true);
   }, wxID_SAVE);
 
   Bind(wxEVT_MENU, [&](wxCommandEvent& event)
@@ -165,6 +166,7 @@ bool CreatorFrame::OpenSession(const std::string& path)
     _session = load_session(path);
     SetSessionPath(path);
     SetStatusText("Read " + _session_path);
+    _menu_bar->Enable(ID_LAUNCH_SESSION, true);
     _session_dirty = false;
     return true;
   } catch (const std::exception& e) {
@@ -177,7 +179,6 @@ void CreatorFrame::SetSessionPath(const std::string& path)
 {
   _session_path = path;
   _menu_bar->Enable(wxID_SAVE, true);
-  _menu_bar->Enable(ID_LAUNCH_SESSION, true);
   SetTitle("Creator - " + _session_path);
   _panel->Show();
   _panel->Layout();
