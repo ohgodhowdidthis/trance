@@ -22,7 +22,7 @@ static const std::string session_file_pattern =
 
 CreatorFrame::CreatorFrame(const std::string& executable_path, 
                            const std::string& parameter)
-: wxFrame{nullptr, wxID_ANY, "Creator", wxDefaultPosition, wxSize{480, 640}}
+: wxFrame{nullptr, wxID_ANY, "Creator", wxDefaultPosition, wxSize{640, 640}}
 , _session_dirty{false}
 , _executable_path{executable_path}
 , _settings{nullptr}
