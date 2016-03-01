@@ -16,7 +16,7 @@ ProgramPage::ProgramPage(wxNotebook* parent, trance_pb::Session& session)
       this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
       wxSP_THIN_SASH | wxSP_LIVE_UPDATE};
   splitter->SetSashGravity(0.5);
-  splitter->SetMinimumPaneSize(64);
+  splitter->SetMinimumPaneSize(128);
 
   auto bottom_panel = new wxPanel{splitter, wxID_ANY};
   auto bottom = new wxBoxSizer{wxHORIZONTAL};

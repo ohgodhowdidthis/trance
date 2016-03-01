@@ -9,7 +9,48 @@
 #include <wx/splitter.h>
 #pragma warning(pop)
 
+#include <algorithm>
 #include <filesystem>
+
+namespace {
+  std::string NlToUser(const std::string& nl) {
+    std::string s = nl;
+    std::string r;
+    bool first = true;
+    while (!s.empty()) {
+      auto p = s.find_first_of('\n');
+      auto q = s.substr(0, p != std::string::npos ? p : s.size());
+      r += (first ? "" : "  /  ") + q;
+      first = false;
+      s = s.substr(p != std::string::npos ? 1 + p : s.size());
+    }
+    return r;
+  }
+
+  std::string UserToNl(const std::string& user) {
+    std::string s = user;
+    std::string r;
+    bool first = true;
+    std::replace(s.begin(), s.end(), '\\', '/');
+    while (!s.empty()) {
+      auto p = s.find_first_of('/');
+      auto q = s.substr(0, p != std::string::npos ? p : s.size());
+      while (!q.empty() && q[0] == ' ') {
+        q = q.substr(1);
+      }
+      while (!q.empty() && q[q.size() - 1] == ' ') {
+        q = q.substr(0, q.size() - 1);
+      }
+      if (!q.empty()) {
+        r += (first ? "" : "\n") + q;
+        first = false;
+      }
+      s = s.substr(p != std::string::npos ? 1 + p : s.size());
+      p = s.find_first_of('/');
+    }
+    return r;
+  }
+}
 
 class ImagePanel : public wxPanel {
 public:
@@ -80,7 +121,7 @@ ThemePage::ThemePage(wxNotebook* parent, trance_pb::Session& session,
       this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
       wxSP_THIN_SASH | wxSP_LIVE_UPDATE};
   splitter->SetSashGravity(0.5);
-  splitter->SetMinimumPaneSize(64);
+  splitter->SetMinimumPaneSize(128);
 
   auto bottom_panel = new wxPanel{splitter, wxID_ANY};
   auto bottom = new wxBoxSizer{wxHORIZONTAL};
@@ -88,38 +129,132 @@ ThemePage::ThemePage(wxNotebook* parent, trance_pb::Session& session,
   auto bottom_splitter = new wxSplitterWindow{
       bottom_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
       wxSP_THIN_SASH | wxSP_LIVE_UPDATE};
-  bottom_splitter->SetSashGravity(0.5);
-  bottom_splitter->SetMinimumPaneSize(64);
+  bottom_splitter->SetSashGravity(0.75);
+  bottom_splitter->SetMinimumPaneSize(128);
 
   auto left_panel = new wxPanel{bottom_splitter, wxID_ANY};
   auto left = new wxBoxSizer{wxHORIZONTAL};
   auto right_panel = new wxPanel{bottom_splitter, wxID_ANY};
   auto right = new wxBoxSizer{wxHORIZONTAL};
+  auto right_buttons = new wxBoxSizer{wxVERTICAL};
+
+  auto left_splitter = new wxSplitterWindow{
+      left_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+      wxSP_THIN_SASH | wxSP_LIVE_UPDATE};
+  left_splitter->SetSashGravity(0.5);
+  left_splitter->SetMinimumPaneSize(128);
+
+  auto leftleft_panel = new wxPanel{left_splitter, wxID_ANY};
+  auto leftleft = new wxBoxSizer{wxHORIZONTAL};
+  auto leftright_panel = new wxPanel{left_splitter, wxID_ANY};
+  auto leftright = new wxBoxSizer{wxHORIZONTAL};
 
   _item_list = new ItemList<trance_pb::Theme>{
       splitter, *session.mutable_theme_map(),
       [&](const std::string& s) { _item_selected = s; RefreshOurData(); }};
 
   _tree = new wxTreeListCtrl{
-      left_panel, 0, wxDefaultPosition, wxDefaultSize,
+      leftleft_panel, 0, wxDefaultPosition, wxDefaultSize,
       wxTL_SINGLE | wxTL_CHECKBOX | wxTL_3STATE | wxTL_NO_HEADER};
-
-  _image_panel = new ImagePanel{right_panel};
-
   _tree->AppendColumn("");
-  left->Add(_tree, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+
+  _image_panel = new ImagePanel{leftright_panel};
+
+  _text_list = new wxListCtrl{
+      right_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+      wxLC_REPORT | wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_EDIT_LABELS};
+  _text_list->InsertColumn(0, "Text", wxLIST_FORMAT_LEFT,
+                           wxLIST_AUTOSIZE_USEHEADER);
+
+  _button_new = new wxButton{right_panel, ID_NEW, "New"};
+  _button_edit = new wxButton{right_panel, ID_EDIT, "Edit"};
+  _button_delete = new wxButton{right_panel, ID_DELETE, "Delete"};
+
+  leftleft->Add(_tree, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_panel->SetSizer(leftleft);
+  leftright->Add(_image_panel, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftright_panel->SetSizer(leftright);
+  left->Add(left_splitter, 1, wxEXPAND, 0);
+  left_splitter->SplitVertically(leftleft_panel, leftright_panel);
   left_panel->SetSizer(left);
-  right->Add(_image_panel, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  right->Add(_text_list, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  right->Add(right_buttons, 0, wxEXPAND, 0);
+  right_buttons->Add(_button_new, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  right_buttons->Add(_button_edit, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  right_buttons->Add(_button_delete, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
   right_panel->SetSizer(right);
-  bottom_panel->SetSizer(bottom);
   bottom->Add(bottom_splitter, 1, wxEXPAND, 0);
   bottom_splitter->SplitVertically(left_panel, right_panel);
+  bottom_panel->SetSizer(bottom);
 
   sizer->Add(splitter, 1, wxEXPAND, 0);
   splitter->SplitHorizontally(_item_list, bottom_panel);
   SetSizer(sizer);
 
-  Bind(wxEVT_TREELIST_SELECTION_CHANGED, [&](wxTreeListEvent& e)
+  _text_list->Bind(wxEVT_SIZE, [&](wxSizeEvent&)
+  {
+    _text_list->SetColumnWidth(0, wxLIST_AUTOSIZE_USEHEADER);
+  }, wxID_ANY);
+
+  right_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
+  {
+    (*_session.mutable_theme_map())[_item_selected].add_text_line("NEW TEXT");
+    RefreshData();
+    _text_list->SetItemState(_text_list->GetItemCount() - 1,
+                             wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
+  }, ID_NEW);
+
+  right_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
+  {
+    for (int i = 0; i < _text_list->GetItemCount(); ++i) {
+      if (_text_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
+        _text_list->EditLabel(i);
+        return;
+      }
+    }
+  }, ID_EDIT);
+
+  right_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
+  {
+    int removed = -1;
+    for (int i = 0; i < _text_list->GetItemCount(); ++i) {
+      if (_text_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
+        auto& theme = (*_session.mutable_theme_map())[_item_selected];
+        theme.mutable_text_line()->erase(
+            i + theme.mutable_text_line()->begin());
+        removed = i;
+        break;
+      }
+    }
+    RefreshData();
+    if (removed >= 0 && _text_list->GetItemCount()) {
+      _text_list->SetItemState(
+          std::min(_text_list->GetItemCount() - 1, removed),
+          wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
+    }
+  }, ID_DELETE);
+
+  right_panel->Bind(wxEVT_LIST_END_LABEL_EDIT, [&](wxListEvent& e)
+  {
+    if (e.IsEditCancelled()) {
+      return;
+    }
+    e.Veto();
+    std::string new_text = e.GetLabel();
+    new_text = UserToNl(new_text);
+    if (new_text.empty()) {
+      return;
+    }
+    for (int i = 0; i < _text_list->GetItemCount(); ++i) {
+      if (_text_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
+        *(*_session.mutable_theme_map())[_item_selected]
+            .mutable_text_line()->Mutable(i) = new_text;
+      }
+    }
+    RefreshData();
+  }, wxID_ANY);
+
+  _tree->Bind(wxEVT_TREELIST_SELECTION_CHANGED, [&](wxTreeListEvent& e)
   {
     auto data = _tree->GetItemData(e.GetItem());
     if (data != nullptr) {
@@ -142,7 +277,7 @@ ThemePage::ThemePage(wxNotebook* parent, trance_pb::Session& session,
     }
   }, wxID_ANY);
 
-  Bind(wxEVT_TREELIST_ITEM_CHECKED, [&](wxTreeListEvent& e)
+  _tree->Bind(wxEVT_TREELIST_ITEM_CHECKED, [&](wxTreeListEvent& e)
   {
     auto it = _session.mutable_theme_map()->find(_item_selected);
     if (it == _session.mutable_theme_map()->end()) {
@@ -220,7 +355,23 @@ void ThemePage::RefreshOurData()
     for (const auto& path : it->second.font_path()) {
       select(path);
     }
+
+    while (_text_list->GetItemCount() < it->second.text_line_size()) {
+      _text_list->InsertItem(_text_list->GetItemCount(), "");
+    }
+    while (_text_list->GetItemCount() > it->second.text_line_size()) {
+      _text_list->DeleteItem(_text_list->GetItemCount() - 1);
+    }
+    for (int i = 0; i < it->second.text_line_size(); ++i) {
+      _text_list->SetItemText((long) i, NlToUser(it->second.text_line(i)));
+    }
+  } else {
+    _text_list->DeleteAllItems();
   }
+  _button_new->Enable(!_item_selected.empty());
+  _button_edit->Enable(!_item_selected.empty() && it->second.text_line_size());
+  _button_delete->Enable(
+      !_item_selected.empty() && it->second.text_line_size());
 }
 
 void ThemePage::RefreshData()
