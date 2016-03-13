@@ -17,15 +17,15 @@ public:
   CreatorFrame(const std::string& executable_path, const std::string& parameter);
   void SettingsClosed();
 
-  void ThemeCreated();
+  void ThemeCreated(const std::string& theme_name);
   void ThemeDeleted(const std::string& theme_name);
   void ThemeRenamed(const std::string& old_name, const std::string& new_name);
 
-  void ProgramCreated();
+  void ProgramCreated(const std::string& program_name);
   void ProgramDeleted(const std::string& program_name);
   void ProgramRenamed(const std::string& old_name, const std::string& new_name);
 
-  void PlaylistItemCreated();
+  void PlaylistItemCreated(const std::string& playlist_item_name);
   void PlaylistItemDeleted(const std::string& playlist_item_name);
   void PlaylistItemRenamed(const std::string& old_name,
                            const std::string& new_name);

@@ -26,12 +26,13 @@ ProgramPage::ProgramPage(wxNotebook* parent,
   auto bottom = new wxBoxSizer{wxHORIZONTAL};
 
   _item_list = new ItemList<trance_pb::Program>{
-      splitter, *session.mutable_program_map(),
+      splitter, *session.mutable_program_map(), "program",
       [&](const std::string& s) { _item_selected = s; },
-      std::bind(&CreatorFrame::ProgramCreated, &creator_frame),
-      std::bind(&CreatorFrame::ProgramDeleted, &creator_frame,
+      std::bind(&CreatorFrame::ProgramCreated, &_creator_frame,
                 std::placeholders::_1),
-      std::bind(&CreatorFrame::ProgramRenamed, &creator_frame,
+      std::bind(&CreatorFrame::ProgramDeleted, &_creator_frame,
+                std::placeholders::_1),
+      std::bind(&CreatorFrame::ProgramRenamed, &_creator_frame,
                 std::placeholders::_1, std::placeholders::_2)};
   bottom_panel->SetSizer(bottom);
 

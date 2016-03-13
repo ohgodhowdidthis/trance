@@ -19,14 +19,15 @@ public:
   using map_type = google::protobuf::Map<std::string, T>;
 
   ~ItemList() override {}
-  ItemList(wxWindow* parent, map_type& data,
+  ItemList(wxWindow* parent, map_type& data, const std::string& type_name,
            std::function<void(const std::string&)> on_change,
-           std::function<void()> on_create,
+           std::function<void(const std::string&)> on_create,
            std::function<void(const std::string&)> on_delete,
            std::function<void(const std::string&,
                               const std::string&)> on_rename)
   : wxPanel{parent, wxID_ANY}
   , _data{data}
+  , _type_name{type_name}
   , _list{nullptr}
   , _on_change{on_change}
   , _on_create{on_create}
@@ -47,6 +48,11 @@ public:
     _button_duplicate = new wxButton{this, ID_DUPLICATE, "Duplicate"};
     _button_delete = new wxButton{this, ID_DELETE, "Delete"};
 
+    _button_new->SetToolTip("Create a new, blank " + _type_name);
+    _button_rename->SetToolTip("Rename the selected " + _type_name);
+    _button_duplicate->SetToolTip("Duplicate the selected " + _type_name);
+    _button_delete->SetToolTip("Delete the selected " + _type_name);
+
     sizer->Add(_list, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
     sizer->Add(right, 0, wxEXPAND, 0);
     right->Add(_button_new, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
@@ -62,7 +68,7 @@ public:
 
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
     {
-      static const std::string new_name = "New session";
+      static const std::string new_name = "New " + _type_name;
       auto name = new_name;
       int number = 0;
       while (_data.find(name) != _data.end()) {
@@ -72,7 +78,7 @@ public:
       _data[name] = {};
       SetSelection(name);
       RefreshData();
-      on_create();
+      _on_create(name);
     }, ID_NEW);
 
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
@@ -95,13 +101,13 @@ public:
       _data[name] = _data[_selection];
       SetSelection(name);
       RefreshData();
-      on_create();
+      _on_create(name);
     }, ID_DUPLICATE);
 
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
     {
       if (wxMessageBox(
-        "Really delete session '" + _selection + "'?", "",
+        "Really delete " + _type_name + " '" + _selection + "'?", "",
         wxICON_QUESTION | wxYES_NO, this) == wxYES) {
         auto name = _selection;
         _data.erase(name);
@@ -189,9 +195,10 @@ private:
     ID_DELETE = 13,
   };
   map_type& _data;
+  std::string _type_name;
   std::string _selection;
   std::function<void(const std::string&)> _on_change;
-  std::function<void()> _on_create;
+  std::function<void(const std::string&)> _on_create;
   std::function<void(const std::string&)> _on_delete;
   std::function<void(const std::string&, const std::string&)> _on_rename;
 

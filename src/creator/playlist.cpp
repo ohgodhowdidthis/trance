@@ -26,12 +26,13 @@ PlaylistPage::PlaylistPage(wxNotebook* parent,
   auto bottom = new wxBoxSizer{wxHORIZONTAL};
 
   _item_list = new ItemList<trance_pb::PlaylistItem>{
-      splitter, *session.mutable_playlist(),
+      splitter, *session.mutable_playlist(), "playlist item",
       [&](const std::string& s) { _item_selected = s; },
-      std::bind(&CreatorFrame::PlaylistItemCreated, &creator_frame),
-      std::bind(&CreatorFrame::PlaylistItemDeleted, &creator_frame,
+      std::bind(&CreatorFrame::PlaylistItemCreated, &_creator_frame,
                 std::placeholders::_1),
-      std::bind(&CreatorFrame::PlaylistItemRenamed, &creator_frame,
+      std::bind(&CreatorFrame::PlaylistItemDeleted, &_creator_frame,
+                std::placeholders::_1),
+      std::bind(&CreatorFrame::PlaylistItemRenamed, &_creator_frame,
                 std::placeholders::_1, std::placeholders::_2)};
   bottom_panel->SetSizer(bottom);
 

@@ -87,6 +87,8 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     std::tr2::sys::path path{std::string(dialog.GetPath())};
     search_resources(_session, path.parent_path().string());
     SetSessionPath(std::string(dialog.GetPath()));
+    SetStatusText("Generated default session for " +
+                  path.parent_path().string());
     _session_dirty = true;
   }, wxID_NEW);
 
@@ -150,8 +152,9 @@ void CreatorFrame::SettingsClosed()
   _settings = nullptr;
 }
 
-void CreatorFrame::ThemeCreated() {
+void CreatorFrame::ThemeCreated(const std::string& theme_name) {
   _program_page->RefreshData();
+  SetStatusText("Created theme '" + theme_name + "'");
 }
 
 void CreatorFrame::ThemeDeleted(const std::string& theme_name) {
@@ -166,6 +169,7 @@ void CreatorFrame::ThemeDeleted(const std::string& theme_name) {
     }
   }
   _program_page->RefreshData();
+  SetStatusText("Deleted theme '" + theme_name + "'");
 }
 
 void CreatorFrame::ThemeRenamed(const std::string& old_name,
@@ -178,10 +182,12 @@ void CreatorFrame::ThemeRenamed(const std::string& old_name,
     }
   }
   _program_page->RefreshData();
+  SetStatusText("Renamed theme '" + old_name + "' to '" + new_name + "'");
 }
 
-void CreatorFrame::ProgramCreated() {
+void CreatorFrame::ProgramCreated(const std::string& program_name) {
   _playlist_page->RefreshData();
+  SetStatusText("Created program '" + program_name + "'");
 }
 
 void CreatorFrame::ProgramDeleted(const std::string& program_name) {
@@ -195,6 +201,7 @@ void CreatorFrame::ProgramDeleted(const std::string& program_name) {
     }
   }
   _playlist_page->RefreshData();
+  SetStatusText("Deleted program '" + program_name + "'");
 }
 
 void CreatorFrame::ProgramRenamed(const std::string& old_name,
@@ -205,10 +212,12 @@ void CreatorFrame::ProgramRenamed(const std::string& old_name,
     }
   }
   _playlist_page->RefreshData();
+  SetStatusText("Renamed program '" + old_name + "' to '" + new_name + "'");
 }
 
-void CreatorFrame::PlaylistItemCreated() {
+void CreatorFrame::PlaylistItemCreated(const std::string& playlist_item_name) {
   _playlist_page->RefreshData();
+  SetStatusText("Created playlist item '" + playlist_item_name + "'");
 }
 
 void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name) {
@@ -220,6 +229,7 @@ void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name) {
     }
   }
   _playlist_page->RefreshData();
+  SetStatusText("Deleted playlist item '" + playlist_item_name + "'");
 }
 
 void CreatorFrame::PlaylistItemRenamed(const std::string& old_name,
@@ -232,6 +242,8 @@ void CreatorFrame::PlaylistItemRenamed(const std::string& old_name,
     }
   }
   _playlist_page->RefreshData();
+  SetStatusText(
+      "Renamed playlist item '" + old_name + "' to '" + new_name + "'");
 }
 
 void CreatorFrame::RefreshData()
