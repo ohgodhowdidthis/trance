@@ -56,6 +56,7 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent,
 {
   try {
     _system = load_system(_system_path);
+    _parent->SetStatusText("Read " + _system_path);
   } catch (std::runtime_error&) {
     _system = get_default_system();
   }

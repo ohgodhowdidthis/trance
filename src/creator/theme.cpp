@@ -29,7 +29,7 @@ namespace {
   }
 
   std::string UserToNl(const std::string& user) {
-    std::string s = user;
+    std::string s = NlToUser(user);
     std::string r;
     bool first = true;
     std::replace(s.begin(), s.end(), '\\', '/');
@@ -154,12 +154,13 @@ ThemePage::ThemePage(wxNotebook* parent,
   auto leftright = new wxBoxSizer{wxHORIZONTAL};
 
   _item_list = new ItemList<trance_pb::Theme>{
-      splitter, *session.mutable_theme_map(),
+      splitter, *session.mutable_theme_map(), "theme",
       [&](const std::string& s) { _item_selected = s; RefreshOurData(); },
-      std::bind(&CreatorFrame::ThemeCreated, &creator_frame),
-      std::bind(&CreatorFrame::ThemeDeleted, &creator_frame,
+      std::bind(&CreatorFrame::ThemeCreated, &_creator_frame,
                 std::placeholders::_1),
-      std::bind(&CreatorFrame::ThemeRenamed, &creator_frame,
+      std::bind(&CreatorFrame::ThemeDeleted, &_creator_frame,
+                std::placeholders::_1),
+      std::bind(&CreatorFrame::ThemeRenamed, &_creator_frame,
                 std::placeholders::_1, std::placeholders::_2)};
 
   _tree = new wxTreeListCtrl{
@@ -168,6 +169,7 @@ ThemePage::ThemePage(wxNotebook* parent,
   _tree->AppendColumn("");
 
   _image_panel = new ImagePanel{leftright_panel};
+  _image_panel->SetToolTip("Preview of the selected image or animation");
 
   _text_list = new wxListCtrl{
       right_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
@@ -178,6 +180,10 @@ ThemePage::ThemePage(wxNotebook* parent,
   _button_new = new wxButton{right_panel, ID_NEW, "New"};
   _button_edit = new wxButton{right_panel, ID_EDIT, "Edit"};
   _button_delete = new wxButton{right_panel, ID_DELETE, "Delete"};
+
+  _button_new->SetToolTip("Create a new text item");
+  _button_edit->SetToolTip("Edit the selected text item");
+  _button_delete->SetToolTip("Delete the selected text item");
 
   leftleft->Add(_tree, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft_panel->SetSizer(leftleft);
