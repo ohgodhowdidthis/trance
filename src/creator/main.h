@@ -16,6 +16,12 @@ class CreatorFrame : public wxFrame {
 public:
   CreatorFrame(const std::string& executable_path, const std::string& parameter);
   void SettingsClosed();
+  void ThemeCreated();
+  void ThemeDeleted(const std::string& theme_name);
+  void ThemeRenamed(const std::string& old_name, const std::string& new_name);
+  void ProgramCreated();
+  void ProgramDeleted(const std::string& program);
+  void ProgramRenamed(const std::string& old_name, const std::string& new_name);
 
 private:
   enum {

@@ -1,5 +1,6 @@
 #include "program.h"
 #include "item_list.h"
+#include "main.h"
 #include "../common.h"
 
 #pragma warning(push, 0)
@@ -7,8 +8,11 @@
 #include <wx/splitter.h>
 #pragma warning(pop)
 
-ProgramPage::ProgramPage(wxNotebook* parent, trance_pb::Session& session)
+ProgramPage::ProgramPage(wxNotebook* parent,
+                         CreatorFrame& creator_frame,
+                         trance_pb::Session& session)
 : wxNotebookPage{parent, wxID_ANY}
+, _creator_frame{creator_frame}
 , _session(session)
 {
   auto sizer = new wxBoxSizer{wxVERTICAL};
@@ -23,7 +27,12 @@ ProgramPage::ProgramPage(wxNotebook* parent, trance_pb::Session& session)
 
   _item_list = new ItemList<trance_pb::Program>{
       splitter, *session.mutable_program_map(),
-      [&](const std::string& s) { _item_selected = s; }};
+      [&](const std::string& s) { _item_selected = s; },
+      std::bind(&CreatorFrame::ProgramCreated, &creator_frame),
+      std::bind(&CreatorFrame::ProgramDeleted, &creator_frame,
+                std::placeholders::_1),
+      std::bind(&CreatorFrame::ProgramRenamed, &creator_frame,
+                std::placeholders::_1, std::placeholders::_2)};
   bottom_panel->SetSizer(bottom);
 
   sizer->Add(splitter, 1, wxEXPAND, 0);

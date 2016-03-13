@@ -1,5 +1,6 @@
 #include "playlist.h"
 #include "item_list.h"
+#include "main.h"
 #include "../common.h"
 
 #pragma warning(push, 0)
@@ -7,8 +8,11 @@
 #include <wx/splitter.h>
 #pragma warning(pop)
 
-PlaylistPage::PlaylistPage(wxNotebook* parent, trance_pb::Session& session)
+PlaylistPage::PlaylistPage(wxNotebook* parent,
+                           CreatorFrame& creator_frame,
+                           trance_pb::Session& session)
 : wxNotebookPage{parent, wxID_ANY}
+, _creator_frame{creator_frame}
 , _session(session)
 {
   auto sizer = new wxBoxSizer{wxVERTICAL};
@@ -23,7 +27,9 @@ PlaylistPage::PlaylistPage(wxNotebook* parent, trance_pb::Session& session)
 
   _item_list = new ItemList<trance_pb::PlaylistItem>{
       splitter, *session.mutable_playlist(),
-      [&](const std::string& s) { _item_selected = s; }};
+      [&](const std::string& s) { _item_selected = s; },
+      [] {}, [](const std::string&) {},
+      [](const std::string&, const std::string&) {}};
   bottom_panel->SetSizer(bottom);
 
   sizer->Add(splitter, 1, wxEXPAND, 0);

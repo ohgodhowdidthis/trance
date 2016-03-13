@@ -20,11 +20,18 @@ public:
 
   ~ItemList() override {}
   ItemList(wxWindow* parent, map_type& data,
-           std::function<void(const std::string&)> on_change)
+           std::function<void(const std::string&)> on_change,
+           std::function<void()> on_create,
+           std::function<void(const std::string&)> on_delete,
+           std::function<void(const std::string&,
+                              const std::string&)> on_rename)
   : wxPanel{parent, wxID_ANY}
   , _data{data}
   , _list{nullptr}
   , _on_change{on_change}
+  , _on_create{on_create}
+  , _on_delete{on_delete}
+  , _on_rename{on_rename}
   {
     auto sizer = new wxBoxSizer{wxHORIZONTAL};
     auto right = new wxBoxSizer{wxVERTICAL};
@@ -65,6 +72,7 @@ public:
       _data[name] = {};
       SetSelection(name);
       RefreshData();
+      on_create();
     }, ID_NEW);
 
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
@@ -87,6 +95,7 @@ public:
       _data[name] = _data[_selection];
       SetSelection(name);
       RefreshData();
+      on_create();
     }, ID_DUPLICATE);
 
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
@@ -94,8 +103,10 @@ public:
       if (wxMessageBox(
         "Really delete session '" + _selection + "'?", "",
         wxICON_QUESTION | wxYES_NO, this) == wxYES) {
-        _data.erase(_selection);
+        auto name = _selection;
+        _data.erase(name);
         RefreshData();
+        _on_delete(name);
       }
     }, ID_DELETE);
 
@@ -125,6 +136,7 @@ public:
       _data.erase(old_name);
       SetSelection(new_name);
       RefreshData();
+      _on_rename(old_name, new_name);
     }, wxID_ANY);
   }
 
@@ -161,7 +173,7 @@ public:
     }
     _button_rename->Enable(!items.empty());
     _button_duplicate->Enable(!items.empty());
-    _button_delete->Enable(!items.empty());
+    _button_delete->Enable(items.size() > 1);
   }
 
 private:
@@ -179,6 +191,9 @@ private:
   map_type& _data;
   std::string _selection;
   std::function<void(const std::string&)> _on_change;
+  std::function<void()> _on_create;
+  std::function<void(const std::string&)> _on_delete;
+  std::function<void(const std::string&, const std::string&)> _on_rename;
 
   wxButton* _button_new;
   wxButton* _button_rename;

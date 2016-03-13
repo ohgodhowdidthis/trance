@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
+class CreatorFrame;
 template<typename T>
 class ItemList;
 class ImagePanel;
@@ -23,7 +24,9 @@ namespace sf {
 
 class ThemePage : public wxNotebookPage {
 public:
-  ThemePage(wxNotebook* parent, trance_pb::Session& session,
+  ThemePage(wxNotebook* parent,
+            CreatorFrame& creator_frame,
+            trance_pb::Session& session,
             const trance_pb::Theme& complete_theme,
             const std::string& session_path);
   ~ThemePage();
@@ -38,6 +41,7 @@ private:
     ID_DELETE = 22,
   };
 
+  CreatorFrame& _creator_frame;
   trance_pb::Session& _session;
   const trance_pb::Theme& _complete_theme;
   const std::string& _session_path;

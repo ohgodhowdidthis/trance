@@ -1,5 +1,6 @@
 #include "theme.h"
 #include "item_list.h"
+#include "main.h"
 #include "../common.h"
 #include "../image.h"
 
@@ -107,10 +108,13 @@ private:
   wxBitmap _bitmap;
 };
 
-ThemePage::ThemePage(wxNotebook* parent, trance_pb::Session& session,
+ThemePage::ThemePage(wxNotebook* parent,
+                     CreatorFrame& creator_frame,
+                     trance_pb::Session& session,
                      const trance_pb::Theme& complete_theme,
                      const std::string& session_path)
 : wxNotebookPage{parent, wxID_ANY}
+, _creator_frame{creator_frame}
 , _session{session}
 , _complete_theme{complete_theme}
 , _session_path{session_path}
@@ -151,7 +155,12 @@ ThemePage::ThemePage(wxNotebook* parent, trance_pb::Session& session,
 
   _item_list = new ItemList<trance_pb::Theme>{
       splitter, *session.mutable_theme_map(),
-      [&](const std::string& s) { _item_selected = s; RefreshOurData(); }};
+      [&](const std::string& s) { _item_selected = s; RefreshOurData(); },
+      std::bind(&CreatorFrame::ThemeCreated, &creator_frame),
+      std::bind(&CreatorFrame::ThemeDeleted, &creator_frame,
+                std::placeholders::_1),
+      std::bind(&CreatorFrame::ThemeRenamed, &creator_frame,
+                std::placeholders::_1, std::placeholders::_2)};
 
   _tree = new wxTreeListCtrl{
       leftleft_panel, 0, wxDefaultPosition, wxDefaultSize,
