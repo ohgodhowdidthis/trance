@@ -28,8 +28,11 @@ PlaylistPage::PlaylistPage(wxNotebook* parent,
   _item_list = new ItemList<trance_pb::PlaylistItem>{
       splitter, *session.mutable_playlist(),
       [&](const std::string& s) { _item_selected = s; },
-      [] {}, [](const std::string&) {},
-      [](const std::string&, const std::string&) {}};
+      std::bind(&CreatorFrame::PlaylistItemCreated, &creator_frame),
+      std::bind(&CreatorFrame::PlaylistItemDeleted, &creator_frame,
+                std::placeholders::_1),
+      std::bind(&CreatorFrame::PlaylistItemRenamed, &creator_frame,
+                std::placeholders::_1, std::placeholders::_2)};
   bottom_panel->SetSizer(bottom);
 
   sizer->Add(splitter, 1, wxEXPAND, 0);
