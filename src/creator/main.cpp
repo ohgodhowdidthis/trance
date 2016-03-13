@@ -52,9 +52,10 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   SetStatusText("Running in " + _executable_path);
 
   auto notebook = new wxNotebook{_panel, wxID_ANY};
-  _theme_page = new ThemePage{notebook, _session, _complete_theme, _session_path};
-  _program_page = new ProgramPage{notebook, _session};
-  _playlist_page = new PlaylistPage{notebook, _session};
+  _theme_page =
+      new ThemePage{notebook, *this, _session, _complete_theme, _session_path};
+  _program_page = new ProgramPage{notebook, *this, _session};
+  _playlist_page = new PlaylistPage{notebook, *this, _session};
 
   notebook->AddPage(_theme_page, "Themes");
   notebook->AddPage(_program_page, "Programs");
@@ -144,17 +145,72 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   });
 }
 
+void CreatorFrame::SettingsClosed()
+{
+  _settings = nullptr;
+}
+
+void CreatorFrame::ThemeCreated() {
+  _program_page->RefreshData();
+}
+
+void CreatorFrame::ThemeDeleted(const std::string& theme_name) {
+  for (auto& pair : *_session.mutable_program_map()) {
+    auto it = pair.second.mutable_enabled_theme_name()->begin();
+    while (it != pair.second.mutable_enabled_theme_name()->end()) {
+      if (*it == theme_name) {
+        it = pair.second.mutable_enabled_theme_name()->erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+  _program_page->RefreshData();
+}
+
+void CreatorFrame::ThemeRenamed(const std::string& old_name, const std::string& new_name) {
+  for (auto& pair : *_session.mutable_program_map()) {
+    for (auto& theme_name : *pair.second.mutable_enabled_theme_name()) {
+      if (theme_name == old_name) {
+        theme_name = new_name;
+      }
+    }
+  }
+  _program_page->RefreshData();
+}
+
+void CreatorFrame::ProgramCreated() {
+  _playlist_page->RefreshData();
+}
+
+void CreatorFrame::ProgramDeleted(const std::string& program_name) {
+  for (auto& pair : *_session.mutable_playlist()) {
+    if (pair.second.program() == program_name) {
+      if (_session.program_map().empty()) {
+        pair.second.set_program("");
+      } else {
+        pair.second.set_program(_session.program_map().begin()->first);
+      }
+    }
+  }
+  _playlist_page->RefreshData();
+}
+
+void CreatorFrame::ProgramRenamed(const std::string& old_name, const std::string& new_name) {
+  for (auto& pair : *_session.mutable_playlist()) {
+    if (pair.second.program() == old_name) {
+      pair.second.set_program(new_name);
+    }
+  }
+  _playlist_page->RefreshData();
+}
+
 void CreatorFrame::RefreshData()
 {
   _theme_page->RefreshRoot();
   _theme_page->RefreshData();
   _program_page->RefreshData();
   _playlist_page->RefreshData();
-}
-
-void CreatorFrame::SettingsClosed()
-{
-  _settings = nullptr;
 }
 
 bool CreatorFrame::ConfirmDiscardChanges()

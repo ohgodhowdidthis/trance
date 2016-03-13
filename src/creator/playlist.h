@@ -9,16 +9,20 @@
 
 #include <memory>
 
+class CreatorFrame;
 template<typename T>
 class ItemList;
 
 class PlaylistPage : public wxNotebookPage {
 public:
-  PlaylistPage(wxNotebook* parent, trance_pb::Session& session);
+  PlaylistPage(wxNotebook* parent,
+               CreatorFrame& creator_frame,
+               trance_pb::Session& session);
   ~PlaylistPage();
   void RefreshData();
 
 private:
+  CreatorFrame& _creator_frame;
   trance_pb::Session& _session;
   std::string _item_selected;
   ItemList<trance_pb::PlaylistItem>* _item_list;
