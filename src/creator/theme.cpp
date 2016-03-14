@@ -169,7 +169,7 @@ ThemePage::ThemePage(wxNotebook* parent,
   _tree->AppendColumn("");
 
   _image_panel = new ImagePanel{leftright_panel};
-  _image_panel->SetToolTip("Preview of the selected image or animation");
+  _image_panel->SetToolTip("Preview of the selected item");
 
   _text_list = new wxListCtrl{
       right_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
@@ -209,6 +209,13 @@ ThemePage::ThemePage(wxNotebook* parent,
   _text_list->Bind(wxEVT_SIZE, [&](wxSizeEvent&)
   {
     _text_list->SetColumnWidth(0, wxLIST_AUTOSIZE_USEHEADER);
+  }, wxID_ANY);
+
+  _text_list->Bind(wxEVT_LIST_ITEM_SELECTED, [&](wxListEvent& e)
+  {
+    std::string user = _text_list->GetItemText(e.GetIndex());
+    _current_text_line = UserToNl(user);
+    GenerateFontPreview();
   }, wxID_ANY);
 
   right_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
@@ -277,6 +284,7 @@ ThemePage::ThemePage(wxNotebook* parent,
       auto root = std::tr2::sys::path{_session_path}.parent_path().string();
       const auto& images = _complete_theme.image_path();
       const auto& anims = _complete_theme.animation_path();
+      const auto& fonts = _complete_theme.font_path();
       if (std::find(images.begin(), images.end(), path) != images.end()) {
         auto image = load_image(root + "/" + path).get_sf_image();
         if (image) {
@@ -288,6 +296,10 @@ ThemePage::ThemePage(wxNotebook* parent,
         if (!images.empty() && images[0].get_sf_image()) {
           _image_panel->SetImage(*images[0].get_sf_image());
         }
+      }
+      if (std::find(fonts.begin(), fonts.end(), path) != fonts.end()) {
+        _current_font = root + "/" + path;
+        GenerateFontPreview();
       }
     }
   }, wxID_ANY);
@@ -434,4 +446,28 @@ void ThemePage::RefreshRoot()
       }
     }
   }
+}
+
+void ThemePage::GenerateFontPreview()
+{
+  if (_current_font.empty()) {
+    return;
+  }
+  std::string text;
+  if (_current_text_line.empty()) {
+    text = (--std::tr2::sys::path{_current_font}.end())->string();
+  } else {
+    text = _current_text_line;
+  }
+
+  sf::Font font;
+  font.loadFromFile(_current_font);
+  sf::Text text_obj{text, font, 128};
+  auto bounds = text_obj.getLocalBounds();
+
+  sf::RenderTexture texture;
+  texture.create((unsigned) bounds.width, 2 * (unsigned) bounds.height);
+  texture.draw(text_obj);
+  texture.display();
+  _image_panel->SetImage(texture.getTexture().copyToImage());
 }

@@ -41,11 +41,16 @@ private:
     ID_DELETE = 22,
   };
 
+  void GenerateFontPreview();
+
   CreatorFrame& _creator_frame;
   trance_pb::Session& _session;
   const trance_pb::Theme& _complete_theme;
   const std::string& _session_path;
   std::string _item_selected;
+
+  std::string _current_font;
+  std::string _current_text_line;
 
   ItemList<trance_pb::Theme>* _item_list;
   std::unordered_map<std::string, wxTreeListItem> _tree_lookup;
