@@ -243,6 +243,7 @@ ThemePage::ThemePage(wxNotebook* parent,
     RefreshData();
     _text_list->SetItemState(_text_list->GetItemCount() - 1,
                              wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
+    _creator_frame.MakeDirty(true);
   }, ID_NEW);
 
   right_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
@@ -273,6 +274,7 @@ ThemePage::ThemePage(wxNotebook* parent,
           std::min(_text_list->GetItemCount() - 1, removed),
           wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
     }
+    _creator_frame.MakeDirty(true);
   }, ID_DELETE);
 
   right_panel->Bind(wxEVT_LIST_END_LABEL_EDIT, [&](wxListEvent& e)
@@ -295,6 +297,7 @@ ThemePage::ThemePage(wxNotebook* parent,
     RefreshData();
     _current_text_line = new_text;
     GenerateFontPreview();
+    _creator_frame.MakeDirty(true);
   }, wxID_ANY);
 
   leftleft_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
@@ -376,6 +379,7 @@ ThemePage::ThemePage(wxNotebook* parent,
           }
         };
     recurse(e.GetItem());
+    _creator_frame.MakeDirty(true);
   }, wxID_ANY);
 }
 
