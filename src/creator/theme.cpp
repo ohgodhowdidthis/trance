@@ -3,6 +3,7 @@
 #include "main.h"
 #include "../common.h"
 #include "../image.h"
+#include "../session.h"
 
 #pragma warning(push, 0)
 #include <wx/dcclient.h>
@@ -126,12 +127,10 @@ private:
 ThemePage::ThemePage(wxNotebook* parent,
                      CreatorFrame& creator_frame,
                      trance_pb::Session& session,
-                     const trance_pb::Theme& complete_theme,
                      const std::string& session_path)
 : wxNotebookPage{parent, wxID_ANY}
 , _creator_frame{creator_frame}
 , _session{session}
-, _complete_theme{complete_theme}
 , _session_path{session_path}
 , _tree{nullptr}
 {
@@ -164,9 +163,9 @@ ThemePage::ThemePage(wxNotebook* parent,
   left_splitter->SetMinimumPaneSize(128);
 
   auto leftleft_panel = new wxPanel{left_splitter, wxID_ANY};
-  auto leftleft = new wxBoxSizer{wxHORIZONTAL};
+  auto leftleft = new wxBoxSizer{wxVERTICAL};
   auto leftright_panel = new wxPanel{left_splitter, wxID_ANY};
-  auto leftright = new wxBoxSizer{wxHORIZONTAL};
+  auto leftright = new wxBoxSizer{wxVERTICAL};
 
   _item_list = new ItemList<trance_pb::Theme>{
       splitter, *session.mutable_theme_map(), "theme",
@@ -195,12 +194,17 @@ ThemePage::ThemePage(wxNotebook* parent,
   _button_new = new wxButton{right_panel, ID_NEW, "New"};
   _button_edit = new wxButton{right_panel, ID_EDIT, "Edit"};
   _button_delete = new wxButton{right_panel, ID_DELETE, "Delete"};
+  _button_refresh =
+      new wxButton{leftleft_panel, ID_REFRESH, "Refresh directory"};
 
   _button_new->SetToolTip("Create a new text item");
   _button_edit->SetToolTip("Edit the selected text item");
   _button_delete->SetToolTip("Delete the selected text item");
+  _button_refresh->SetToolTip(
+      "Scan the session directory for available images, animations and fonts");
 
   leftleft->Add(_tree, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft->Add(_button_refresh, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft_panel->SetSizer(leftleft);
   leftright->Add(_image_panel, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftright_panel->SetSizer(leftright);
@@ -292,6 +296,12 @@ ThemePage::ThemePage(wxNotebook* parent,
     _current_text_line = new_text;
     GenerateFontPreview();
   }, wxID_ANY);
+
+  leftleft_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
+  {
+    RefreshDirectory(_directory);
+    RefreshData();
+  }, ID_REFRESH);
 
   _tree->Bind(wxEVT_TREELIST_SELECTION_CHANGED, [&](wxTreeListEvent& e)
   {
@@ -424,8 +434,12 @@ void ThemePage::RefreshData()
   RefreshOurData();
 }
 
-void ThemePage::RefreshRoot()
+void ThemePage::RefreshDirectory(const std::string& directory)
 {
+  _directory = directory;
+  _complete_theme = trance_pb::Theme{};
+  search_resources(_complete_theme, directory);
+
   _tree->DeleteAllItems();
   _tree_lookup.clear();
   _tree_lookup["."] = _tree->GetRootItem();
@@ -461,6 +475,31 @@ void ThemePage::RefreshRoot()
             _tree_lookup[parent.string()], it->string(), -1, -1, data);
         _tree_lookup[component.string()] = item;
       }
+    }
+  }
+
+  std::set<std::string> image_set(_complete_theme.image_path().begin(),
+                                  _complete_theme.image_path().end());
+  std::set<std::string> animation_set(_complete_theme.animation_path().begin(),
+                                      _complete_theme.animation_path().end());
+  std::set<std::string> font_set(_complete_theme.font_path().begin(),
+                                 _complete_theme.font_path().end());
+  for (auto& pair : *_session.mutable_theme_map()) {
+    auto& c = _complete_theme;
+    for (auto it = pair.second.mutable_image_path()->begin();
+         it != pair.second.mutable_image_path()->end();) {
+      it = image_set.count(*it) ? 1 + it :
+          pair.second.mutable_image_path()->erase(it);
+    }
+    for (auto it = pair.second.mutable_animation_path()->begin();
+         it != pair.second.mutable_animation_path()->end();) {
+      it = animation_set.count(*it) ? 1 + it :
+          pair.second.mutable_animation_path()->erase(it);
+    }
+    for (auto it = pair.second.mutable_font_path()->begin();
+         it != pair.second.mutable_font_path()->end();) {
+      it = font_set.count(*it) ? 1 + it :
+          pair.second.mutable_font_path()->erase(it);
     }
   }
 }

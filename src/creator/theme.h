@@ -27,27 +27,29 @@ public:
   ThemePage(wxNotebook* parent,
             CreatorFrame& creator_frame,
             trance_pb::Session& session,
-            const trance_pb::Theme& complete_theme,
             const std::string& session_path);
   ~ThemePage();
   void RefreshOurData();
   void RefreshData();
-  void RefreshRoot();
+  void RefreshDirectory(const std::string& directory);
 
 private:
   enum {
     ID_NEW = 20,
     ID_EDIT = 21,
     ID_DELETE = 22,
+    ID_REFRESH = 23,
   };
 
   void GenerateFontPreview();
 
   CreatorFrame& _creator_frame;
   trance_pb::Session& _session;
-  const trance_pb::Theme& _complete_theme;
   const std::string& _session_path;
   std::string _item_selected;
+
+  std::string _directory;
+  trance_pb::Theme _complete_theme;
 
   std::string _current_font;
   std::string _current_text_line;
@@ -59,6 +61,7 @@ private:
   wxButton* _button_new;
   wxButton* _button_edit;
   wxButton* _button_delete;
+  wxButton* _button_refresh;
   wxListCtrl* _text_list;
 };
 
