@@ -37,7 +37,6 @@ private:
   };
 
   trance_pb::Session _session;
-  trance_pb::Theme _complete_theme;
   bool _session_dirty;
   std::string _session_path;
   std::string _executable_path;

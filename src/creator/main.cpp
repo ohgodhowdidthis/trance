@@ -53,7 +53,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
 
   auto notebook = new wxNotebook{_panel, wxID_ANY};
   _theme_page =
-      new ThemePage{notebook, *this, _session, _complete_theme, _session_path};
+      new ThemePage{notebook, *this, _session, _session_path};
   _program_page = new ProgramPage{notebook, *this, _session};
   _playlist_page = new PlaylistPage{notebook, *this, _session};
 
@@ -248,7 +248,6 @@ void CreatorFrame::PlaylistItemRenamed(const std::string& old_name,
 
 void CreatorFrame::RefreshData()
 {
-  _theme_page->RefreshRoot();
   _theme_page->RefreshData();
   _program_page->RefreshData();
   _playlist_page->RefreshData();
@@ -286,9 +285,8 @@ void CreatorFrame::SetSessionPath(const std::string& path)
   SetTitle("Creator - " + _session_path);
   _panel->Show();
   _panel->Layout();
-  auto parent = std::tr2::sys::path{path}.parent_path().string();
-  _complete_theme = trance_pb::Theme{};
-  search_resources(_complete_theme, parent);
+  auto parent = std::tr2::sys::path{_session_path}.parent_path().string();
+  _theme_page->RefreshDirectory(parent);
   RefreshData();
 
   auto system_config_path = get_system_config_path(_executable_path);
