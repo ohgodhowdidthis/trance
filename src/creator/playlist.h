@@ -5,6 +5,7 @@
 #include <src/trance.pb.h>
 #include <wx/frame.h>
 #include <wx/notebook.h>
+#include <wx/treelist.h>
 #pragma warning(pop)
 
 #include <memory>
@@ -19,7 +20,9 @@ public:
                CreatorFrame& creator_frame,
                trance_pb::Session& session);
   ~PlaylistPage();
+  void RefreshOurData();
   void RefreshData();
+  void RefreshProgramsAndPlaylists();
 
 private:
   CreatorFrame& _creator_frame;

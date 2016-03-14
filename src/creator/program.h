@@ -5,6 +5,7 @@
 #include <src/trance.pb.h>
 #include <wx/frame.h>
 #include <wx/notebook.h>
+#include <wx/treelist.h>
 #pragma warning(pop)
 
 #include <memory>
@@ -19,13 +20,18 @@ public:
               CreatorFrame& creator_frame,
               trance_pb::Session& session);
   ~ProgramPage();
+  void RefreshOurData();
   void RefreshData();
+  void RefreshThemes();
 
 private:
   CreatorFrame& _creator_frame;
   trance_pb::Session& _session;
   std::string _item_selected;
+
   ItemList<trance_pb::Program>* _item_list;
+  std::unordered_map<std::string, wxTreeListItem> _tree_lookup;
+  wxTreeListCtrl* _tree;
 };
 
 #endif

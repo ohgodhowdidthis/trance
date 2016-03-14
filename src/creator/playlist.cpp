@@ -27,7 +27,7 @@ PlaylistPage::PlaylistPage(wxNotebook* parent,
 
   _item_list = new ItemList<trance_pb::PlaylistItem>{
       splitter, *session.mutable_playlist(), "playlist item",
-      [&](const std::string& s) { _item_selected = s; },
+      [&](const std::string& s) { _item_selected = s; RefreshOurData(); },
       std::bind(&CreatorFrame::PlaylistItemCreated, &_creator_frame,
                 std::placeholders::_1),
       std::bind(&CreatorFrame::PlaylistItemDeleted, &_creator_frame,
@@ -45,7 +45,16 @@ PlaylistPage::~PlaylistPage()
 {
 }
 
+void PlaylistPage::RefreshOurData()
+{
+}
+
 void PlaylistPage::RefreshData()
 {
   _item_list->RefreshData();
+  RefreshOurData();
+}
+
+void PlaylistPage::RefreshProgramsAndPlaylists()
+{
 }
