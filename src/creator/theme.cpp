@@ -29,8 +29,22 @@ namespace {
     return r;
   }
 
+  std::string StripUserNls(const std::string& nl) {
+    std::string s = nl;
+    std::string r;
+    bool first = true;
+    while (!s.empty()) {
+      auto p = s.find_first_of("\\n");
+      auto q = s.substr(0, p != std::string::npos ? p : s.size());
+      r += (first ? "" : "/") + q;
+      first = false;
+      s = s.substr(p != std::string::npos ? 2 + p : s.size());
+    }
+    return r;
+  }
+
   std::string UserToNl(const std::string& user) {
-    std::string s = NlToUser(user);
+    std::string s = StripUserNls(user);
     std::string r;
     bool first = true;
     std::replace(s.begin(), s.end(), '\\', '/');
@@ -275,6 +289,8 @@ ThemePage::ThemePage(wxNotebook* parent,
       }
     }
     RefreshData();
+    _current_text_line = new_text;
+    GenerateFontPreview();
   }, wxID_ANY);
 
   _tree->Bind(wxEVT_TREELIST_SELECTION_CHANGED, [&](wxTreeListEvent& e)
