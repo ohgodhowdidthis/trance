@@ -15,6 +15,7 @@ class SettingsFrame;
 class CreatorFrame : public wxFrame {
 public:
   CreatorFrame(const std::string& executable_path, const std::string& parameter);
+  void MakeDirty(bool dirty);
   void SettingsClosed();
 
   void ThemeCreated(const std::string& theme_name);

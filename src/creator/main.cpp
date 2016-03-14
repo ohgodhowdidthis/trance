@@ -89,7 +89,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     SetSessionPath(std::string(dialog.GetPath()));
     SetStatusText("Generated default session for " +
                   path.parent_path().string());
-    _session_dirty = true;
+    MakeDirty(true);
   }, wxID_NEW);
 
   Bind(wxEVT_MENU, [&](wxCommandEvent& event)
@@ -108,7 +108,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   Bind(wxEVT_MENU, [&](wxCommandEvent& event)
   {
     save_session(_session, _session_path);
-    _session_dirty = false;
+    MakeDirty(false);
     SetStatusText("Wrote " + _session_path);
     _menu_bar->Enable(ID_LAUNCH_SESSION, true);
   }, wxID_SAVE);
@@ -147,6 +147,12 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   });
 }
 
+void CreatorFrame::MakeDirty(bool dirty)
+{
+  _session_dirty = dirty;
+  SetTitle("Creator - " + _session_path + (_session_dirty ? " [*]" : ""));
+}
+
 void CreatorFrame::SettingsClosed()
 {
   _settings = nullptr;
@@ -155,6 +161,7 @@ void CreatorFrame::SettingsClosed()
 void CreatorFrame::ThemeCreated(const std::string& theme_name) {
   _program_page->RefreshData();
   SetStatusText("Created theme '" + theme_name + "'");
+  MakeDirty(true);
 }
 
 void CreatorFrame::ThemeDeleted(const std::string& theme_name) {
@@ -170,6 +177,7 @@ void CreatorFrame::ThemeDeleted(const std::string& theme_name) {
   }
   _program_page->RefreshData();
   SetStatusText("Deleted theme '" + theme_name + "'");
+  MakeDirty(true);
 }
 
 void CreatorFrame::ThemeRenamed(const std::string& old_name,
@@ -183,11 +191,13 @@ void CreatorFrame::ThemeRenamed(const std::string& old_name,
   }
   _program_page->RefreshData();
   SetStatusText("Renamed theme '" + old_name + "' to '" + new_name + "'");
+  MakeDirty(true);
 }
 
 void CreatorFrame::ProgramCreated(const std::string& program_name) {
   _playlist_page->RefreshData();
   SetStatusText("Created program '" + program_name + "'");
+  MakeDirty(true);
 }
 
 void CreatorFrame::ProgramDeleted(const std::string& program_name) {
@@ -202,6 +212,7 @@ void CreatorFrame::ProgramDeleted(const std::string& program_name) {
   }
   _playlist_page->RefreshData();
   SetStatusText("Deleted program '" + program_name + "'");
+  MakeDirty(true);
 }
 
 void CreatorFrame::ProgramRenamed(const std::string& old_name,
@@ -213,11 +224,13 @@ void CreatorFrame::ProgramRenamed(const std::string& old_name,
   }
   _playlist_page->RefreshData();
   SetStatusText("Renamed program '" + old_name + "' to '" + new_name + "'");
+  MakeDirty(true);
 }
 
 void CreatorFrame::PlaylistItemCreated(const std::string& playlist_item_name) {
   _playlist_page->RefreshData();
   SetStatusText("Created playlist item '" + playlist_item_name + "'");
+  MakeDirty(true);
 }
 
 void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name) {
@@ -230,6 +243,7 @@ void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name) {
   }
   _playlist_page->RefreshData();
   SetStatusText("Deleted playlist item '" + playlist_item_name + "'");
+  MakeDirty(true);
 }
 
 void CreatorFrame::PlaylistItemRenamed(const std::string& old_name,
@@ -244,6 +258,7 @@ void CreatorFrame::PlaylistItemRenamed(const std::string& old_name,
   _playlist_page->RefreshData();
   SetStatusText(
       "Renamed playlist item '" + old_name + "' to '" + new_name + "'");
+  MakeDirty(true);
 }
 
 void CreatorFrame::RefreshData()
@@ -270,7 +285,7 @@ bool CreatorFrame::OpenSession(const std::string& path)
     SetSessionPath(path);
     SetStatusText("Read " + _session_path);
     _menu_bar->Enable(ID_LAUNCH_SESSION, true);
-    _session_dirty = false;
+    MakeDirty(false);
     return true;
   } catch (const std::exception& e) {
     wxMessageBox(std::string(e.what()), "", wxICON_ERROR, this);
@@ -282,7 +297,6 @@ void CreatorFrame::SetSessionPath(const std::string& path)
 {
   _session_path = path;
   _menu_bar->Enable(wxID_SAVE, true);
-  SetTitle("Creator - " + _session_path);
   _panel->Show();
   _panel->Layout();
   auto parent = std::tr2::sys::path{_session_path}.parent_path().string();
