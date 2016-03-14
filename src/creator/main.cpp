@@ -230,7 +230,8 @@ void CreatorFrame::ExportClosed()
 }
 
 void CreatorFrame::ThemeCreated(const std::string& theme_name) {
-  _program_page->RefreshData();
+  _program_page->RefreshThemes();
+  _program_page->RefreshOurData();
   SetStatusText("Created theme '" + theme_name + "'");
   MakeDirty(true);
 }
@@ -246,7 +247,8 @@ void CreatorFrame::ThemeDeleted(const std::string& theme_name) {
       }
     }
   }
-  _program_page->RefreshData();
+  _program_page->RefreshThemes();
+  _program_page->RefreshOurData();
   SetStatusText("Deleted theme '" + theme_name + "'");
   MakeDirty(true);
 }
@@ -260,13 +262,15 @@ void CreatorFrame::ThemeRenamed(const std::string& old_name,
       }
     }
   }
-  _program_page->RefreshData();
+  _program_page->RefreshThemes();
+  _program_page->RefreshOurData();
   SetStatusText("Renamed theme '" + old_name + "' to '" + new_name + "'");
   MakeDirty(true);
 }
 
 void CreatorFrame::ProgramCreated(const std::string& program_name) {
-  _playlist_page->RefreshData();
+  _playlist_page->RefreshProgramsAndPlaylists();
+  _playlist_page->RefreshOurData();
   SetStatusText("Created program '" + program_name + "'");
   MakeDirty(true);
 }
@@ -281,7 +285,8 @@ void CreatorFrame::ProgramDeleted(const std::string& program_name) {
       }
     }
   }
-  _playlist_page->RefreshData();
+  _playlist_page->RefreshProgramsAndPlaylists();
+  _playlist_page->RefreshOurData();
   SetStatusText("Deleted program '" + program_name + "'");
   MakeDirty(true);
 }
@@ -293,13 +298,15 @@ void CreatorFrame::ProgramRenamed(const std::string& old_name,
       pair.second.set_program(new_name);
     }
   }
-  _playlist_page->RefreshData();
+  _playlist_page->RefreshProgramsAndPlaylists();
+  _playlist_page->RefreshOurData();
   SetStatusText("Renamed program '" + old_name + "' to '" + new_name + "'");
   MakeDirty(true);
 }
 
 void CreatorFrame::PlaylistItemCreated(const std::string& playlist_item_name) {
-  _playlist_page->RefreshData();
+  _playlist_page->RefreshProgramsAndPlaylists();
+  _playlist_page->RefreshOurData();
   SetStatusText("Created playlist item '" + playlist_item_name + "'");
   MakeDirty(true);
 }
@@ -312,7 +319,8 @@ void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name) {
       }
     }
   }
-  _playlist_page->RefreshData();
+  _playlist_page->RefreshProgramsAndPlaylists();
+  _playlist_page->RefreshOurData();
   SetStatusText("Deleted playlist item '" + playlist_item_name + "'");
   MakeDirty(true);
 }
@@ -326,17 +334,11 @@ void CreatorFrame::PlaylistItemRenamed(const std::string& old_name,
       }
     }
   }
-  _playlist_page->RefreshData();
+  _playlist_page->RefreshProgramsAndPlaylists();
+  _playlist_page->RefreshOurData();
   SetStatusText(
       "Renamed playlist item '" + old_name + "' to '" + new_name + "'");
   MakeDirty(true);
-}
-
-void CreatorFrame::RefreshData()
-{
-  _theme_page->RefreshData();
-  _program_page->RefreshData();
-  _playlist_page->RefreshData();
 }
 
 bool CreatorFrame::ConfirmDiscardChanges()
@@ -373,7 +375,11 @@ void CreatorFrame::SetSessionPath(const std::string& path)
   _panel->Layout();
   auto parent = std::tr2::sys::path{_session_path}.parent_path().string();
   _theme_page->RefreshDirectory(parent);
-  RefreshData();
+  _theme_page->RefreshData();
+  _program_page->RefreshThemes();
+  _program_page->RefreshData();
+  _playlist_page->RefreshProgramsAndPlaylists();
+  _playlist_page->RefreshData();
 
   _system.set_last_root_directory(parent);
   SaveSystem(false);

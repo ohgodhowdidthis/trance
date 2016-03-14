@@ -56,7 +56,6 @@ private:
   wxPanel* _panel;
   wxMenuBar* _menu_bar;
 
-  void RefreshData();
   bool ConfirmDiscardChanges();
   bool OpenSession(const std::string& path);
   void SetSessionPath(const std::string& path);

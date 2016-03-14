@@ -482,12 +482,12 @@ void ThemePage::RefreshDirectory(const std::string& directory)
     }
   }
 
-  std::set<std::string> image_set(_complete_theme.image_path().begin(),
-                                  _complete_theme.image_path().end());
-  std::set<std::string> animation_set(_complete_theme.animation_path().begin(),
-                                      _complete_theme.animation_path().end());
-  std::set<std::string> font_set(_complete_theme.font_path().begin(),
-                                 _complete_theme.font_path().end());
+  std::set<std::string> image_set{_complete_theme.image_path().begin(),
+                                  _complete_theme.image_path().end()};
+  std::set<std::string> animation_set{_complete_theme.animation_path().begin(),
+                                      _complete_theme.animation_path().end()};
+  std::set<std::string> font_set{_complete_theme.font_path().begin(),
+                                 _complete_theme.font_path().end()};
   for (auto& pair : *_session.mutable_theme_map()) {
     auto& c = _complete_theme;
     for (auto it = pair.second.mutable_image_path()->begin();
