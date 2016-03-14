@@ -1,10 +1,12 @@
 #include "main.h"
+#include "export.h"
 #include "playlist.h"
 #include "program.h"
 #include "settings.h"
 #include "theme.h"
 #include "../common.h"
 #include "../session.h"
+#include "../util.h"
 #include <filesystem>
 
 #pragma warning(push, 0)
@@ -26,6 +28,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
 , _session_dirty{false}
 , _executable_path{executable_path}
 , _settings{nullptr}
+, _export{nullptr}
 , _theme_page{nullptr}
 , _program_page{nullptr}
 , _playlist_page{nullptr}
@@ -39,6 +42,8 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   menu_file->AppendSeparator();
   menu_file->Append(ID_LAUNCH_SESSION, "&Launch session\tCtrl+L",
                    "Launch the current session");
+  menu_file->Append(ID_EXPORT_VIDEO, "Export &video...\tCtrl+V",
+                   "Export the current session as a video");
   menu_file->AppendSeparator();
   menu_file->Append(ID_EDIT_SYSTEM_CONFIG, "&Edit system settings...\tCtrl+E",
                    "Edit global system settings that apply to all sessions");
@@ -47,9 +52,22 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   _menu_bar->Append(menu_file, "&File");
   _menu_bar->Enable(wxID_SAVE, false);
   _menu_bar->Enable(ID_LAUNCH_SESSION, false);
+  _menu_bar->Enable(ID_EXPORT_VIDEO, false);
   SetMenuBar(_menu_bar);
   CreateStatusBar();
-  SetStatusText("Running in " + _executable_path);
+
+  std::string status = "Running in " + _executable_path;
+  try {
+    auto system_path = get_system_config_path(executable_path);
+    _system = load_system(system_path);
+    status += "; read " + system_path;
+  } catch (std::runtime_error&) {
+    _system = get_default_system();
+  }
+  if (_system.last_root_directory().empty()) {
+    _system.set_last_root_directory(executable_path);
+  }
+  SetStatusText(status);
 
   auto notebook = new wxNotebook{_panel, wxID_ANY};
   _theme_page =
@@ -77,7 +95,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
       return;
     }
     wxFileDialog dialog{
-        this, "Choose session location", GetLastRootDirectory(),
+        this, "Choose session location", _system.last_root_directory(),
         DEFAULT_SESSION_PATH, session_file_pattern,
         wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
     if (dialog.ShowModal() == wxID_CANCEL) {
@@ -97,7 +115,8 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     if (!ConfirmDiscardChanges()) {
       return;
     }
-    wxFileDialog dialog{this, "Open session file", GetLastRootDirectory(),
+    wxFileDialog dialog{
+        this, "Open session file", _system.last_root_directory(),
         "", session_file_pattern, wxFD_OPEN | wxFD_FILE_MUST_EXIST};
     if (dialog.ShowModal() == wxID_CANCEL) {
       return;
@@ -111,6 +130,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     MakeDirty(false);
     SetStatusText("Wrote " + _session_path);
     _menu_bar->Enable(ID_LAUNCH_SESSION, true);
+    _menu_bar->Enable(ID_EXPORT_VIDEO, true);
   }, wxID_SAVE);
 
   Bind(wxEVT_MENU, [&](wxCommandEvent& event)
@@ -125,11 +145,25 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
 
   Bind(wxEVT_MENU, [&](wxCommandEvent& event)
   {
+    if (_export) {
+      _export->Raise();
+      return;
+    }
+    auto default_path = (_executable_path /
+        *--std::tr2::sys::path{_session_path}.end()).string();
+    _export = new ExportFrame{this, _system, _executable_path, default_path};
+    if (_export->Cancelled()) {
+      _export->Close();
+    }
+  }, ID_EXPORT_VIDEO);
+
+  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
+  {
     if (_settings) {
       _settings->Raise();
       return;
     }
-    _settings = new SettingsFrame{this, _executable_path};
+    _settings = new SettingsFrame{this, _system};
   }, ID_EDIT_SYSTEM_CONFIG);
 
   Bind(wxEVT_MENU, [&](wxCommandEvent& event)
@@ -150,12 +184,49 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
 void CreatorFrame::MakeDirty(bool dirty)
 {
   _session_dirty = dirty;
-  SetTitle("Creator - " + _session_path + (_session_dirty ? " [*]" : ""));
+  SetTitle((_session_dirty ? " [*] Creator - " : "Creator - ") + _session_path);
+}
+
+void CreatorFrame::SaveSystem(bool show_status)
+{
+  auto system_path = get_system_config_path(_executable_path);
+  save_system(_system, system_path);
+  if (show_status) {
+    SetStatusText("Wrote " + system_path);
+  }
+}
+
+void CreatorFrame::ExportVideo(const std::string& path) {
+  bool frame_by_frame =
+      ext_is(path, "jpg") || ext_is(path, "png") || ext_is(path, "bmp");
+  const auto& settings = _system.last_export_settings();
+
+  auto trance_exe_path = get_trance_exe_path(_executable_path);
+  auto system_config_path = get_system_config_path(_executable_path);
+  auto command_line = trance_exe_path +
+      " \"" + _session_path + "\" \"" + system_config_path +
+      "\" --export_path=\"" + path +
+      "\" --export_width=" + std::to_string(settings.width()) +
+      " --export_height=" + std::to_string(settings.height()) +
+      " --export_fps=" + std::to_string(settings.fps()) +
+      " --export_length=" + std::to_string(settings.length());
+  if (!frame_by_frame) {
+    command_line +=
+        " --export_quality=" + std::to_string(settings.quality()) +
+        " --export_threads=" + std::to_string(settings.threads());
+  }
+  SetStatusText("Running " + command_line);
+  wxExecute(command_line, wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE);
 }
 
 void CreatorFrame::SettingsClosed()
 {
   _settings = nullptr;
+}
+
+void CreatorFrame::ExportClosed()
+{
+  _export = nullptr;
 }
 
 void CreatorFrame::ThemeCreated(const std::string& theme_name) {
@@ -285,6 +356,7 @@ bool CreatorFrame::OpenSession(const std::string& path)
     SetSessionPath(path);
     SetStatusText("Read " + _session_path);
     _menu_bar->Enable(ID_LAUNCH_SESSION, true);
+    _menu_bar->Enable(ID_EXPORT_VIDEO, true);
     MakeDirty(false);
     return true;
   } catch (const std::exception& e) {
@@ -303,28 +375,8 @@ void CreatorFrame::SetSessionPath(const std::string& path)
   _theme_page->RefreshDirectory(parent);
   RefreshData();
 
-  auto system_config_path = get_system_config_path(_executable_path);
-  trance_pb::System system;
-  try {
-    system = load_system(system_config_path);
-  } catch (std::runtime_error&) {
-    system = get_default_system();
-  }
-  system.set_last_root_directory(parent);
-  save_system(system, system_config_path);
-  if (_settings) {
-    _settings->SetLastRootDirectory(parent);
-  }
-}
-
-std::string CreatorFrame::GetLastRootDirectory() const
-{
-  std::string path;
-  try {
-    auto system_config_path = get_system_config_path(_executable_path);
-    path = load_system(system_config_path).last_root_directory();
-  } catch (std::runtime_error&) {}
-  return path.empty() ? _executable_path : path;
+  _system.set_last_root_directory(parent);
+  SaveSystem(false);
 }
 
 class CreatorApp : public wxApp {

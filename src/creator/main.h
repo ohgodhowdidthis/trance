@@ -8,6 +8,7 @@
 #include <wx/panel.h>
 #pragma warning(pop)
 
+class ExportFrame;
 class PlaylistPage;
 class ProgramPage;
 class ThemePage;
@@ -16,7 +17,10 @@ class CreatorFrame : public wxFrame {
 public:
   CreatorFrame(const std::string& executable_path, const std::string& parameter);
   void MakeDirty(bool dirty);
+  void SaveSystem(bool show_status);
+  void ExportVideo(const std::string& path);
   void SettingsClosed();
+  void ExportClosed();
 
   void ThemeCreated(const std::string& theme_name);
   void ThemeDeleted(const std::string& theme_name);
@@ -35,14 +39,17 @@ private:
   enum {
     ID_EDIT_SYSTEM_CONFIG = 1,
     ID_LAUNCH_SESSION = 2,
+    ID_EXPORT_VIDEO = 3,
   };
 
+  trance_pb::System _system;
   trance_pb::Session _session;
   bool _session_dirty;
   std::string _session_path;
   std::string _executable_path;
 
   SettingsFrame* _settings;
+  ExportFrame* _export;
   ThemePage* _theme_page;
   ProgramPage* _program_page;
   PlaylistPage* _playlist_page;
@@ -53,7 +60,6 @@ private:
   bool ConfirmDiscardChanges();
   bool OpenSession(const std::string& path);
   void SetSessionPath(const std::string& path);
-  std::string GetLastRootDirectory() const;
 };
 
 #endif

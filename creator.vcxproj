@@ -176,6 +176,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\creator\export.cpp" />
     <ClCompile Include="src\creator\main.cpp" />
     <ClCompile Include="src\creator\playlist.cpp" />
     <ClCompile Include="src\creator\program.cpp" />
@@ -186,6 +187,7 @@
     <ClCompile Include="src\session.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\creator\export.h" />
     <ClInclude Include="src\creator\item_list.h" />
     <ClInclude Include="src\creator\main.h" />
     <ClInclude Include="src\creator\playlist.h" />

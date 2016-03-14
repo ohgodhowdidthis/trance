@@ -1,10 +1,10 @@
 #include "settings.h"
 #include "main.h"
 #include "../common.h"
-#include "../session.h"
 
 #pragma warning(push, 0)
 #include <src/trance.pb.h>
+#include <wx/panel.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #pragma warning(pop)
@@ -45,22 +45,13 @@ namespace {
       "default value is 4.";
 }
 
-SettingsFrame::SettingsFrame(CreatorFrame* parent,
-                             const std::string& executable_path)
-: wxFrame{parent, wxID_ANY, "System Settings",
+SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
+: wxFrame{parent, wxID_ANY, "System settings",
           wxDefaultPosition, wxDefaultSize,
           wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN}
-, _system_path{get_system_config_path(executable_path)}
-, _system_dirty{false}
+, _system{system}
 , _parent{parent}
 {
-  try {
-    _system = load_system(_system_path);
-    _parent->SetStatusText("Read " + _system_path);
-  } catch (std::runtime_error&) {
-    _system = get_default_system();
-  }
-
   auto panel = new wxPanel{this};
   auto sizer = new wxBoxSizer{wxVERTICAL};
   auto top = new wxBoxSizer{wxHORIZONTAL};
@@ -152,19 +143,8 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent,
   });
 }
 
-void SettingsFrame::SetLastRootDirectory(const std::string& path)
-{
-  _system.set_last_root_directory(path);
-}
-
 void SettingsFrame::Changed()
 {
-  _system.set_enable_vsync(_enable_vsync->GetValue());
-  _system.set_enable_oculus_rift(_enable_oculus_rift->GetValue());
-  _system.set_image_cache_size(_image_cache_size->GetValue());
-  _system.set_font_cache_size(_font_cache_size->GetValue());
-  _system.set_oculus_image_depth(v2f(_image_depth->GetValue()));
-  _system.set_oculus_text_depth(v2f(_text_depth->GetValue()));
   _image_depth->Enable(_system.enable_oculus_rift());
   _text_depth->Enable(_system.enable_oculus_rift());
   _button_apply->Enable(true);
@@ -172,7 +152,12 @@ void SettingsFrame::Changed()
 
 void SettingsFrame::Apply()
 {
-  save_system(_system, _system_path);
-  _parent->SetStatusText("Wrote " + _system_path);
+  _system.set_enable_vsync(_enable_vsync->GetValue());
+  _system.set_enable_oculus_rift(_enable_oculus_rift->GetValue());
+  _system.set_image_cache_size(_image_cache_size->GetValue());
+  _system.set_font_cache_size(_font_cache_size->GetValue());
+  _system.set_oculus_image_depth(v2f(_image_depth->GetValue()));
+  _system.set_oculus_text_depth(v2f(_text_depth->GetValue()));
+  _parent->SaveSystem(true);
   _button_apply->Enable(false);
 }

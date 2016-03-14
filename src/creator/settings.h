@@ -2,15 +2,16 @@
 #define TRANCE_CREATOR_SETTINGS_H
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
 #include <wx/button.h>
 #include <wx/checkbox.h>
 #include <wx/frame.h>
-#include <wx/panel.h>
 #include <wx/slider.h>
 #include <wx/spinctrl.h>
 #pragma warning(pop)
 
+namespace trance_pb {
+  class System;
+}
 class CreatorFrame;
 class SettingsFrame : public wxFrame {
 public:
@@ -19,13 +20,10 @@ public:
     ID_CANCEL = 2,
     ID_APPLY = 3,
   };
-  SettingsFrame(CreatorFrame* parent, const std::string& executable_path);
-  void SetLastRootDirectory(const std::string& path);
+  SettingsFrame(CreatorFrame* parent, trance_pb::System& system);
 
 private:
-  const std::string _system_path;
-  trance_pb::System _system;
-  bool _system_dirty;
+  trance_pb::System& _system;
 
   CreatorFrame* _parent;
   wxCheckBox* _enable_vsync;
