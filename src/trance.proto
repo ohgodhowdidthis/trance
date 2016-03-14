@@ -8,6 +8,23 @@ message Colour {
   float a = 4;
 }
 
+message ExportSettings {
+  // Last path exported to.
+  string path = 1;
+  // Width in pixels of the video.
+  uint32 width = 2;
+  // Height in pixels of the video.
+  uint32 height = 3;
+  // Frames per seconds of the video.
+  uint32 fps = 4;
+  // Length in seconds of the video.
+  uint32 length = 5;
+  // 0 to 4, 0 is best.
+  uint32 quality = 6;
+  // Number of threads for encoding.
+  uint32 threads = 7;
+}
+
 // General system-wide configuration.
 message System {
   // Enable vsync to eliminate tearing, but can cause stuttering.
@@ -34,6 +51,8 @@ message System {
 
   // Last known root directory.
   string last_root_directory = 8;
+  // Last used export settings.
+  ExportSettings last_export_settings = 9;
 }
 
 // Configuration for a single program, i.e. a combination of a selection of

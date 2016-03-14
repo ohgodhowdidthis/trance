@@ -302,6 +302,15 @@ trance_pb::System get_default_system()
   system.set_oculus_text_depth(1.f);
   system.set_image_cache_size(64);
   system.set_font_cache_size(16);
+
+  auto& export_settings = *system.mutable_last_export_settings();
+  export_settings.set_width(1280);
+  export_settings.set_height(720);
+  export_settings.set_fps(30);
+  export_settings.set_length(60);
+  export_settings.set_quality(2);
+  export_settings.set_threads(4);
+
   return system;
 }
 
