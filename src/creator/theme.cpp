@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <thread>
 
 namespace {
   std::string NlToUser(const std::string& nl) {
@@ -460,14 +461,24 @@ void ThemePage::GenerateFontPreview()
     text = _current_text_line;
   }
 
-  sf::Font font;
-  font.loadFromFile(_current_font);
-  sf::Text text_obj{text, font, 128};
-  auto bounds = text_obj.getLocalBounds();
+  static const unsigned border = 32;
+  static const unsigned font_size = 128;
+  // Render in another thread to avoid interfering with OpenGL contexts.
+  std::thread worker([&]
+  {
+    sf::Font font;
+    font.loadFromFile(_current_font);
+    sf::Text text_obj{text, font, font_size};
+    auto bounds = text_obj.getLocalBounds();
 
-  sf::RenderTexture texture;
-  texture.create((unsigned) bounds.width, 2 * (unsigned) bounds.height);
-  texture.draw(text_obj);
-  texture.display();
-  _image_panel->SetImage(texture.getTexture().copyToImage());
+    sf::RenderTexture texture;
+    texture.create(border + (unsigned) bounds.width,
+                   border + (unsigned) bounds.height);
+    sf::Transform transform;
+    transform.translate(border / 2 - bounds.left, border / 2 - bounds.top);
+    texture.draw(text_obj, transform);
+    texture.display();
+    _image_panel->SetImage(texture.getTexture().copyToImage());
+  });
+  worker.join();
 }
