@@ -93,7 +93,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\dependencies\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libx264.lib;libwebm.lib;vpxmdd.lib;opengl32.lib;jpeg.lib;libgif.a;sfml-system-s-d.lib;sfml-graphics-s-d.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libx264.lib;libwebm.lib;freetype.lib;vpxmdd.lib;opengl32.lib;jpeg.lib;libgif.a;sfml-system-s-d.lib;sfml-graphics-s-d.lib;sfml-window-s-d.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
@@ -115,7 +115,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\dependencies\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libx264.lib;libwebm.lib;vpxmdd.lib;opengl32.lib;jpeg.lib;libgif.a;sfml-system-s-d.lib;sfml-graphics-s-d.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libx264.lib;libwebm.lib;freetype.lib;vpxmdd.lib;opengl32.lib;jpeg.lib;libgif.a;sfml-system-s-d.lib;sfml-graphics-s-d.lib;sfml-window-s-d.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
@@ -140,7 +140,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\dependencies\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libx264.lib;libwebm.lib;vpxmd.lib;opengl32.lib;jpeg.lib;libgif.a;sfml-system-s.lib;sfml-graphics-s.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libx264.lib;libwebm.lib;freetype.lib;vpxmd.lib;opengl32.lib;jpeg.lib;libgif.a;sfml-system-s.lib;sfml-graphics-s.lib;sfml-window-s.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
@@ -166,7 +166,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\dependencies\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libx264.lib;libwebm.lib;vpxmd.lib;opengl32.lib;jpeg.lib;libgif.a;sfml-system-s.lib;sfml-graphics-s.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;winmm.lib;shlwapi.lib;libx264.lib;libwebm.lib;freetype.lib;vpxmd.lib;opengl32.lib;jpeg.lib;libgif.a;sfml-system-s.lib;sfml-graphics-s.lib;sfml-window-s.lib;libprotobuf.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
     </Link>
