@@ -153,7 +153,8 @@ ThemePage::ThemePage(wxNotebook* parent,
   auto left_panel = new wxPanel{bottom_splitter, wxID_ANY};
   auto left = new wxBoxSizer{wxHORIZONTAL};
   auto right_panel = new wxPanel{bottom_splitter, wxID_ANY};
-  auto right = new wxBoxSizer{wxHORIZONTAL};
+  auto right =
+      new wxStaticBoxSizer{wxVERTICAL, right_panel, "Text messages"};
   auto right_buttons = new wxBoxSizer{wxVERTICAL};
 
   auto left_splitter = new wxSplitterWindow{
@@ -163,9 +164,11 @@ ThemePage::ThemePage(wxNotebook* parent,
   left_splitter->SetMinimumPaneSize(128);
 
   auto leftleft_panel = new wxPanel{left_splitter, wxID_ANY};
-  auto leftleft = new wxBoxSizer{wxVERTICAL};
+  auto leftleft =
+      new wxStaticBoxSizer{wxVERTICAL, leftleft_panel, "Included files"};
   auto leftright_panel = new wxPanel{left_splitter, wxID_ANY};
-  auto leftright = new wxBoxSizer{wxVERTICAL};
+  auto leftright =
+      new wxStaticBoxSizer{wxVERTICAL, leftright_panel, "Preview"};
 
   _item_list = new ItemList<trance_pb::Theme>{
       splitter, *session.mutable_theme_map(), "theme",
@@ -180,16 +183,20 @@ ThemePage::ThemePage(wxNotebook* parent,
   _tree = new wxTreeListCtrl{
       leftleft_panel, 0, wxDefaultPosition, wxDefaultSize,
       wxTL_SINGLE | wxTL_CHECKBOX | wxTL_3STATE | wxTL_NO_HEADER};
+  _tree->GetView()->SetToolTip("Images, animations and fonts that are part "
+                               "of the currently-selected theme.");
   _tree->AppendColumn("");
 
   _image_panel = new ImagePanel{leftright_panel};
-  _image_panel->SetToolTip("Preview of the selected item");
+  _image_panel->SetToolTip("Preview of the selected file.");
 
   _text_list = new wxListCtrl{
       right_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
       wxLC_REPORT | wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_EDIT_LABELS};
   _text_list->InsertColumn(0, "Text", wxLIST_FORMAT_LEFT,
                            wxLIST_AUTOSIZE_USEHEADER);
+  _text_list->SetToolTip("Text messages that are part "
+                         "of the currently-selected theme.");
 
   _button_new = new wxButton{right_panel, ID_NEW, "New"};
   _button_edit = new wxButton{right_panel, ID_EDIT, "Edit"};
@@ -197,11 +204,11 @@ ThemePage::ThemePage(wxNotebook* parent,
   _button_refresh =
       new wxButton{leftleft_panel, ID_REFRESH, "Refresh directory"};
 
-  _button_new->SetToolTip("Create a new text item");
-  _button_edit->SetToolTip("Edit the selected text item");
-  _button_delete->SetToolTip("Delete the selected text item");
+  _button_new->SetToolTip("Create a new text item.");
+  _button_edit->SetToolTip("Edit the selected text item.");
+  _button_delete->SetToolTip("Delete the selected text item.");
   _button_refresh->SetToolTip(
-      "Scan the session directory for available images, animations and fonts");
+      "Scan the session directory for available images, animations and fonts.");
 
   leftleft->Add(_tree, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft->Add(_button_refresh, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
@@ -240,7 +247,7 @@ ThemePage::ThemePage(wxNotebook* parent,
   right_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
   {
     (*_session.mutable_theme_map())[_item_selected].add_text_line("NEW TEXT");
-    RefreshData();
+    RefreshOurData();
     _text_list->SetItemState(_text_list->GetItemCount() - 1,
                              wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
     _creator_frame.MakeDirty(true);
@@ -268,7 +275,7 @@ ThemePage::ThemePage(wxNotebook* parent,
         break;
       }
     }
-    RefreshData();
+    RefreshOurData();
     if (removed >= 0 && _text_list->GetItemCount()) {
       _text_list->SetItemState(
           std::min(_text_list->GetItemCount() - 1, removed),
@@ -294,7 +301,7 @@ ThemePage::ThemePage(wxNotebook* parent,
             .mutable_text_line()->Mutable(i) = new_text;
       }
     }
-    RefreshData();
+    RefreshOurData();
     _current_text_line = new_text;
     GenerateFontPreview();
     _creator_frame.MakeDirty(true);
@@ -303,7 +310,7 @@ ThemePage::ThemePage(wxNotebook* parent,
   leftleft_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
   {
     RefreshDirectory(_directory);
-    RefreshData();
+    RefreshOurData();
   }, ID_REFRESH);
 
   _tree->Bind(wxEVT_TREELIST_SELECTION_CHANGED, [&](wxTreeListEvent& e)

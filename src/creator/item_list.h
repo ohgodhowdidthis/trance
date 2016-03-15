@@ -42,16 +42,17 @@ public:
         wxLC_REPORT | wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_EDIT_LABELS};
     _list->InsertColumn(0, "Name", wxLIST_FORMAT_LEFT,
                         wxLIST_AUTOSIZE_USEHEADER);
+    _list->SetToolTip("Available " + _type_name + "s.");
 
     _button_new = new wxButton{this, ID_NEW, "New"};
     _button_rename = new wxButton{this, ID_RENAME, "Rename"};
     _button_duplicate = new wxButton{this, ID_DUPLICATE, "Duplicate"};
     _button_delete = new wxButton{this, ID_DELETE, "Delete"};
 
-    _button_new->SetToolTip("Create a new, blank " + _type_name);
-    _button_rename->SetToolTip("Rename the selected " + _type_name);
-    _button_duplicate->SetToolTip("Duplicate the selected " + _type_name);
-    _button_delete->SetToolTip("Delete the selected " + _type_name);
+    _button_new->SetToolTip("Create a new, blank " + _type_name + ".");
+    _button_rename->SetToolTip("Rename the selected " + _type_name + ".");
+    _button_duplicate->SetToolTip("Duplicate the selected " + _type_name + ".");
+    _button_delete->SetToolTip("Delete the selected " + _type_name + ".");
 
     sizer->Add(_list, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
     sizer->Add(right, 0, wxEXPAND, 0);
