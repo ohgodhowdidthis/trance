@@ -24,6 +24,9 @@ public:
   SettingsFrame(CreatorFrame* parent, trance_pb::System& system);
 
 private:
+  void Changed();
+  void Apply();
+
   trance_pb::System& _system;
 
   CreatorFrame* _parent;
@@ -34,9 +37,6 @@ private:
   wxSlider* _image_depth;
   wxSlider* _text_depth;
   wxButton* _button_apply;
-
-  void Changed();
-  void Apply();
 };
 
 #endif

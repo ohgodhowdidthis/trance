@@ -5,7 +5,10 @@
 
 #pragma warning(push, 0)
 #include <src/trance.pb.h>
+#include <wx/checkbox.h>
+#include <wx/clrpicker.h>
 #include <wx/sizer.h>
+#include <wx/slider.h>
 #include <wx/spinctrl.h>
 #include <wx/splitter.h>
 #include <wx/stattext.h>
@@ -13,6 +16,33 @@
 #pragma warning(pop)
 
 namespace {
+  int f2v(float f) {
+    return int(f * 10);
+  }
+
+  float v2f(int v) {
+    return float(v) / 10;
+  }
+
+  void c2v(const trance_pb::Colour& c,
+           wxColourPickerCtrl* colour, wxSpinCtrl* alpha) {
+    colour->SetColour(
+        wxColour{unsigned char(255 * c.r()), unsigned char(255 * c.g()),
+                 unsigned char(255 * c.b()), unsigned char(alpha->GetValue())});
+    alpha->SetValue(unsigned char(255 * c.a()));
+  }
+
+  trance_pb::Colour v2c(wxColourPickerCtrl* colour, wxSpinCtrl* alpha) {
+    auto v = colour->GetColour();
+    trance_pb::Colour c;
+    c.set_r(v.Red() / 255.f);
+    c.set_g(v.Green() / 255.f);
+    c.set_b(v.Blue() / 255.f);
+    c.set_a(alpha->GetValue() / 255.f);
+    c2v(c, colour, alpha);
+    return c;
+  }
+
   const std::string ACCELERATE_TOOLTIP =
       "Accelerates and decelerates changing images with overlaid text.";
   const std::string SLOW_FLASH_TOOLTIP =
@@ -31,6 +61,19 @@ namespace {
   const std::string SUPER_FAST_TOOLTIP =
       "Splices rapidly-changing images and overlaid text with "
       "brief clips of animation.";
+
+  const std::string GLOBAL_FPS_TOOLTIP =
+      "Global speed (in ticks per second) while this program is active. "
+      "Higher is faster. The default is 120.";
+  const std::string ZOOM_INTENSITY_TOOLTIP =
+      "Intensity of the zoom effect on static images "
+      "(zero to disable entirely).";
+  const std::string REVERSE_SPIRAL_TOOLTIP =
+      "Reverse the spin direction of the spiral.";
+  const std::string SPIRAL_COLOUR_TOOLTIP =
+      "Two colours for the spiral.";
+  const std::string TEXT_COLOUR_TOOLTIP =
+      "Main colour and shadow effect colour for text messages.";
 }
 
 ProgramPage::ProgramPage(wxNotebook* parent,
@@ -145,6 +188,62 @@ ProgramPage::ProgramPage(wxNotebook* parent,
   left->Add(left_splitter, 1, wxEXPAND, 0);
   left_splitter->SplitVertically(leftleft_panel, leftright_panel);
   left_panel->SetSizer(left);
+
+  wxStaticText* label = nullptr;
+
+  _global_fps = new wxSpinCtrl{right_panel, wxID_ANY};
+  _global_fps->SetToolTip(GLOBAL_FPS_TOOLTIP);
+  _global_fps->SetRange(1, 960);
+  label = new wxStaticText{right_panel, wxID_ANY, "Global speed:"};
+  label->SetToolTip(GLOBAL_FPS_TOOLTIP);
+  right->Add(label, 0, wxALL, DEFAULT_BORDER);
+  right->Add(_global_fps, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+
+  _zoom_intensity = new wxSlider{
+      right_panel, wxID_ANY, 0, 0, 10,
+      wxDefaultPosition, wxDefaultSize,
+      wxSL_HORIZONTAL | wxSL_AUTOTICKS | wxSL_VALUE_LABEL};
+  _zoom_intensity->SetToolTip(ZOOM_INTENSITY_TOOLTIP);
+  label = new wxStaticText{right_panel, wxID_ANY, "Zoom intensity:"};
+  label->SetToolTip(ZOOM_INTENSITY_TOOLTIP);
+  right->Add(label, 0, wxALL, DEFAULT_BORDER);
+  right->Add(_zoom_intensity, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+
+  _reverse_spiral =
+      new wxCheckBox{right_panel, wxID_ANY, "Reverse spiral direction"};
+  _reverse_spiral->SetToolTip(REVERSE_SPIRAL_TOOLTIP);
+  right->Add(_reverse_spiral, 0, wxALL, DEFAULT_BORDER);
+
+  auto setup_colour = [&](wxColourPickerCtrl*& picker, wxSpinCtrl*& alpha,
+                          const std::string& label, const std::string& tooltip)
+  {
+    auto label_obj = new wxStaticText{right_panel, wxID_ANY, label};
+    label_obj->SetToolTip(tooltip);
+    right->Add(label_obj, 0, wxALL, DEFAULT_BORDER);
+
+    picker = new wxColourPickerCtrl{right_panel, wxID_ANY};
+    picker->SetToolTip(tooltip);
+    label_obj = new wxStaticText{right_panel, wxID_ANY, "Alpha:"};
+    alpha = new wxSpinCtrl{right_panel, wxID_ANY};
+    alpha->SetRange(0, 255);
+    alpha->SetToolTip(tooltip);
+
+    auto sizer = new wxBoxSizer{wxHORIZONTAL};
+    sizer->Add(picker, 0, wxALL, DEFAULT_BORDER);
+    sizer->Add(label_obj, 0, wxALL, DEFAULT_BORDER);
+    sizer->Add(alpha, 1, wxALL, DEFAULT_BORDER);
+    right->Add(sizer, 0, wxEXPAND, 0);
+  };
+
+  setup_colour(_spiral_colour_a, _spiral_colour_a_alpha,
+               "Spiral colour A:", SPIRAL_COLOUR_TOOLTIP);
+  setup_colour(_spiral_colour_b, _spiral_colour_b_alpha,
+               "Spiral colour B:", SPIRAL_COLOUR_TOOLTIP);
+  setup_colour(_main_text_colour, _main_text_colour_alpha,
+               "Text main colour:", TEXT_COLOUR_TOOLTIP);
+  setup_colour(_shadow_text_colour, _shadow_text_colour_alpha,
+               "Text shadow colour:", TEXT_COLOUR_TOOLTIP);
+
   right_panel->SetSizer(right);
   bottom->Add(bottom_splitter, 1, wxEXPAND, 0);
   bottom_splitter->SplitVertically(left_panel, right_panel);
@@ -179,6 +278,12 @@ ProgramPage::ProgramPage(wxNotebook* parent,
     }
     _creator_frame.MakeDirty(true);
   }, wxID_ANY);
+
+  auto changed = [&](wxCommandEvent&) { Changed(); };
+  right_panel->Bind(wxEVT_COMMAND_CHECKBOX_CLICKED, changed);
+  right_panel->Bind(wxEVT_SLIDER, changed);
+  right_panel->Bind(wxEVT_SPINCTRL, changed);
+  right_panel->Bind(wxEVT_COLOURPICKER_CHANGED, changed);
 }
 
 ProgramPage::~ProgramPage()
@@ -214,6 +319,16 @@ void ProgramPage::RefreshOurData()
         jt->second->SetValue(visual.random_weight());
       }
     }
+
+    _global_fps->SetValue(it->second.global_fps());
+    _zoom_intensity->SetValue(f2v(it->second.zoom_intensity()));
+    _reverse_spiral->SetValue(it->second.reverse_spiral_direction());
+    c2v(it->second.spiral_colour_a(), _spiral_colour_a, _spiral_colour_a_alpha);
+    c2v(it->second.spiral_colour_b(), _spiral_colour_b, _spiral_colour_b_alpha);
+    c2v(it->second.main_text_colour(),
+        _main_text_colour, _main_text_colour_alpha);
+    c2v(it->second.shadow_text_colour(),
+        _shadow_text_colour, _shadow_text_colour_alpha);
   }
 }
 
@@ -248,4 +363,23 @@ void ProgramPage::RefreshThemes()
           pair.second.mutable_enabled_theme_name()->erase(it);
     }
   }
+}
+
+void ProgramPage::Changed() {
+  auto it = _session.mutable_program_map()->find(_item_selected);
+  if (it == _session.mutable_program_map()->end()) {
+    return;
+  }
+  it->second.set_global_fps(_global_fps->GetValue());
+  it->second.set_zoom_intensity(v2f(_zoom_intensity->GetValue()));
+  it->second.set_reverse_spiral_direction(_reverse_spiral->GetValue());
+  *it->second.mutable_spiral_colour_a() =
+      v2c(_spiral_colour_a, _spiral_colour_a_alpha);
+  *it->second.mutable_spiral_colour_b() =
+      v2c(_spiral_colour_b, _spiral_colour_b_alpha);
+  *it->second.mutable_main_text_colour() =
+      v2c(_main_text_colour, _main_text_colour_alpha);
+  *it->second.mutable_shadow_text_colour() =
+      v2c(_shadow_text_colour, _shadow_text_colour_alpha);
+  _creator_frame.MakeDirty(true);
 }

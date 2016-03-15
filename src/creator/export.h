@@ -25,6 +25,8 @@ public:
   bool Cancelled() const;
 
 private:
+  void Export();
+
   trance_pb::System& _system;
   std::string _executable_path;
   std::string _path;
@@ -37,8 +39,6 @@ private:
   wxSpinCtrl* _length;
   wxSpinCtrl* _threads;
   wxSlider* _quality;
-
-  void Export();
 };
 
 #endif

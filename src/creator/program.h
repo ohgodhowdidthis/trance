@@ -16,6 +16,9 @@ class CreatorFrame;
 template<typename T>
 class ItemList;
 class wxSpinCtrl;
+class wxCheckBox;
+class wxColourPickerCtrl;
+class wxSlider;
 class wxTreeListCtrl;
 class wxTreeListItem;
 
@@ -30,6 +33,8 @@ public:
   void RefreshThemes();
 
 private:
+  void Changed();
+
   CreatorFrame& _creator_frame;
   trance_pb::Session& _session;
   std::string _item_selected;
@@ -38,6 +43,18 @@ private:
   std::unordered_map<std::string, wxTreeListItem> _tree_lookup;
   std::unordered_map<unsigned int, wxSpinCtrl*> _visual_lookup;
   wxTreeListCtrl* _tree;
+
+  wxSpinCtrl* _global_fps;
+  wxSlider* _zoom_intensity;
+  wxCheckBox* _reverse_spiral;
+  wxColourPickerCtrl* _spiral_colour_a;
+  wxSpinCtrl* _spiral_colour_a_alpha;
+  wxColourPickerCtrl* _spiral_colour_b;
+  wxSpinCtrl* _spiral_colour_b_alpha;
+  wxColourPickerCtrl* _main_text_colour;
+  wxSpinCtrl* _main_text_colour_alpha;
+  wxColourPickerCtrl* _shadow_text_colour;
+  wxSpinCtrl* _shadow_text_colour_alpha;
 };
 
 #endif
