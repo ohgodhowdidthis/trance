@@ -13,6 +13,7 @@
 class CreatorFrame;
 template<typename T>
 class ItemList;
+class wxSpinCtrl;
 
 class ProgramPage : public wxNotebookPage {
 public:
@@ -31,6 +32,8 @@ private:
 
   ItemList<trance_pb::Program>* _item_list;
   std::unordered_map<std::string, wxTreeListItem> _tree_lookup;
+  std::unordered_map<trance_pb::Program::VisualType,
+                     wxSpinCtrl*> _visual_lookup;
   wxTreeListCtrl* _tree;
 };
 
