@@ -154,10 +154,10 @@ public:
       items.push_back(pair.first);
     }
     std::sort(items.begin(), items.end());
-    while (_list->GetItemCount() < items.size()) {
+    while (std::size_t(_list->GetItemCount()) < items.size()) {
       _list->InsertItem(_list->GetItemCount(), "");
     }
-    while (_list->GetItemCount() > items.size()) {
+    while (std::size_t(_list->GetItemCount()) > items.size()) {
       _list->DeleteItem(_list->GetItemCount() - 1);
     }
     if (std::find(items.begin(), items.end(), _selection) == items.end()) {
