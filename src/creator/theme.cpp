@@ -9,6 +9,7 @@
 #include <wx/dcclient.h>
 #include <wx/sizer.h>
 #include <wx/splitter.h>
+#include <wx/timer.h>
 #pragma warning(pop)
 
 #include <algorithm>
@@ -73,55 +74,88 @@ class ImagePanel : public wxPanel {
 public:
   ImagePanel(wxWindow* parent)
   : wxPanel{parent, wxID_ANY}
-  , _dirty{false}
-  , _image{0, 0}
+  , _dirty{true}
   , _bitmap{0, 0}
   {
+    _timer = new wxTimer(this, wxID_ANY);
+    _timer->Start(20);
+    SetBackgroundStyle(wxBG_STYLE_CUSTOM);
+
+    Bind(wxEVT_TIMER, [&](const wxTimerEvent&)
+    {
+      _dirty = true;
+      ++_frame;
+      Refresh();
+    }, wxID_ANY);
+
     Bind(wxEVT_SIZE, [&](const wxSizeEvent&)
     {
+      _dirty = true;
       Refresh();
     });
 
     Bind(wxEVT_PAINT, [&](const wxPaintEvent&)
     {
-      if (!_image.IsOk()) {
-        return;
-      }
       wxPaintDC dc{this};
       int width = 0;
       int height = 0;
       dc.GetSize(&width, &height);
 
-      auto iw = _image.GetWidth();
-      auto ih = _image.GetHeight();
-      auto scale = std::min(float(height) / ih, float(width) / iw);
-      auto sw = unsigned(scale * iw);
-      auto sh = unsigned(scale * ih);
-      auto dirty =
-          _dirty || _bitmap.GetWidth() != sw || _bitmap.GetHeight() != sh;
-      if (iw && ih && dirty) {
-        _bitmap = wxBitmap{_image.Scale(sw, sh, wxIMAGE_QUALITY_HIGH)};
+      if (width && height && _dirty) {
+        wxImage temp_image{width, height};
+        if (!_images.empty()) {
+          const auto& image = _images[_frame % _images.size()];
+          auto iw = image->GetWidth();
+          auto ih = image->GetHeight();
+          auto scale = std::min(float(height) / ih, float(width) / iw);
+          auto sw = unsigned(scale * iw);
+          auto sh = unsigned(scale * ih);
+          temp_image.Paste(image->Scale(sw, sh, wxIMAGE_QUALITY_HIGH),
+                           (width - sw) / 2, (height - sh) / 2);
+        }
+        _bitmap = wxBitmap{temp_image};
       }
-      dc.DrawBitmap(_bitmap, (width - sw) / 2, (height - sh) / 2, false);
+      dc.DrawBitmap(_bitmap, 0, 0, false);
     });
   }
 
-  void SetImage(const sf::Image& image) {
-    _image = wxImage{(int) image.getSize().x, (int) image.getSize().y};
-    for (unsigned y = 0; y < image.getSize().y; ++y) {
-      for (unsigned x = 0; x < image.getSize().x; ++x) {
-        const auto& c = image.getPixel(x, y);
-        _image.SetRGB(x, y, c.r, c.g, c.b);
+  ~ImagePanel() {
+    _timer->Stop();
+  }
+
+  void SetAnimation(const std::vector<Image>& images) {
+    _images.clear();
+    for (const auto& image : images) {
+      auto ptr = image.get_sf_image();
+      if (!ptr) {
+        continue;
+      }
+      auto sf_image = *ptr;
+      _images.emplace_back(std::make_unique<wxImage>(
+          (int) sf_image.getSize().x, (int) sf_image.getSize().y));
+      for (unsigned y = 0; y < sf_image.getSize().y; ++y) {
+        for (unsigned x = 0; x < sf_image.getSize().x; ++x) {
+          const auto& c = sf_image.getPixel(x, y);
+          _images.back()->SetRGB(x, y, c.r, c.g, c.b);
+        }
       }
     }
     _dirty = true;
+    _frame = 0;
     Refresh();
+  }
+
+  void SetImage(const Image& image) {
+    std::vector<Image> images = {image};
+    SetAnimation(images);
   }
 
 private:
   bool _dirty;
-  wxImage _image;
+  std::size_t _frame;
+  std::vector<std::shared_ptr<wxImage>> _images;
   wxBitmap _bitmap;
+  wxTimer* _timer;
 };
 
 ThemePage::ThemePage(wxNotebook* parent,
@@ -323,16 +357,10 @@ ThemePage::ThemePage(wxNotebook* parent,
       const auto& anims = _complete_theme.animation_path();
       const auto& fonts = _complete_theme.font_path();
       if (std::find(images.begin(), images.end(), path) != images.end()) {
-        auto image = load_image(root + "/" + path).get_sf_image();
-        if (image) {
-          _image_panel->SetImage(*image);
-        }
+        _image_panel->SetImage(load_image(root + "/" + path));
       }
       if (std::find(anims.begin(), anims.end(), path) != anims.end()) {
-        auto images = load_animation(root + "/" + path);
-        if (!images.empty() && images[0].get_sf_image()) {
-          _image_panel->SetImage(*images[0].get_sf_image());
-        }
+        _image_panel->SetAnimation(load_animation(root + "/" + path));
       }
       if (std::find(fonts.begin(), fonts.end(), path) != fonts.end()) {
         _current_font = root + "/" + path;
