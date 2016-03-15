@@ -4,8 +4,6 @@
 #pragma warning(push, 0)
 #include <src/trance.pb.h>
 #include <wx/frame.h>
-#include <wx/notebook.h>
-#include <wx/panel.h>
 #pragma warning(pop)
 
 class ExportFrame;
@@ -13,6 +11,8 @@ class PlaylistPage;
 class ProgramPage;
 class ThemePage;
 class SettingsFrame;
+class wxPanel;
+
 class CreatorFrame : public wxFrame {
 public:
   CreatorFrame(const std::string& executable_path, const std::string& parameter);

@@ -9,6 +9,8 @@
 #include <wx/filedlg.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
+#include <wx/slider.h>
+#include <wx/spinctrl.h>
 #include <wx/stattext.h>
 #pragma warning(pop)
 

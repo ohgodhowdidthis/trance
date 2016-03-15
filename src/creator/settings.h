@@ -2,17 +2,18 @@
 #define TRANCE_CREATOR_SETTINGS_H
 
 #pragma warning(push, 0)
-#include <wx/button.h>
-#include <wx/checkbox.h>
 #include <wx/frame.h>
-#include <wx/slider.h>
-#include <wx/spinctrl.h>
 #pragma warning(pop)
 
 namespace trance_pb {
   class System;
 }
 class CreatorFrame;
+class wxButton;
+class wxCheckBox;
+class wxSlider;
+class wxSpinCtrl;
+
 class SettingsFrame : public wxFrame {
 public:
   enum {

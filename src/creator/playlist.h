@@ -2,14 +2,15 @@
 #define TRANCE_CREATOR_PLAYLIST_H
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
-#include <wx/frame.h>
 #include <wx/notebook.h>
-#include <wx/treelist.h>
 #pragma warning(pop)
 
 #include <memory>
 
+namespace trance_pb {
+  class PlaylistItem;
+  class Session;
+}
 class CreatorFrame;
 template<typename T>
 class ItemList;
