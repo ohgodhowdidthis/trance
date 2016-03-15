@@ -6,10 +6,14 @@
 #include "../session.h"
 
 #pragma warning(push, 0)
+#include <src/trance.pb.h>
+#include <wx/button.h>
 #include <wx/dcclient.h>
+#include <wx/listctrl.h>
 #include <wx/sizer.h>
 #include <wx/splitter.h>
 #include <wx/timer.h>
+#include <wx/treelist.h>
 #pragma warning(pop)
 
 #include <algorithm>
@@ -166,6 +170,7 @@ ThemePage::ThemePage(wxNotebook* parent,
 , _creator_frame{creator_frame}
 , _session{session}
 , _session_path{session_path}
+, _complete_theme{new trance_pb::Theme}
 , _tree{nullptr}
 {
   auto sizer = new wxBoxSizer{wxVERTICAL};
@@ -222,7 +227,7 @@ ThemePage::ThemePage(wxNotebook* parent,
   _tree->AppendColumn("");
 
   _image_panel = new ImagePanel{leftright_panel};
-  _image_panel->SetToolTip("Preview of the selected file.");
+  _image_panel->SetToolTip("Preview of the selected item.");
 
   _text_list = new wxListCtrl{
       right_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
@@ -353,9 +358,9 @@ ThemePage::ThemePage(wxNotebook* parent,
     if (data != nullptr) {
       std::string path = ((const wxStringClientData*) data)->GetData();
       auto root = std::tr2::sys::path{_session_path}.parent_path().string();
-      const auto& images = _complete_theme.image_path();
-      const auto& anims = _complete_theme.animation_path();
-      const auto& fonts = _complete_theme.font_path();
+      const auto& images = _complete_theme->image_path();
+      const auto& anims = _complete_theme->animation_path();
+      const auto& fonts = _complete_theme->font_path();
       if (std::find(images.begin(), images.end(), path) != images.end()) {
         _image_panel->SetImage(load_image(root + "/" + path));
       }
@@ -405,11 +410,11 @@ ThemePage::ThemePage(wxNotebook* parent,
           auto data = _tree->GetItemData(item);
           if (data != nullptr) {
             std::string path = ((const wxStringClientData*) data)->GetData();
-            handle(_complete_theme.image_path(),
+            handle(_complete_theme->image_path(),
                     *it->second.mutable_image_path(), path);
-            handle(_complete_theme.animation_path(),
+            handle(_complete_theme->animation_path(),
                     *it->second.mutable_animation_path(), path);
-            handle(_complete_theme.font_path(),
+            handle(_complete_theme->font_path(),
                     *it->second.mutable_font_path(), path);
           }
         };
@@ -489,21 +494,21 @@ void ThemePage::RefreshData()
 void ThemePage::RefreshDirectory(const std::string& directory)
 {
   _directory = directory;
-  _complete_theme = trance_pb::Theme{};
-  search_resources(_complete_theme, directory);
+  *_complete_theme = trance_pb::Theme{};
+  search_resources(*_complete_theme, directory);
 
   _tree->DeleteAllItems();
   _tree_lookup.clear();
   _tree_lookup["."] = _tree->GetRootItem();
 
   std::vector<std::string> paths;
-  for (const auto& path : _complete_theme.image_path()) {
+  for (const auto& path : _complete_theme->image_path()) {
     paths.push_back(path);
   }
-  for (const auto& path : _complete_theme.animation_path()) {
+  for (const auto& path : _complete_theme->animation_path()) {
     paths.push_back(path);
   }
-  for (const auto& path : _complete_theme.font_path()) {
+  for (const auto& path : _complete_theme->font_path()) {
     paths.push_back(path);
   }
   std::sort(paths.begin(), paths.end());
@@ -530,14 +535,14 @@ void ThemePage::RefreshDirectory(const std::string& directory)
     }
   }
 
-  std::set<std::string> image_set{_complete_theme.image_path().begin(),
-                                  _complete_theme.image_path().end()};
-  std::set<std::string> animation_set{_complete_theme.animation_path().begin(),
-                                      _complete_theme.animation_path().end()};
-  std::set<std::string> font_set{_complete_theme.font_path().begin(),
-                                 _complete_theme.font_path().end()};
+  const auto& c = *_complete_theme;
+  std::set<std::string> image_set{c.image_path().begin(),
+                                  c.image_path().end()};
+  std::set<std::string> animation_set{c.animation_path().begin(),
+                                      c.animation_path().end()};
+  std::set<std::string> font_set{c.font_path().begin(),
+                                 c.font_path().end()};
   for (auto& pair : *_session.mutable_theme_map()) {
-    auto& c = _complete_theme;
     for (auto it = pair.second.mutable_image_path()->begin();
          it != pair.second.mutable_image_path()->end();) {
       it = image_set.count(*it) ? 1 + it :

@@ -2,25 +2,24 @@
 #define TRANCE_CREATOR_THEME_H
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
-#include <wx/button.h>
-#include <wx/frame.h>
-#include <wx/listctrl.h>
 #include <wx/notebook.h>
-#include <wx/treelist.h>
 #pragma warning(pop)
 
 #include <memory>
 #include <unordered_map>
-#include <vector>
 
+namespace trance_pb {
+  class Session;
+  class Theme;
+}
 class CreatorFrame;
 template<typename T>
 class ItemList;
 class ImagePanel;
-namespace sf {
-  class Image;
-}
+class wxButton;
+class wxListCtrl;
+class wxTreeListCtrl;
+class wxTreeListItem;
 
 class ThemePage : public wxNotebookPage {
 public:
@@ -49,7 +48,7 @@ private:
   std::string _item_selected;
 
   std::string _directory;
-  trance_pb::Theme _complete_theme;
+  std::unique_ptr<trance_pb::Theme> _complete_theme;
 
   std::string _current_font;
   std::string _current_text_line;

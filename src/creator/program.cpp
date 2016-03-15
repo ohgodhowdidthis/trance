@@ -4,10 +4,12 @@
 #include "../common.h"
 
 #pragma warning(push, 0)
+#include <src/trance.pb.h>
 #include <wx/sizer.h>
 #include <wx/spinctrl.h>
 #include <wx/splitter.h>
 #include <wx/stattext.h>
+#include <wx/treelist.h>
 #pragma warning(pop)
 
 namespace {

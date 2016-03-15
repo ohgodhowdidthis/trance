@@ -4,6 +4,7 @@
 #include "../common.h"
 
 #pragma warning(push, 0)
+#include <src/trance.pb.h>
 #include <wx/sizer.h>
 #include <wx/splitter.h>
 #pragma warning(pop)

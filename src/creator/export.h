@@ -3,14 +3,15 @@
 
 #pragma warning(push, 0)
 #include <wx/frame.h>
-#include <wx/slider.h>
-#include <wx/spinctrl.h>
 #pragma warning(pop)
 
 namespace trance_pb {
   class System;
 }
 class CreatorFrame;
+class wxSlider;
+class wxSpinCtrl;
+
 class ExportFrame : public wxFrame {
 public:
   enum {
