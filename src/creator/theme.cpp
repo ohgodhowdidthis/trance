@@ -402,6 +402,14 @@ void ThemePage::RefreshOurData()
     }
   };
 
+  int selected_text = 0;
+  for (int i = 0; i < _text_list->GetItemCount(); ++i) {
+    if (_text_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
+      selected_text = i;
+      break;
+    }
+  }
+
   auto it = _session.theme_map().find(_item_selected);
   if (it != _session.theme_map().end()) {
     for (const auto& path : it->second.image_path()) {
@@ -425,6 +433,11 @@ void ThemePage::RefreshOurData()
     }
   } else {
     _text_list->DeleteAllItems();
+  }
+  if (!_item_selected.empty() && it->second.text_line_size()) {
+    _text_list->SetItemState(
+        std::min(selected_text, it->second.text_line_size() - 1),
+        wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
   }
   _button_new->Enable(!_item_selected.empty());
   _button_edit->Enable(!_item_selected.empty() && it->second.text_line_size());
