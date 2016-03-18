@@ -48,12 +48,12 @@ private:
   wxSlider* _zoom_intensity;
   wxCheckBox* _reverse_spiral;
   wxColourPickerCtrl* _spiral_colour_a;
-  wxSpinCtrl* _spiral_colour_a_alpha;
   wxColourPickerCtrl* _spiral_colour_b;
-  wxSpinCtrl* _spiral_colour_b_alpha;
   wxColourPickerCtrl* _main_text_colour;
-  wxSpinCtrl* _main_text_colour_alpha;
   wxColourPickerCtrl* _shadow_text_colour;
+  wxSpinCtrl* _spiral_colour_a_alpha;
+  wxSpinCtrl* _spiral_colour_b_alpha;
+  wxSpinCtrl* _main_text_colour_alpha;
   wxSpinCtrl* _shadow_text_colour_alpha;
 };
 

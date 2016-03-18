@@ -34,10 +34,10 @@ public:
 
 private:
   enum {
-    ID_NEW = 20,
-    ID_EDIT = 21,
-    ID_DELETE = 22,
-    ID_REFRESH = 23,
+    ID_NEW = 10320,
+    ID_EDIT = 10321,
+    ID_DELETE = 10322,
+    ID_REFRESH = 10323,
   };
 
   void GenerateFontPreview();

@@ -15,8 +15,8 @@ class wxSpinCtrl;
 class ExportFrame : public wxFrame {
 public:
   enum {
-    ID_EXPORT = 1,
-    ID_CANCEL = 2,
+    ID_EXPORT = 11041,
+    ID_CANCEL = 11040,
   };
   ExportFrame(CreatorFrame* parent, trance_pb::System& system,
               const std::string& executable_path,
