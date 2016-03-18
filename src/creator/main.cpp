@@ -314,16 +314,16 @@ void CreatorFrame::PlaylistItemCreated(const std::string& playlist_item_name) {
 }
 
 void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name) {
+  if (_session.first_playlist_item() == playlist_item_name) {
+    _session.set_first_playlist_item(
+        _session.playlist().empty() ? "" : _session.playlist().begin()->first);
+  }
   for (auto& pair : *_session.mutable_playlist()) {
     for (auto& next_item : *pair.second.mutable_next_item()) {
       if (next_item.playlist_item_name() == playlist_item_name) {
         next_item.set_playlist_item_name(_session.playlist().begin()->first);
       }
     }
-  }
-  if (_session.first_playlist_item() == playlist_item_name) {
-    _session.set_first_playlist_item(
-        _session.playlist().empty() ? "" : _session.playlist().begin()->first);
   }
   _playlist_page->RefreshProgramsAndPlaylists();
   _playlist_page->RefreshOurData();
@@ -333,6 +333,9 @@ void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name) {
 
 void CreatorFrame::PlaylistItemRenamed(const std::string& old_name,
                                        const std::string& new_name) {
+  if (_session.first_playlist_item() == old_name) {
+    _session.set_first_playlist_item(new_name);
+  }
   for (auto& pair : *_session.mutable_playlist()) {
     for (auto& next_item : *pair.second.mutable_next_item()) {
       if (next_item.playlist_item_name() == old_name) {
