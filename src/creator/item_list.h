@@ -190,10 +190,10 @@ private:
   }
 
   enum {
-    ID_NEW = 10,
-    ID_RENAME = 11,
-    ID_DUPLICATE = 12,
-    ID_DELETE = 13,
+    ID_NEW = 11010,
+    ID_RENAME = 11011,
+    ID_DUPLICATE = 11012,
+    ID_DELETE = 11013,
   };
   map_type& _data;
   std::string _type_name;

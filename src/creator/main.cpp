@@ -321,6 +321,10 @@ void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name) {
       }
     }
   }
+  if (_session.first_playlist_item() == playlist_item_name) {
+    _session.set_first_playlist_item(
+        _session.playlist().empty() ? "" : _session.playlist().begin()->first);
+  }
   _playlist_page->RefreshProgramsAndPlaylists();
   _playlist_page->RefreshOurData();
   SetStatusText("Deleted playlist item '" + playlist_item_name + "'");
