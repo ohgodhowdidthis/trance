@@ -319,10 +319,10 @@ void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name) {
         _session.playlist().empty() ? "" : _session.playlist().begin()->first);
   }
   for (auto& pair : *_session.mutable_playlist()) {
-    for (auto& next_item : *pair.second.mutable_next_item()) {
-      if (next_item.playlist_item_name() == playlist_item_name) {
-        next_item.set_playlist_item_name(_session.playlist().begin()->first);
-      }
+    auto it = pair.second.mutable_next_item()->begin();
+    while (it != pair.second.mutable_next_item()->end()) {
+      it = it->playlist_item_name() == playlist_item_name ?
+          pair.second.mutable_next_item()->erase(it) : 1 + it;
     }
   }
   _playlist_page->RefreshProgramsAndPlaylists();
