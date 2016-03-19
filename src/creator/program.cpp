@@ -145,8 +145,8 @@ ProgramPage::ProgramPage(wxNotebook* parent,
     auto label = new wxStaticText{leftright_panel, wxID_ANY, name + ":"};
     auto weight = new wxSpinCtrl{leftright_panel, wxID_ANY};
     label->SetToolTip(tooltip);
-    weight->SetToolTip(tooltip + " A higher value makes this "
-                       "visualizer more likely to be used.");
+    weight->SetToolTip(tooltip + " A higher weight makes this "
+                       "visualizer more likely to be chosen.");
     weight->SetRange(0, 100);
     row_sizer->Add(label, 1, wxALL, DEFAULT_BORDER);
     row_sizer->Add(weight, 0, wxALL, DEFAULT_BORDER);
