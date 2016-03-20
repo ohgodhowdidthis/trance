@@ -221,6 +221,20 @@ void CreatorFrame::ExportVideo(const std::string& path) {
   wxExecute(command_line, wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE);
 }
 
+void CreatorFrame::RefreshDirectory()
+{
+  auto parent = std::tr2::sys::path{_session_path}.parent_path().string();
+  _theme_page->RefreshDirectory(parent);
+  _playlist_page->RefreshDirectory(parent);
+  _theme_page->RefreshData();
+  _program_page->RefreshThemes();
+  _program_page->RefreshData();
+  _playlist_page->RefreshProgramsAndPlaylists();
+  _playlist_page->RefreshData();
+  _system.set_last_root_directory(parent);
+  SaveSystem(false);
+}
+
 void CreatorFrame::SettingsClosed()
 {
   _settings = nullptr;
@@ -382,16 +396,7 @@ void CreatorFrame::SetSessionPath(const std::string& path)
   _menu_bar->Enable(wxID_SAVE, true);
   _panel->Show();
   _panel->Layout();
-  auto parent = std::tr2::sys::path{_session_path}.parent_path().string();
-  _theme_page->RefreshDirectory(parent);
-  _theme_page->RefreshData();
-  _program_page->RefreshThemes();
-  _program_page->RefreshData();
-  _playlist_page->RefreshProgramsAndPlaylists();
-  _playlist_page->RefreshData();
-
-  _system.set_last_root_directory(parent);
-  SaveSystem(false);
+  RefreshDirectory();
 }
 
 class CreatorApp : public wxApp {

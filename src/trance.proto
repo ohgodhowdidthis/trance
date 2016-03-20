@@ -104,6 +104,28 @@ message Program {
   Colour shadow_text_colour = 9;
 }
 
+message AudioEvent {
+  enum Type {
+    NONE = 0;
+    AUDIO_PLAY = 1;
+    AUDIO_STOP = 2;
+    AUDIO_FADE = 3;
+  }
+
+  // Type of event.
+  Type type = 1;
+  // Audio channel to affect.
+  uint32 channel = 2;
+  // Path to (audio) file.
+  string path = 3;
+  // Whether to loop the file.
+  bool loop = 4;
+  // Volume setting for this event.
+  uint32 volume = 5;
+  // Time over which this event takes place.
+  uint32 time_seconds = 6;
+}
+
 message PlaylistItem {
   string program = 1;
 
@@ -119,6 +141,7 @@ message PlaylistItem {
   }
 
   repeated NextItem next_item = 3;
+  repeated AudioEvent audio_event = 4;
 }
 
 message Theme {

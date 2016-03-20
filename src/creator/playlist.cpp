@@ -2,6 +2,7 @@
 #include "item_list.h"
 #include "main.h"
 #include "../common.h"
+#include "../session.h"
 
 #pragma warning(push, 0)
 #include <src/trance.pb.h>
@@ -34,6 +35,27 @@ namespace {
 
   const std::string NEXT_ITEM_WEIGHT_TOOLTIP =
       "A higher weight makes this playlist item more likely to be chosen next.";
+
+  const std::string AUDIO_EVENT_TYPE_TOOLTIP =
+      "What kind of audio change to apply.";
+
+  const std::string AUDIO_EVENT_CHANNEL_TOOLTIP =
+      "Which audio channel this audio event applies to.";
+
+  const std::string AUDIO_EVENT_PATH_TOOLTIP =
+      "Audio file to play.";
+
+  const std::string AUDIO_EVENT_LOOP_TOOLTIP =
+      "Whether to loop the file forever (or until another event interrupts it).";
+
+  const std::string AUDIO_EVENT_INITIAL_VOLUME_TOOLTIP =
+      "The initial volume of the audio channel used to play this file.";
+
+  const std::string AUDIO_EVENT_FADE_VOLUME_TOOLTIP =
+      "Target volume of the audio channel after this volume fade.";
+
+  const std::string AUDIO_EVENT_FADE_TIME_TOOLTIP =
+      "Time (in seconds) over which to apply the volume change.";
 }
 
 PlaylistPage::PlaylistPage(wxNotebook* parent,
@@ -61,8 +83,9 @@ PlaylistPage::PlaylistPage(wxNotebook* parent,
 
   _left_panel = new wxPanel{bottom_splitter, wxID_ANY};
   auto left = new wxStaticBoxSizer{wxVERTICAL, _left_panel, "Playlist"};
-  auto right_panel = new wxPanel{bottom_splitter, wxID_ANY};
-  auto right = new wxStaticBoxSizer{wxVERTICAL, right_panel, "Events"};
+  _right_panel = new wxPanel{bottom_splitter, wxID_ANY};
+  _audio_events_sizer =
+      new wxStaticBoxSizer{wxVERTICAL, _right_panel, "Audio events"};
 
   _item_list = new ItemList<trance_pb::PlaylistItem>{
       splitter, *session.mutable_playlist(), "playlist item",
@@ -99,9 +122,9 @@ PlaylistPage::PlaylistPage(wxNotebook* parent,
   left->Add(_next_items_sizer, 0, wxEXPAND);
 
   _left_panel->SetSizer(left);
-  right_panel->SetSizer(right);
+  _right_panel->SetSizer(_audio_events_sizer);
   bottom->Add(bottom_splitter, 1, wxEXPAND, 0);
-  bottom_splitter->SplitVertically(_left_panel, right_panel);
+  bottom_splitter->SplitVertically(_left_panel, _right_panel);
   bottom_panel->SetSizer(bottom);
 
   sizer->Add(splitter, 1, wxEXPAND, 0);
@@ -140,10 +163,15 @@ PlaylistPage::~PlaylistPage()
 void PlaylistPage::RefreshOurData()
 {
   for (const auto& item : _next_items) {
-    item.sizer->Clear(true);
+    item->Clear(true);
+  }
+  for (const auto& item : _audio_events) {
+    item->Clear(true);
   }
   _next_items_sizer->Clear(true);
+  _audio_events_sizer->Clear(true);
   _next_items.clear();
+  _audio_events.clear();
 
   auto is_first = _session.first_playlist_item() == _item_selected;
   _is_first->SetValue(is_first);
@@ -160,8 +188,12 @@ void PlaylistPage::RefreshOurData()
     for (const auto& item : it->second.next_item()) {
       AddNextItem(item.playlist_item_name(), item.random_weight());
     }
+    for (const auto& event : it->second.audio_event()) {
+      AddAudioEvent(event);
+    }
   }
   AddNextItem("", 0);
+  AddAudioEvent({});
 }
 
 void PlaylistPage::RefreshData()
@@ -219,7 +251,7 @@ void PlaylistPage::AddNextItem(const std::string& name,
   _left_panel->Layout();
 
   auto index = _next_items.size();
-  _next_items.push_back(next_item{sizer, label, weight});
+  _next_items.push_back(sizer);
 
   choice->Bind(wxEVT_CHOICE, [&, index, choice](const wxCommandEvent&) {
     auto it = _session.mutable_playlist()->find(_item_selected);
@@ -240,15 +272,176 @@ void PlaylistPage::AddNextItem(const std::string& name,
     RefreshOurData();
   });
 
-  weight->Bind(wxEVT_SPINCTRL, [&, index, weight](const wxCommandEvent&) {
+  weight->Bind(wxEVT_SPINCTRL, [&, index, weight](const wxCommandEvent&)
+  {
     auto it = _session.mutable_playlist()->find(_item_selected);
     if (it == _session.mutable_playlist()->end()) {
       return;
     }
-    while (it->second.next_item_size() <= index) {
-      it->second.add_next_item()->set_random_weight(1);
-    }
     it->second.mutable_next_item(int(index))->set_random_weight(
         weight->GetValue());
   });
+}
+
+void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
+{
+  auto sizer = new wxBoxSizer{wxHORIZONTAL};
+  auto index = _audio_events.size();
+  _audio_events.push_back(sizer);
+
+  auto choice = new wxChoice{_right_panel, wxID_ANY};
+  choice->SetToolTip(AUDIO_EVENT_TYPE_TOOLTIP);
+  choice->Append("");
+  choice->Append("Play file");
+  choice->Append("Stop channel");
+  choice->Append("Fade channel volume");
+  choice->SetSelection(event.type());
+  sizer->Add(choice, 0, wxALL, DEFAULT_BORDER);
+
+  choice->Bind(wxEVT_CHOICE, [&, index, choice](const wxCommandEvent&) {
+    auto it = _session.mutable_playlist()->find(_item_selected);
+    if (it == _session.mutable_playlist()->end()) {
+      return;
+    }
+    auto type = choice->GetSelection();
+    if (type) {
+      while (it->second.audio_event_size() <= index) {
+        it->second.add_audio_event();
+      }
+      auto& e = *it->second.mutable_audio_event(int(index));
+      if (e.type() != type) {
+        e.set_channel(0);
+        e.set_path("");
+        e.set_loop(false);
+        e.set_volume(100);
+        e.set_time_seconds(0);
+      }
+      e.set_type(trance_pb::AudioEvent::Type(type));
+    } else if (it->second.audio_event_size() > index) {
+      it->second.mutable_audio_event()->erase(
+          index + it->second.mutable_audio_event()->begin());
+    }
+    _creator_frame.MakeDirty(true);
+    RefreshOurData();
+  });
+
+  if (event.type() != trance_pb::AudioEvent::NONE) {
+    auto label = new wxStaticText{_right_panel, wxID_ANY, "Channel:"};
+    label->SetToolTip(AUDIO_EVENT_CHANNEL_TOOLTIP);
+    sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+
+    auto channel = new wxSpinCtrl{_right_panel, wxID_ANY};
+    channel->SetToolTip(AUDIO_EVENT_CHANNEL_TOOLTIP);
+    channel->SetRange(0, 32);
+    channel->SetValue(event.channel());
+    sizer->Add(channel, 0, wxALL, DEFAULT_BORDER);
+
+    channel->Bind(wxEVT_SPINCTRL, [&, index, channel](const wxCommandEvent&) {
+      auto it = _session.mutable_playlist()->find(_item_selected);
+      if (it == _session.mutable_playlist()->end()) {
+        return;
+      }
+      it->second.mutable_audio_event(int(index))->set_channel(
+          channel->GetValue());
+      _creator_frame.MakeDirty(true);
+    });
+  }
+  if (event.type() == trance_pb::AudioEvent::AUDIO_PLAY ||
+      event.type() == trance_pb::AudioEvent::AUDIO_FADE) {
+    auto tooltip = event.type() == trance_pb::AudioEvent::AUDIO_PLAY ?
+        AUDIO_EVENT_INITIAL_VOLUME_TOOLTIP : AUDIO_EVENT_FADE_VOLUME_TOOLTIP;
+    auto label = new wxStaticText{_right_panel, wxID_ANY, "Volume:"};
+    label->SetToolTip(tooltip);
+    sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+
+    auto volume = new wxSpinCtrl{_right_panel, wxID_ANY};
+    volume->SetToolTip(tooltip);
+    volume->SetRange(0, 100);
+    volume->SetValue(event.volume());
+    sizer->Add(volume, 0, wxALL, DEFAULT_BORDER);
+
+    volume->Bind(wxEVT_SPINCTRL, [&, index, volume](const wxCommandEvent&) {
+      auto it = _session.mutable_playlist()->find(_item_selected);
+      if (it == _session.mutable_playlist()->end()) {
+        return;
+      }
+      it->second.mutable_audio_event(int(index))->set_volume(
+          volume->GetValue());
+      _creator_frame.MakeDirty(true);
+    });
+  }
+  if (event.type() == trance_pb::AudioEvent::AUDIO_PLAY) {
+    auto label = new wxStaticText{_right_panel, wxID_ANY, "File:"};
+    label->SetToolTip(AUDIO_EVENT_PATH_TOOLTIP);
+    sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+
+    auto path_choice = new wxChoice{_right_panel, wxID_ANY};
+    path_choice->SetToolTip(AUDIO_EVENT_PATH_TOOLTIP);
+    int i = 0;
+    for (const auto& p : _audio_files) {
+      path_choice->Append(p);
+      if (event.path() == p) {
+        path_choice->SetSelection(i);
+      }
+      ++i;
+    }
+    sizer->Add(path_choice, 0, wxALL, DEFAULT_BORDER);
+
+    auto loop = new wxCheckBox{_right_panel, wxID_ANY, "Loop"};
+    loop->SetToolTip(AUDIO_EVENT_LOOP_TOOLTIP);
+    loop->SetValue(event.loop());
+    sizer->Add(loop, 0, wxALL, DEFAULT_BORDER);
+
+    path_choice->Bind(wxEVT_CHOICE, [&, index, path_choice]
+                                    (const wxCommandEvent&) {
+      auto it = _session.mutable_playlist()->find(_item_selected);
+      if (it == _session.mutable_playlist()->end()) {
+        return;
+      }
+      auto p = path_choice->GetString(path_choice->GetSelection());
+      it->second.mutable_audio_event(int(index))->set_path(p);
+      _creator_frame.MakeDirty(true);
+    });
+
+    loop->Bind(wxEVT_COMMAND_CHECKBOX_CLICKED, [&, index, loop]
+                                               (const wxCommandEvent&) {
+      auto it = _session.mutable_playlist()->find(_item_selected);
+      if (it == _session.mutable_playlist()->end()) {
+        return;
+      }
+      it->second.mutable_audio_event(int(index))->set_loop(loop->GetValue());
+      _creator_frame.MakeDirty(true);
+    });
+  }
+  if (event.type() == trance_pb::AudioEvent::AUDIO_FADE) {
+    auto label = new wxStaticText{_right_panel, wxID_ANY, "Time (seconds):"};
+    label->SetToolTip(AUDIO_EVENT_FADE_TIME_TOOLTIP);
+    sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+
+    auto time = new wxSpinCtrl{_right_panel, wxID_ANY};
+    time->SetToolTip(AUDIO_EVENT_FADE_TIME_TOOLTIP);
+    time->SetRange(0, 3600);
+    time->SetValue(event.time_seconds());
+    sizer->Add(time, 0, wxALL, DEFAULT_BORDER);
+
+    time->Bind(wxEVT_SPINCTRL, [&, index, time](const wxCommandEvent&) {
+      auto it = _session.mutable_playlist()->find(_item_selected);
+      if (it == _session.mutable_playlist()->end()) {
+        return;
+      }
+      it->second.mutable_audio_event(int(index))->set_time_seconds(
+          time->GetValue());
+      _creator_frame.MakeDirty(true);
+    });
+  }
+
+  _audio_events_sizer->Add(sizer, 0, wxEXPAND);
+  _right_panel->Layout();
+}
+
+void PlaylistPage::RefreshDirectory(const std::string& directory)
+{
+  _audio_files.clear();
+  search_audio_files(_audio_files, directory);
+  std::sort(_audio_files.begin(), _audio_files.end());
 }
