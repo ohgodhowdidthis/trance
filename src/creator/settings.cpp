@@ -149,8 +149,8 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
 
 void SettingsFrame::Changed()
 {
-  _image_depth->Enable(_system.enable_oculus_rift());
-  _text_depth->Enable(_system.enable_oculus_rift());
+  _image_depth->Enable(_enable_oculus_rift->GetValue());
+  _text_depth->Enable(_enable_oculus_rift->GetValue());
   _button_apply->Enable(true);
 }
 
