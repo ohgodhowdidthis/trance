@@ -188,6 +188,7 @@ void play_session(
   if (realtime) {
     async_thread = run_async_thread(running, *theme_bank);
   }
+  std::cout << " -> " << session.first_playlist_item() << "\n";
 
   float update_time = 0.f;
   float async_update_time = 0.f;
@@ -229,6 +230,7 @@ void play_session(
           playlist_item_time >= item->play_time_seconds()) {
         playlist_item_time -= item->play_time_seconds();
         auto next = next_playlist_item(item);
+        std::cout << " -> " << next << "\n";
         item = &session.playlist().find(next)->second;
         theme_bank->set_enabled_themes({
             program().enabled_theme_name().begin(),
