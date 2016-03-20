@@ -9,6 +9,7 @@
 #include <vector>
 
 namespace trance_pb {
+  class AudioEvent;
   class PlaylistItem;
   class Session;
 }
@@ -31,13 +32,16 @@ public:
   void RefreshOurData();
   void RefreshData();
   void RefreshProgramsAndPlaylists();
+  void RefreshDirectory(const std::string& directory);
 
 private:
   void AddNextItem(const std::string& name, std::uint32_t weight_value);
+  void AddAudioEvent(const trance_pb::AudioEvent& event);
 
   CreatorFrame& _creator_frame;
   trance_pb::Session& _session;
   std::string _item_selected;
+  std::vector<std::string> _audio_files;
   ItemList<trance_pb::PlaylistItem>* _item_list;
 
   wxCheckBox* _is_first;
@@ -45,13 +49,11 @@ private:
   wxSpinCtrl* _play_time_seconds;
 
   wxPanel* _left_panel;
+  wxPanel* _right_panel;
   wxBoxSizer* _next_items_sizer;
-  struct next_item {
-    wxBoxSizer* sizer;
-    wxStaticText* label;
-    wxSpinCtrl* weight;
-  };
-  std::vector<next_item> _next_items;
+  wxBoxSizer* _audio_events_sizer;
+  std::vector<wxBoxSizer*> _next_items;
+  std::vector<wxBoxSizer*> _audio_events;
 };
 
 #endif

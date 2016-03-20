@@ -19,6 +19,7 @@ public:
   void MakeDirty(bool dirty);
   void SaveSystem(bool show_status);
   void ExportVideo(const std::string& path);
+  void RefreshDirectory();
   void SettingsClosed();
   void ExportClosed();
 

@@ -348,7 +348,7 @@ ThemePage::ThemePage(wxNotebook* parent,
 
   leftleft_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
   {
-    RefreshDirectory(_directory);
+    _creator_frame.RefreshDirectory();
     RefreshOurData();
   }, ID_REFRESH);
 
@@ -493,7 +493,6 @@ void ThemePage::RefreshData()
 
 void ThemePage::RefreshDirectory(const std::string& directory)
 {
-  _directory = directory;
   *_complete_theme = trance_pb::Theme{};
   search_resources(*_complete_theme, directory);
 

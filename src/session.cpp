@@ -182,6 +182,12 @@ bool is_text_file(const std::string& path)
   return ext_is(path, "txt");
 }
 
+bool is_audio_file(const std::string& path)
+{
+  return ext_is(path, "wav") || ext_is(path, "ogg") ||
+         ext_is(path, "flac") || ext_is(path, "aiff");
+}
+
 void search_resources(trance_pb::Session& session, const std::string& root)
 {
   static const std::string wildcards = "/wildcards/";
@@ -276,6 +282,25 @@ void search_resources(trance_pb::Theme& theme, const std::string& root)
       }
       else if (is_image(rel_str)) {
         theme.add_image_path(rel_str);
+      }
+    }
+  }
+}
+
+void search_audio_files(std::vector<std::string>& files,
+                        const std::string& root) {
+  std::tr2::sys::path root_path(root);
+  for (auto it = std::tr2::sys::recursive_directory_iterator(root_path);
+       it != std::tr2::sys::recursive_directory_iterator(); ++it) {
+    if (std::tr2::sys::is_regular_file(it->status())) {
+      auto relative_path = make_relative(root_path, it->path());
+      auto jt = ++relative_path.begin();
+      if (jt == relative_path.end()) {
+        continue;
+      }
+      auto rel_str = relative_path.string();
+      if (is_audio_file(rel_str)) {
+        files.push_back(rel_str);
       }
     }
   }

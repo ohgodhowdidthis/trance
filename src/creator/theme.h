@@ -46,8 +46,6 @@ private:
   trance_pb::Session& _session;
   const std::string& _session_path;
   std::string _item_selected;
-
-  std::string _directory;
   std::unique_ptr<trance_pb::Theme> _complete_theme;
 
   std::string _current_font;
