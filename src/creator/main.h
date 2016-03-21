@@ -40,7 +40,7 @@ private:
   enum {
     ID_EDIT_SYSTEM_CONFIG = 10101,
     ID_LAUNCH_SESSION = 10102,
-    ID_EXPORT_VIDEO = 10101,
+    ID_EXPORT_VIDEO = 10103,
   };
 
   trance_pb::System _system;
