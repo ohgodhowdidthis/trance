@@ -10,6 +10,7 @@
 #include <libwebm/mkvparser.hpp>
 #include <libvpx/vpx_decoder.h>
 #include <libvpx/vp8dx.h>
+#include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)
 

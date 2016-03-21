@@ -1,3 +1,4 @@
+#include "audio.h"
 #include "common.h"
 #include "director.h"
 #include "export.h"
@@ -154,6 +155,14 @@ void play_session(
     std::cerr << "don't know how to export that format" << std::endl;
     return;
   }
+  // Call ovr_Initialize() before getting an OpenGL context.
+  bool oculus_rift = system.enable_oculus_rift();
+  if (oculus_rift) {
+    if (ovr_Initialize(nullptr) != ovrSuccess) {
+      std::cerr << "Oculus initialization failed" << std::endl;
+      oculus_rift = false;
+    }
+  }
 
   const trance_pb::PlaylistItem* item =
       &session.playlist().find(session.first_playlist_item())->second;
@@ -165,30 +174,27 @@ void play_session(
       program().enabled_theme_name().begin(),
       program().enabled_theme_name().end()};
 
+  std::cout << "loading themes" << std::endl;
   auto theme_bank =
       std::make_unique<ThemeBank>(root_path, session, system, enabled_themes);
 
-  // Call ovr_Initialize() before getting an OpenGL context.
-  bool oculus_rift = system.enable_oculus_rift();
-  if (oculus_rift) {
-    if (ovr_Initialize(nullptr) != ovrSuccess) {
-      std::cerr << "Oculus initialization failed" << std::endl;
-      oculus_rift = false;
-    }
-  }
   auto window = create_window(
       system, realtime ? 0 : settings.width, realtime ? 0 : settings.height,
       realtime, oculus_rift);
   auto director = std::make_unique<Director>(
       *window, session, system, *theme_bank, program(),
       realtime, oculus_rift, exporter && exporter->requires_yuv_input());
+  std::cout << "\nloaded session" << std::endl;
 
   std::thread async_thread;
   std::atomic<bool> running = true;
+  std::unique_ptr<Audio> audio;
   if (realtime) {
     async_thread = run_async_thread(running, *theme_bank);
+    audio.reset(new Audio{root_path});
+    audio->TriggerEvents(*item);
   }
-  std::cout << " -> " << session.first_playlist_item() << "\n";
+  std::cout << "\n-> " << session.first_playlist_item() << std::endl;
 
   float update_time = 0.f;
   float async_update_time = 0.f;
@@ -230,8 +236,11 @@ void play_session(
           playlist_item_time >= item->play_time_seconds()) {
         playlist_item_time -= item->play_time_seconds();
         auto next = next_playlist_item(item);
-        std::cout << " -> " << next << "\n";
         item = &session.playlist().find(next)->second;
+        if (realtime) {
+          audio->TriggerEvents(*item);
+        }
+        std::cout << "\n-> " << next << std::endl;
         theme_bank->set_enabled_themes({
             program().enabled_theme_name().begin(),
             program().enabled_theme_name().end()});
@@ -252,7 +261,9 @@ void play_session(
         director->render();
       }
 
-      if (!realtime) {
+      if (realtime) {
+        audio->Update();
+      } else {
         exporter->encode_frame(director->get_screen_data());
       }
     }

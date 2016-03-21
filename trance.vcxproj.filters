@@ -28,6 +28,9 @@
     <ClCompile Include="src\session.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\audio.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="src">
@@ -66,6 +69,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\common.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\audio.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

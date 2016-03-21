@@ -260,11 +260,11 @@ void PlaylistPage::AddNextItem(const std::string& name,
     }
     std::string name = choice->GetString(choice->GetSelection());
     if (name != "") {
-      while (it->second.next_item_size() <= index) {
+      while (it->second.next_item_size() <= int(index)) {
         it->second.add_next_item()->set_random_weight(1);
       }
       it->second.mutable_next_item(int(index))->set_playlist_item_name(name);
-    } else if (it->second.next_item_size() > index) {
+    } else if (it->second.next_item_size() > int(index)) {
       it->second.mutable_next_item()->erase(
           index + it->second.mutable_next_item()->begin());
     }
@@ -305,19 +305,17 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
     }
     auto type = choice->GetSelection();
     if (type) {
-      while (it->second.audio_event_size() <= index) {
+      while (it->second.audio_event_size() <= int(index)) {
         it->second.add_audio_event();
       }
       auto& e = *it->second.mutable_audio_event(int(index));
       if (e.type() != type) {
-        e.set_channel(0);
         e.set_path("");
         e.set_loop(false);
-        e.set_volume(100);
         e.set_time_seconds(0);
       }
       e.set_type(trance_pb::AudioEvent::Type(type));
-    } else if (it->second.audio_event_size() > index) {
+    } else if (it->second.audio_event_size() > int(index)) {
       it->second.mutable_audio_event()->erase(
           index + it->second.mutable_audio_event()->begin());
     }
