@@ -3,6 +3,7 @@
 #include "theme.h"
 #include "util.h"
 #include "visual.h"
+#include <algorithm>
 #include <iostream>
 
 #pragma warning(push, 0)
@@ -364,13 +365,25 @@ Director::Director(sf::RenderWindow& window,
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, tex_data, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+  std::cout << "\ncaching text sizes" << std::endl;
+  std::vector<std::string> fonts;
   for (const auto& pair : session.theme_map()) {
     for (const auto& font : pair.second.font_path()) {
+      fonts.push_back(font);
+    }
+  }
+  for (const auto& font : fonts) {
+    FontCache temp_cache{_themes.get_root_path(), 8 * system.font_cache_size()};
+    for (const auto& pair : session.theme_map()) {
+      if (!std::count(pair.second.font_path().begin(),
+                      pair.second.font_path().end(), font)) {
+        continue;
+      }
       for (const auto& text : pair.second.text_line()) {
         auto cache_key = font + "/\t/\t/" + text;
         auto cache_it = _text_size_cache.find(cache_key);
         if (cache_it == _text_size_cache.end()) {
-          _text_size_cache[cache_key] = get_cached_text_size(text, font);
+          _text_size_cache[cache_key] = get_cached_text_size(temp_cache, text, font);
           std::cout << "-";
         }
       }
@@ -1052,7 +1065,8 @@ void Director::render_raw_text(const std::string& text, const Font& font,
   glDrawArrays(GL_QUADS, 0, (GLsizei) vertices.size());
 }
 
-uint32_t Director::get_cached_text_size(const std::string& text,
+uint32_t Director::get_cached_text_size(const FontCache& cache,
+                                        const std::string& text,
                                         const std::string& font) const
 {
   static const uint32_t minimum_size = 2 * FontCache::char_size_lock;
@@ -1066,7 +1080,7 @@ uint32_t Director::get_cached_text_size(const std::string& text,
   auto target_y = _height - border_y;
   sf::Vector2f last_result;
   while (size < maximum_size) {
-    const auto& loaded_font = _fonts.get_font(font, size);
+    const auto& loaded_font = cache.get_font(font, size);
     auto result = get_text_size(text, loaded_font);
     if (result.x > target_x || result.y > target_y || result == last_result) {
       break;
@@ -1077,7 +1091,7 @@ uint32_t Director::get_cached_text_size(const std::string& text,
   size /= 2;
   last_result = sf::Vector2f{};
   while (size < maximum_size) {
-    const auto& loaded_font = _fonts.get_font(font, size + increment);
+    const auto& loaded_font = cache.get_font(font, size + increment);
     auto result = get_text_size(text, loaded_font);
     if (result.x > target_x || result.y > target_y || result == last_result) {
       break;

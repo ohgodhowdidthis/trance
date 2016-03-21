@@ -6,6 +6,7 @@
 #include "../session.h"
 
 #pragma warning(push, 0)
+#include <SFML/Graphics.hpp>
 #include <src/trance.pb.h>
 #include <wx/button.h>
 #include <wx/dcclient.h>

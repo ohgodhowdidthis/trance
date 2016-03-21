@@ -85,7 +85,8 @@ private:
   void render_raw_text(const std::string& text, const Font& font,
                        const sf::Color& colour, const sf::Vector2f& offset = {},
                        float scale = 1.f) const;
-  uint32_t get_cached_text_size(const std::string& text,
+  uint32_t get_cached_text_size(const FontCache& cache,
+                                const std::string& text,
                                 const std::string& font) const;
   sf::Vector2f get_text_size(const std::string& text, const Font& font) const;
 

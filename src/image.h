@@ -5,10 +5,9 @@
 #include <mutex>
 #include <vector>
 
-#pragma warning(push, 0)
-#include <SFML/Graphics.hpp>
-#pragma warning(pop)
-
+namespace sf {
+  class Image;
+}
 struct vpx_image;
 
 // In-memory image with load-on-request OpenGL texture which is ref-counted
