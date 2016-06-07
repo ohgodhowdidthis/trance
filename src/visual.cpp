@@ -193,7 +193,7 @@ SlowFlashVisual::SlowFlashVisual(Director& director)
 
 void SlowFlashVisual::update()
 {
-  director().rotate_spiral(_flash ? -2.f : 2.f);
+  director().rotate_spiral(_flash ? 4.f : 2.f);
 
   if (--_change_timer) {
     if (!_flash && _change_timer == max_speed / 2) {
@@ -230,8 +230,9 @@ void SlowFlashVisual::update()
 void SlowFlashVisual::render() const
 {
   float extra = 8.f - 8.f * _image_count / (4 * cycle_length);
-  auto zoom = _flash ? float(_change_timer) / 2 * min_speed :
-      .5f - float(_change_timer) / (2 * max_speed);
+  auto zoom = .5f - (_flash ?
+      float(max_speed - min_speed + _change_timer) :
+      float(_change_timer)) / (2 * max_speed);
   director().render_animation_or_image(
       _anim && !_flash ? Director::Anim::ANIM : Director::Anim::NONE,
       _current, 1, 8.f + extra, zoom);
@@ -425,6 +426,9 @@ void SuperParallelVisual::update()
   }
 
   _index = (_index + 1) % _images.size();
+  while (_index < _images.size() / 2) {
+    _index = (_index + 1) % _images.size();
+  }
   _images[_index] = director().get_image(_index % 2 == 0);
   _lengths[_index] = 0;
 }
@@ -435,7 +439,7 @@ void SuperParallelVisual::render() const
   for (std::size_t i = 0; i < _images.size(); ++i) {
     auto anim =
         i >= _images.size() / 2 ? Director::Anim::NONE :
-        i % 2 ? Director::Anim::ANIM : Director::Anim::ANIM_ALTERNATE;
+        i % 2 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM;
     director().render_animation_or_image(
         anim, _images[i], 1.f / (1 + i), 8.f + 4 * i + extra,
         i < _images.size() / 2 ? 0.f :
@@ -458,7 +462,9 @@ AnimationVisual::AnimationVisual(Director& director)
 void AnimationVisual::update()
 {
   director().rotate_spiral(3.5f);
-  _current = director().get_image(true);
+  if (_timer % image_length == 0) {
+    _current = director().get_image(true);
+  }
 
   if (--_timer) {
     return;
@@ -484,9 +490,16 @@ void AnimationVisual::update()
 
 void AnimationVisual::render() const
 {
+  auto which_anim = (_timer / animation_length) % 2 ?
+      Director::Anim::ANIM : Director::Anim::ANIM_ALTERNATE;
   director().render_animation_or_image(
-      Director::Anim::ANIM, _animation_backup, 1.f);
-  director().render_image(_current, .2f, 12.f);
+      which_anim, _animation_backup, 1.f,
+      20.f - 8.f * float(_timer % animation_length) / animation_length,
+      4.f - 4.f * float(_timer % animation_length) / animation_length);
+  director().render_image(
+      _current, .2f,
+      20.f - 8.f * float(_timer % image_length) / image_length,
+      1.f - float(_timer % image_length) / image_length);
   director().render_spiral();
   if (_timer % 128 < 64) {
     director().render_text(_current_text, 5.f);
@@ -510,14 +523,14 @@ void SuperFastVisual::update()
     --_animation_timer;
     return;
   }
-  if (_timer % 2 == 0) {
+  if (_timer % image_length == 0) {
     _current = director().get_image();
     _current_text = director().get_text();
   }
-  if (!_start_timer && random_chance(256)) {
+  if (!_start_timer && random_chance(128)) {
     _animation_alt = !_animation_alt;
     _animation_timer = anim_length + random(anim_length);
-    _start_timer = nonanim_lenth;
+    _start_timer = nonanim_length;
   }
   if (_start_timer) {
     --_start_timer;
@@ -541,11 +554,15 @@ void SuperFastVisual::render() const
   if (_animation_timer) {
     director().render_animation_or_image(
         _animation_alt ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM,
-        _current, 1.f);
+        _current, 1.f, 20.f - 12.f * float(_animation_timer) / anim_length,
+        4.f - 2.f * float(_animation_timer) / anim_length);
   }
   else {
-    director().render_image(_current, 1.f, 8.f, _timer % 2 ? 0.f : 0.1f);
-    if (_timer % 8 < 2) {
+    director().render_image(
+        _current, 1.f,
+        20.f - 12.f * float(_timer % image_length) / image_length,
+        1.f - float(_timer % image_length) / image_length);
+    if (_timer % image_length < 2) {
       director().render_text(_current_text, 5.f);
     }
   }

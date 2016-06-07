@@ -55,7 +55,7 @@ namespace {
   const std::string PARALLEL_TOOLTIP =
       "Displays two images or animations at once with overlaid text.";
   const std::string SUPER_PARALLEL_TOOLTIP =
-      "Displays four images or animations at once with overlaid text.";
+      "Displays three images or animations at once with overlaid text.";
   const std::string ANIMATION_TOOLTIP =
       "Displays an animation with overlaid text.";
   const std::string SUPER_FAST_TOOLTIP =
@@ -175,7 +175,7 @@ ProgramPage::ProgramPage(wxNotebook* parent,
   };
 
   add_visual("2-parallel", PARALLEL_TOOLTIP, trance_pb::Program::PARALLEL);
-  add_visual("4-parallel", SUPER_PARALLEL_TOOLTIP,
+  add_visual("3-parallel", SUPER_PARALLEL_TOOLTIP,
              trance_pb::Program::SUPER_PARALLEL);
   add_visual("Accelerate", ACCELERATE_TOOLTIP, trance_pb::Program::ACCELERATE);
   add_visual("Alternate", SLOW_FLASH_TOOLTIP, trance_pb::Program::SLOW_FLASH);

@@ -160,10 +160,10 @@ public:
 
 private:
 
-  static const std::size_t image_count = 4;
+  static const std::size_t image_count = 3;
   static const uint32_t font_length = 64;
-  static const uint32_t length = 2;
-  static const uint32_t cycles = 512;
+  static const uint32_t length = 8;
+  static const uint32_t cycles = 128;
 
   std::vector<Image> _images;
   std::vector<uint32_t> _lengths;
@@ -186,6 +186,8 @@ private:
 
   static const uint32_t length = 256;
   static const uint32_t cycles = 4;
+  static const uint32_t image_length = 16;
+  static const uint32_t animation_length = 128;
 
   Image _animation_backup;
   Image _current;
@@ -205,8 +207,9 @@ public:
 private:
 
   static const uint32_t length = 1024;
-  static const uint32_t anim_length = 128;
-  static const uint32_t nonanim_lenth = 16;
+  static const uint32_t anim_length = 64;
+  static const uint32_t nonanim_length = 64;
+  static const uint32_t image_length = 8;
 
   Image _current;
   std::string _current_text;
