@@ -58,7 +58,7 @@ void main()
   pos = pos * (max - min) + min;
   pos = (pos - 0.5) * 2.0;
   gl_Position = vec4(pos, 0.0, 1.0);
-  float z = 0.25 * zoom + 0.005;
+  float z = min(0.5, 0.1 * zoom + 0.005);
   vtexcoord = vec2(texcoord.x > 0.5 ? 1.0 - z : z,
                    texcoord.y > 0.5 ? 1.0 - z : z);
   vtexcoord = vec2(flip.x != 0.0 ? 1.0 - vtexcoord.x : vtexcoord.x,
@@ -815,7 +815,7 @@ bool Director::change_visual(uint32_t chance)
   }
 
   if (t == trance_pb::Program_VisualType_ACCELERATE) {
-    _visual.reset(new AccelerateVisual{*this, random_chance()});
+    _visual.reset(new AccelerateVisual{*this});
   }
   if (t == trance_pb::Program_VisualType_SLOW_FLASH) {
     _visual.reset(new SlowFlashVisual{*this});

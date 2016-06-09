@@ -32,7 +32,7 @@ private:
 class AccelerateVisual : public Visual {
 public:
 
-  AccelerateVisual(Director& director, bool start_fast);
+  AccelerateVisual(Director& director);
   void update() override;
   void render() const override;
 
@@ -50,7 +50,6 @@ private:
   uint32_t _change_speed;
   uint32_t _change_speed_timer;
   uint32_t _text_timer;
-  bool _change_faster;
 
 };
 
@@ -87,7 +86,7 @@ public:
 private:
 
   static const uint32_t max_speed = 64;
-  static const uint32_t min_speed = 4;
+  static const uint32_t min_speed = 8;
   static const uint32_t cycle_length = 16;
   static const uint32_t set_length = 4;
 
