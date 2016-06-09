@@ -19,16 +19,15 @@ Director& Visual::director()
   return _director;
 }
 
-AccelerateVisual::AccelerateVisual(Director& director, bool start_fast)
+AccelerateVisual::AccelerateVisual(Director& director)
 : Visual{director}
 , _current{director.get_image()}
 , _current_text{director.get_text()}
 , _text_on{true}
-, _change_timer{start_fast ? min_speed : max_speed}
-, _change_speed{start_fast ? min_speed : max_speed}
+, _change_timer{max_speed}
+, _change_speed{max_speed}
 , _change_speed_timer{0}
 , _text_timer{text_time}
-, _change_faster{!start_fast}
 {
 }
 
@@ -38,7 +37,7 @@ void AccelerateVisual::update()
   unsigned long long m = max_speed;
 
   float spiral_d = 1 + float(d) / 8;
-  director().rotate_spiral(_change_faster ? spiral_d : -spiral_d);
+  director().rotate_spiral(spiral_d);
 
   if (_text_timer) {
     --_text_timer;
@@ -54,65 +53,44 @@ void AccelerateVisual::update()
   _change_timer = _change_speed;
   _current = director().get_image();
   _text_on = !_text_on;
-  if (_change_speed > 4 || _change_faster) {
-    _current_text = director().get_text();
-    _text_timer = text_time;
-  }
+  _current_text = director().get_text();
+  _text_timer = text_time;
 
   if (_change_speed_timer) {
-    _change_speed_timer -= _change_faster || _change_speed_timer == 1 ? 1 : 2;
+    _change_speed_timer -= 1;
     return;
   }
 
   bool changed = false;
   _change_speed_timer = uint32_t(d * d * d * d * d * d / (m * m * m * m * m));
-  if (_change_faster) {
-    if (_change_speed == min_speed) {
-      _change_faster = false;
-      changed = true;
-    }
-    else {
-      --_change_speed;
-    }
-  }
-  else {
-    if (_change_speed == max_speed) {
-      _change_faster = true;
-      changed = true;
-    }
-    else {
-      ++_change_speed;
-    }
+  if (_change_speed != min_speed) {
+    --_change_speed;
+    return;
   }
 
-  if (changed) {
-    if (!_change_faster) {
-      director().change_spiral();
-      if (director().change_themes()) {
-        _current_text = director().get_text();
-      }
-    }
-    director().change_font();
-    // Frames is something like:
-    // 49 + sum(0 <= k < 48, (1 + floor(k^6/48^5))(48 - k)) for acceleration.
-    // 1 + sum(0 <= k < 48, (1 + floor((48 - k)^6/48^5/2))(2 + k)) for
-    // deceleration.
-    // 1/2 chance after ~2984 for acceleration, ~2367 for deceleration.
-    // 1/2 random weight.
-    // Average length 2 * 2675 = 5350 frames.
-    director().change_visual(2);
+  director().change_spiral();
+  if (director().change_themes()) {
+    _current_text = director().get_text();
   }
+  director().change_font();
+  // Frames is something like:
+  // 49 + sum(0 <= k < 48, (1 + floor(k^6/48^5))(48 - k)) for acceleration.
+  // 1 + sum(0 <= k < 48, (1 + floor((48 - k)^6/48^5/2))(2 + k)) for
+  // deceleration.
+  // 1/2 chance after ~2984 for acceleration, ~2367 for deceleration.
+  // 1/2 random weight.
+  // Average length 2 * 2675 = 5350 frames.
+  director().change_visual(2);
 }
 
 void AccelerateVisual::render() const
 {
   auto z = float(_change_timer) / (2 * _change_speed);
   director().render_image(
-      _current, 1, 8.f + 48.f - _change_speed, _change_faster ? .5f - z : z);
+      _current, 1, 8.f + 48.f - _change_speed, .5f - z);
   director().render_animation_or_image(Director::Anim::ANIM, {}, .2f, 6.f);
   director().render_spiral();
-  if (_change_faster && (_change_speed <= 4 || (_text_on && _text_timer)) ||
-      !_change_faster && (_change_speed <= 16 || _text_on)) {
+  if (_change_speed <= 4 || (_text_on && _text_timer)) {
     director().render_text(_current_text);
   }
 }
@@ -171,7 +149,7 @@ void SubTextVisual::render() const
 {
   director().render_animation_or_image(Director::Anim::ANIM, {}, 1, 10.f);
   director().render_image(_current, .8f, 8.f,
-                          1.f - float(_change_timer) / speed);
+                          2.f - float(_change_timer) / speed);
   director().render_subtext(1.f / 4);
   director().render_spiral();
   if (_text_on && _change_timer >= speed - 3) {
@@ -204,7 +182,7 @@ void SlowFlashVisual::update()
 
   if (!--_image_count) {
     _flash = !_flash;
-    _image_count = _flash ? 4 * cycle_length : cycle_length;
+    _image_count = _flash ? 2 * cycle_length : cycle_length;
     if (_change_timer < max_speed / 2 || _flash) {
       _current_text = director().get_text(_flash);
     }
@@ -222,22 +200,21 @@ void SlowFlashVisual::update()
   _change_timer = _flash ? min_speed : max_speed;
   _anim = !_anim;
   _current = director().get_image(_flash);
-  if (!_flash) {
-    _current_text = director().get_text(false);
-  }
+  _current_text = director().get_text(false);
 }
 
 void SlowFlashVisual::render() const
 {
   float extra = 8.f - 8.f * _image_count / (4 * cycle_length);
-  auto zoom = .5f - (_flash ?
+  auto zoom = 1.5f * (1.f - (_flash ?
       float(max_speed - min_speed + _change_timer) :
-      float(_change_timer)) / (2 * max_speed);
+      float(_change_timer)) / max_speed);
   director().render_animation_or_image(
       _anim && !_flash ? Director::Anim::ANIM : Director::Anim::NONE,
       _current, 1, 8.f + extra, zoom);
   director().render_spiral();
-  if (_change_timer < max_speed / 2 || _flash) {
+  if ((!_flash && _change_timer < max_speed / 2) ||
+      (_flash && _image_count % 2)) {
     director().render_text(
         _current_text,
         _flash ? 3.f + 8.f * (_image_count / (4.f * cycle_length)) : 4.f);
@@ -287,16 +264,17 @@ void FlashTextVisual::update()
 void FlashTextVisual::render() const
 {
   float extra = 32.f * _timer / length;
+  float zoom = float(_timer) / length;
   director().render_animation_or_image(
       !_animated ? Director::Anim::NONE :
       _cycle % 2 ? Director::Anim::ANIM : Director::Anim::ANIM_ALTERNATE,
-      _start, 1, 8.f + extra, 1.f - .5f * float(_timer) / length);
+      _start, 1, 8.f + extra, (_animated ? 1.5f : 1.f) * (2.f - zoom));
 
   director().render_animation_or_image(
       !_animated ? Director::Anim::NONE :
       _cycle % 2 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM,
       _end, 1.f - float(_timer) / length, 40.f - extra,
-      .5f - .5f * float(_timer) / length);
+      (_animated ? 1.5f : 1.f) * (1.f - zoom));
 
   director().render_spiral();
   if (_cycle % 2) {
@@ -365,13 +343,13 @@ void ParallelVisual::render() const
   auto anim = _anim_cycle % 3 == 2 ?
       Director::Anim::ANIM : Director::Anim::NONE;
   director().render_animation_or_image(
-      anim, _image, 1, 8.f + extra, float(_length) / (2 * length));
+      anim, _image, 1, 8.f + extra, float(_length) / length);
 
   auto alt_anim = _alternate_anim_cycle % 3 == 1 ?
       Director::Anim::ANIM_ALTERNATE : Director::Anim::NONE;
   director().render_animation_or_image(
       alt_anim, _alternate, .5f, 8 + 32.f - extra,
-      float(_alternate_length) / (2 * length));
+      1.5f * float(_alternate_length) / length);
 
   director().render_spiral();
   if (_cycle % 4 == 1 || _cycle % 4 == 2) {
@@ -443,7 +421,7 @@ void SuperParallelVisual::render() const
     director().render_animation_or_image(
         anim, _images[i], 1.f / (1 + i), 8.f + 4 * i + extra,
         i < _images.size() / 2 ? 0.f :
-        float(_lengths[i]) / (4 * image_count * length));
+        float(_lengths[i]) / (image_count * length));
   }
   director().render_spiral();
   director().render_text(_current_text, 5.f);
