@@ -532,7 +532,7 @@ void SuperFastVisual::render() const
   if (_animation_timer) {
     director().render_animation_or_image(
         _animation_alt ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM,
-        _current, 1.f, 20.f - 12.f * float(_animation_timer) / anim_length,
+        _current, 1.f, 20.f - 8.f * float(_animation_timer) / anim_length,
         4.f - 2.f * float(_animation_timer) / anim_length);
   }
   else {
