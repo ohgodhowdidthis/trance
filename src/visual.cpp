@@ -74,12 +74,10 @@ void AccelerateVisual::update()
   }
   director().change_font();
   // Frames is something like:
-  // 49 + sum(0 <= k < 48, (1 + floor(k^6/48^5))(48 - k)) for acceleration.
-  // 1 + sum(0 <= k < 48, (1 + floor((48 - k)^6/48^5/2))(2 + k)) for
-  // deceleration.
-  // 1/2 chance after ~2984 for acceleration, ~2367 for deceleration.
+  // 46 + sum(3 <= k < 48, (1 + floor(k^6/48^5))(48 - k)).
+  // 1/2 chance after ~2850.
   // 1/2 random weight.
-  // Average length 2 * 2675 = 5350 frames.
+  // Average length 2 * 2850 = 5700 frames.
   director().change_visual(2);
 }
 
@@ -90,7 +88,7 @@ void AccelerateVisual::render() const
       _current, 1, 8.f + 48.f - _change_speed, .5f - z);
   director().render_animation_or_image(Director::Anim::ANIM, {}, .2f, 6.f);
   director().render_spiral();
-  if (_change_speed <= 4 || (_text_on && _text_timer)) {
+  if (_change_speed == min_speed || (_text_on && _text_timer)) {
     director().render_text(_current_text);
   }
 }

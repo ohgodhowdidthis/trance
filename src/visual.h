@@ -39,7 +39,7 @@ public:
 private:
 
   static const uint32_t max_speed = 48;
-  static const uint32_t min_speed = 1;
+  static const uint32_t min_speed = 4;
   static const uint32_t text_time = 4;
 
   Image _current;
