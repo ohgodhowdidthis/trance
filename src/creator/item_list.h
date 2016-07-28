@@ -183,6 +183,20 @@ public:
     _button_delete->Enable(items.size() > 1);
   }
 
+  void ClearHighlights() {
+    for (std::size_t i = 0; i < _list->GetItemCount(); ++i) {
+      _list->SetItemBackgroundColour((long) i, *wxWHITE);
+    }
+  }
+
+  void AddHighlight(const std::string& item) {
+    for (std::size_t i = 0; i < _list->GetItemCount(); ++i) {
+      if (_list->GetItemText((long) i) == item) {
+        _list->SetItemBackgroundColour((long) i, *wxLIGHT_GREY);
+      }
+    }
+  }
+
 private:
   void SetSelection(const std::string& selection) {
     _selection = selection;
