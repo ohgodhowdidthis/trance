@@ -40,12 +40,14 @@ private:
     ID_REFRESH = 10323,
   };
 
+  void RefreshHighlights();
   void GenerateFontPreview();
 
   CreatorFrame& _creator_frame;
   trance_pb::Session& _session;
   const std::string& _session_path;
   std::string _item_selected;
+  std::string _path_selected;
   std::unique_ptr<trance_pb::Theme> _complete_theme;
 
   std::string _current_font;

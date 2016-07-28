@@ -212,7 +212,19 @@ ThemePage::ThemePage(wxNotebook* parent,
 
   _item_list = new ItemList<trance_pb::Theme>{
       splitter, *session.mutable_theme_map(), "theme",
-      [&](const std::string& s) { _item_selected = s; RefreshOurData(); },
+      [&](const std::string& s) {
+        _item_selected = s;
+        auto it = _session.theme_map().find(_item_selected);
+        if (it != _session.theme_map().end()) {
+          _creator_frame.SetStatusText(
+              _item_selected + ": " +
+              std::to_string(it->second.image_path().size()) + " images; " +
+              std::to_string(it->second.animation_path().size()) +
+              " animations; " +
+              std::to_string(it->second.font_path().size()) + " fonts.");
+        }
+        RefreshOurData();
+      },
       std::bind(&CreatorFrame::ThemeCreated, &_creator_frame,
                 std::placeholders::_1),
       std::bind(&CreatorFrame::ThemeDeleted, &_creator_frame,
@@ -372,7 +384,9 @@ ThemePage::ThemePage(wxNotebook* parent,
         _current_font = root + "/" + path;
         GenerateFontPreview();
       }
+      _path_selected = path;
     }
+    RefreshHighlights();
   }, wxID_ANY);
 
   _tree->Bind(wxEVT_TREELIST_ITEM_CHECKED, [&](wxTreeListEvent& e)
@@ -421,6 +435,7 @@ ThemePage::ThemePage(wxNotebook* parent,
         };
     recurse(e.GetItem());
     _creator_frame.MakeDirty(true);
+    RefreshHighlights();
   }, wxID_ANY);
 }
 
@@ -484,12 +499,29 @@ void ThemePage::RefreshOurData()
   _button_edit->Enable(!_item_selected.empty() && it->second.text_line_size());
   _button_delete->Enable(
       !_item_selected.empty() && it->second.text_line_size());
+
+  RefreshHighlights();
 }
 
 void ThemePage::RefreshData()
 {
   _item_list->RefreshData();
   RefreshOurData();
+}
+
+void ThemePage::RefreshHighlights()
+{
+  _item_list->ClearHighlights();
+  for (const auto& pair : _session.theme_map()) {
+    auto used = [&](const google::protobuf::RepeatedPtrField<std::string>& f) {
+      return std::find(f.begin(), f.end(), _path_selected) != f.end();
+    };
+    const auto& theme = pair.second;
+    if (used(theme.image_path()) || used(theme.font_path()) ||
+        used(theme.animation_path())) {
+      _item_list->AddHighlight(pair.first);
+    }
+  }
 }
 
 void ThemePage::RefreshDirectory(const std::string& directory)
