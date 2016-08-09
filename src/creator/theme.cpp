@@ -41,7 +41,7 @@ namespace {
     std::string r;
     bool first = true;
     while (!s.empty()) {
-      auto p = s.find_first_of("\\n");
+      auto p = s.find("\\n");
       auto q = s.substr(0, p != std::string::npos ? p : s.size());
       r += (first ? "" : "/") + q;
       first = false;

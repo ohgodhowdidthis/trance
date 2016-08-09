@@ -2,6 +2,27 @@
 #include "director.h"
 #include "util.h"
 
+std::vector<std::string> SplitWords(const std::string& text, bool split) {
+  std::vector<std::string> result;
+  if (!split) {
+    result.emplace_back(text);
+    return result;
+  }
+  std::string s = text;
+  while (!s.empty()) {
+    auto p = s.find_first_of(" \t\r\n");
+    auto q = s.substr(0, p != std::string::npos ? p : s.size());
+    if (!q.empty()) {
+      result.push_back(q);
+    }
+    s = s.substr(p != std::string::npos ? 1 + p : s.size());
+  }
+  if (result.empty()) {
+    result.emplace_back();
+  }
+  return result;
+}
+
 // TODO: some sort of unification of this logic, especially timers, calls to
 // maybe_upload_next, etc.
 Visual::Visual(Director& director)
@@ -157,11 +178,11 @@ void SubTextVisual::render() const
 
 SlowFlashVisual::SlowFlashVisual(Director& director)
 : Visual{director}
-, _current{director.get_image()}
-, _current_text{director.get_text()}
-, _change_timer{max_speed}
 , _flash{false}
 , _anim{false}
+, _current{director.get_image()}
+, _current_text{SplitWords(director.get_text(), _flash)}
+, _change_timer{max_speed}
 , _image_count{cycle_length}
 , _cycle_count{set_length}
 {
@@ -178,11 +199,16 @@ void SlowFlashVisual::update()
     return;
   }
 
+  bool changed_text = false;
   if (!--_image_count) {
     _flash = !_flash;
     _image_count = _flash ? 2 * cycle_length : cycle_length;
     if (_change_timer < max_speed / 2 || _flash) {
-      _current_text = director().get_text(_flash);
+      changed_text = true;
+      _current_text.erase(_current_text.begin());
+      if (_current_text.empty()) {
+        _current_text = SplitWords(director().get_text(_flash), _flash);
+      }
     }
     director().change_spiral();
     director().change_font();
@@ -198,7 +224,12 @@ void SlowFlashVisual::update()
   _change_timer = _flash ? min_speed : max_speed;
   _anim = !_anim;
   _current = director().get_image(_flash);
-  _current_text = director().get_text(false);
+  if (!changed_text) {
+    _current_text.erase(_current_text.begin());
+    if (_current_text.empty()) {
+      _current_text = SplitWords(director().get_text(_flash), _flash);
+    }
+  }
 }
 
 void SlowFlashVisual::render() const
@@ -214,7 +245,7 @@ void SlowFlashVisual::render() const
   if ((!_flash && _change_timer < max_speed / 2) ||
       (_flash && _image_count % 2)) {
     director().render_text(
-        _current_text,
+        _current_text[0],
         _flash ? 3.f + 8.f * (_image_count / (4.f * cycle_length)) : 4.f);
   }
 }
@@ -377,8 +408,11 @@ void SuperParallelVisual::update()
   }
   director().rotate_spiral(3.5f);
   if (!--_font_timer) {
-    _current_text = _current_text.empty() ?
-        director().get_text(random_chance()) : "";
+    if (_current_text.empty()) {
+      _current_text = SplitWords(director().get_text(random_chance()));
+    } else {
+      _current_text.erase(_current_text.begin());
+    }
     _font_timer = font_length;
   }
 
@@ -422,7 +456,7 @@ void SuperParallelVisual::render() const
         float(_lengths[i]) / (image_count * length));
   }
   director().render_spiral();
-  director().render_text(_current_text, 5.f);
+  director().render_text(_current_text.empty() ? "" : _current_text[0], 5.f);
 }
 
 AnimationVisual::AnimationVisual(Director& director)
@@ -485,6 +519,7 @@ void AnimationVisual::render() const
 SuperFastVisual::SuperFastVisual(Director& director)
 : Visual{director}
 , _current{director.get_image()}
+, _current_text{SplitWords(director.get_text())}
 , _start_timer{0}
 , _animation_timer{anim_length + random(anim_length)}
 , _animation_alt{false}
@@ -501,7 +536,10 @@ void SuperFastVisual::update()
   }
   if (_timer % image_length == 0) {
     _current = director().get_image();
-    _current_text = director().get_text();
+    _current_text.erase(_current_text.begin());
+    if (_current_text.empty()) {
+      _current_text = SplitWords(director().get_text());
+    }
   }
   if (!_start_timer && random_chance(128)) {
     _animation_alt = !_animation_alt;
@@ -539,7 +577,7 @@ void SuperFastVisual::render() const
         20.f - 12.f * float(_timer % image_length) / image_length,
         1.f - float(_timer % image_length) / image_length);
     if (_timer % image_length < 2) {
-      director().render_text(_current_text, 5.f);
+      director().render_text(_current_text[0], 5.f);
     }
   }
   director().render_spiral();
