@@ -1,7 +1,7 @@
 /********************************************************************************//**
 \file      OVR_Math.h
 \brief     Implementation of 3D primitives such as vectors, matrices.
-\copyright Copyright 2014 Oculus VR, LLC All Rights reserved.
+\copyright Copyright 2014-2016 Oculus VR, LLC All Rights reserved.
 *************************************************************************************/
 
 #ifndef OVR_Math_h
@@ -674,7 +674,7 @@ public:
     T       LengthSq() const                     { return (x * x + y * y + z * z); }
 
     // Return vector length.
-    T       Length() const                       { return sqrt(LengthSq()); }
+    T       Length() const                       { return (T)sqrt(LengthSq()); }
 
     // Returns squared distance between two points represented by vectors.
     T       DistanceSq(Vector3 const& b) const         { return (*this - b).LengthSq(); }
@@ -1487,6 +1487,25 @@ public:
         }
     }
 
+    // Decompose a quat into quat = swing * twist, where twist is a rotation about axis,
+    // and swing is a rotation perpendicular to axis.
+    Quat GetSwingTwist(const Vector3<T>& axis, Quat* twist) const
+    {
+        OVR_MATH_ASSERT(twist);
+        OVR_MATH_ASSERT(axis.IsNormalized());
+
+        // Create a normalized quaternion from projection of (x,y,z) onto axis
+        T d = axis.Dot(Vector3<T>(x, y, z));
+        *twist = Quat(axis.x*d, axis.y*d, axis.z*d, w);
+        T len = twist->Length();
+        if (len == 0)
+            twist->w = T(1);    // identity
+        else
+            *twist /= len;       // normalize
+
+        return *this * twist->Inverted();
+    }
+
     // Normalized linear interpolation of quaternions
     // NOTE: This function is a bad approximation of Slerp()
     // when the angle between the *this and b is large.
@@ -1500,7 +1519,7 @@ public:
     Quat Slerp(const Quat& b, T s) const
     {
         Vector3<T> delta = (b * this->Inverted()).ToRotationVector();
-        return FromRotationVector(delta * s) * *this;
+        return (FromRotationVector(delta * s) * *this).Normalized();    // normalize so errors don't accumulate
     }
 
     // Spherical linear interpolation: much faster for small rotations, accurate for large rotations. See FastTo/FromRotationVector
@@ -1514,7 +1533,7 @@ public:
     // assuming negative direction of the axis). Standard formula: q(t) * V * q(t)^-1. 
     Vector3<T> Rotate(const Vector3<T>& v) const
     {
-        OVR_MATH_ASSERT(IsNormalized());
+        OVR_MATH_ASSERT(isnan(w) || IsNormalized());
 
         // rv = q * (v,0) * q'
         // Same as rv = v + real * cross(imag,v)*2 + cross(imag, cross(imag,v)*2);
@@ -1754,7 +1773,7 @@ public:
         : Rotation(s.Rotation), Translation(s.Translation)
     {
         // Ensure normalized rotation if converting from float to double
-        if (sizeof(T) > sizeof(Math<T>::OtherFloatType))
+        if (sizeof(T) > sizeof(typename Math<T>::OtherFloatType))
             Rotation.Normalize();
     }
 
@@ -2496,8 +2515,8 @@ public:
     //       negative axis direction.
     static Matrix4 RotationY(T angle)
     {
-        T sina = sin(angle);
-        T cosa = cos(angle);
+        T sina = (T)sin(angle);
+        T cosa = (T)cos(angle);
         return Matrix4(cosa,  0,   sina, 
                        0,     1,   0,
                        -sina, 0,   cosa);

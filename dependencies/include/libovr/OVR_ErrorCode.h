@@ -1,7 +1,7 @@
 /********************************************************************************//**
 \file  OVR_ErrorCode.h
 \brief     This header provides LibOVR error code declarations.
-\copyright Copyright 2015 Oculus VR, LLC All Rights reserved.
+\copyright Copyright 2015-2016 Oculus VR, LLC All Rights reserved.
 *************************************************************************************/
 
 #ifndef OVR_ErrorCode_h
@@ -10,9 +10,6 @@
 
 #include "OVR_Version.h"
 #include <stdint.h>
-
-
-
 
 
 
@@ -36,9 +33,9 @@ typedef int32_t ovrResult;
 
 /// \brief Indicates if an ovrResult indicates an unqualified success.
 ///
-/// This is useful for indicating that the code intentionally wants to 
-/// check for result == ovrSuccess as opposed to OVR_SUCCESS(), which 
-/// checks for result >= ovrSuccess. 
+/// This is useful for indicating that the code intentionally wants to
+/// check for result == ovrSuccess as opposed to OVR_SUCCESS(), which
+/// checks for result >= ovrSuccess.
 ///
 #if !defined(OVR_UNQUALIFIED_SUCCESS)
     #define OVR_UNQUALIFIED_SUCCESS(result) (result == ovrSuccess)
@@ -59,38 +56,42 @@ typedef enum ovrSuccessType_
 {
     /// This is a general success result. Use OVR_SUCCESS to test for success.
     ovrSuccess = 0,
+} ovrSuccessType;
+#endif
 
+// Public success types
+// Success is a value greater or equal to 0, while all error types are negative values.
+typedef enum ovrSuccessTypes_
+{
     /// Returned from a call to SubmitFrame. The call succeeded, but what the app
     /// rendered will not be visible on the HMD. Ideally the app should continue
     /// calling SubmitFrame, but not do any rendering. When the result becomes
     /// ovrSuccess, rendering should continue as usual.
     ovrSuccess_NotVisible                 = 1000,
 
-    ovrSuccess_HMDFirmwareMismatch        = 4100,   ///< The HMD Firmware is out of date but is acceptable.
-    ovrSuccess_TrackerFirmwareMismatch    = 4101,   ///< The Tracker Firmware is out of date but is acceptable.
-    ovrSuccess_ControllerFirmwareMismatch = 4104,   ///< The controller firmware is out of date but is acceptable.
+} ovrSuccessTypes;
 
-} ovrSuccessType;
-#endif
-
-
+// Public error types
 typedef enum ovrErrorType_
 {
     /* General errors */
     ovrError_MemoryAllocationFailure    = -1000,   ///< Failure to allocate memory.
-    ovrError_SocketCreationFailure      = -1001,   ///< Failure to create a socket.
     ovrError_InvalidSession             = -1002,   ///< Invalid ovrSession parameter provided.
     ovrError_Timeout                    = -1003,   ///< The operation timed out.
     ovrError_NotInitialized             = -1004,   ///< The system or component has not been initialized.
     ovrError_InvalidParameter           = -1005,   ///< Invalid parameter provided. See error info or log for details.
     ovrError_ServiceError               = -1006,   ///< Generic service error. See error info or log for details.
     ovrError_NoHmd                      = -1007,   ///< The given HMD doesn't exist.
+    ovrError_Unsupported                = -1009,   ///< Function call is not supported on this hardware/software
+    ovrError_DeviceUnavailable          = -1010,   ///< Specified device type isn't available.
+    ovrError_InvalidHeadsetOrientation  = -1011,   ///< The headset was in an invalid orientation for the requested operation (e.g. vertically oriented during ovr_RecenterPose).
+    ovrError_ClientSkippedDestroy       = -1012,   ///< The client failed to call ovr_Destroy on an active session before calling ovr_Shutdown. Or the client crashed.
+    ovrError_ClientSkippedShutdown      = -1013,   ///< The client failed to call ovr_Shutdown or the client crashed.
+    ovrError_ServiceDeadlockDetected    = -1014,   ///< The service watchdog discovered a deadlock.
 
     /* Audio error range, reserved for Audio errors. */
-    ovrError_AudioReservedBegin         = -2000,   ///< First Audio error.
     ovrError_AudioDeviceNotFound        = -2001,   ///< Failure to find the specified audio device.
     ovrError_AudioComError              = -2002,   ///< Generic COM error.
-    ovrError_AudioReservedEnd           = -2999,   ///< Last Audio error.
 
     /* Initialization errors. */
     ovrError_Initialize                 = -3000,   ///< Generic initialization error.
@@ -109,37 +110,38 @@ typedef enum ovrErrorType_
     ovrError_OutOfDateGfxDriver         = -3013,   ///< The graphics driver is out of date.
     ovrError_IncompatibleGPU            = -3014,   ///< The graphics hardware is not supported
     ovrError_NoValidVRDisplaySystem     = -3015,   ///< No valid VR display system found.
-
-    /* Hardware errors */
-    ovrError_InvalidBundleAdjustment    = -4000,   ///< Headset has no bundle adjustment data.
-    ovrError_USBBandwidth               = -4001,   ///< The USB hub cannot handle the camera frame bandwidth.
-    ovrError_USBEnumeratedSpeed         = -4002,   ///< The USB camera is not enumerating at the correct device speed.
-    ovrError_ImageSensorCommError       = -4003,   ///< Unable to communicate with the image sensor.
-    ovrError_GeneralTrackerFailure      = -4004,   ///< We use this to report various tracker issues that don't fit in an easily classifiable bucket.
-    ovrError_ExcessiveFrameTruncation   = -4005,   ///< A more than acceptable number of frames are coming back truncated.
-    ovrError_ExcessiveFrameSkipping     = -4006,   ///< A more than acceptable number of frames have been skipped.
-    ovrError_SyncDisconnected           = -4007,   ///< The tracker is not receiving the sync signal (cable disconnected?)
-    ovrError_TrackerMemoryReadFailure   = -4008,   ///< Failed to read memory from the tracker
-    ovrError_TrackerMemoryWriteFailure  = -4009,   ///< Failed to write memory from the tracker
-    ovrError_TrackerFrameTimeout        = -4010,   ///< Timed out waiting for a camera frame
-    ovrError_TrackerTruncatedFrame      = -4011,   ///< Truncated frame returned from tracker
-    ovrError_HMDFirmwareMismatch        = -4100,   ///< The HMD Firmware is out of date and is unacceptable.
-    ovrError_TrackerFirmwareMismatch    = -4101,   ///< The Tracker Firmware is out of date and is unacceptable.
-    ovrError_BootloaderDeviceDetected   = -4102,   ///< A bootloader HMD is detected by the service
-    ovrError_TrackerCalibrationError    = -4103,   ///< The tracker calibration is missing or incorrect
-    ovrError_ControllerFirmwareMismatch = -4104,   ///< The controller firmware is out of date and is unacceptable
-
-    /* Synchronization errors */
-    ovrError_Incomplete                 = -5000,   ///<Requested async work not yet complete.
-    ovrError_Abandoned                  = -5001,   ///<Requested async work was abandoned and result is incomplete.
+    ovrError_Obsolete                   = -3016,   ///< Feature or API is obsolete and no longer supported.
+    ovrError_DisabledOrDefaultAdapter   = -3017,   ///< No supported VR display system found, but disabled or driverless adapter found.
+    ovrError_HybridGraphicsNotSupported = -3018,   ///< The system is using hybrid graphics (Optimus, etc...), which is not support.
+    ovrError_DisplayManagerInit         = -3019,   ///< Initialization of the DisplayManager failed.
+    ovrError_TrackerDriverInit          = -3020,   ///< Failed to get the interface for an attached tracker
 
     /* Rendering errors */
-    ovrError_DisplayLost                = -6000,   ///<In the event of a system-wide graphics reset or cable unplug this is returned to the app
+    ovrError_DisplayLost                = -6000,   ///< In the event of a system-wide graphics reset or cable unplug this is returned to the app.
+    ovrError_TextureSwapChainFull       = -6001,   ///< ovr_CommitTextureSwapChain was called too many times on a texture swapchain without calling submit to use the chain.
+    ovrError_TextureSwapChainInvalid    = -6002,   ///< The ovrTextureSwapChain is in an incomplete or inconsistent state. Ensure ovr_CommitTextureSwapChain was called at least once first.
+    ovrError_GraphicsDeviceReset        = -6003,   ///< Graphics device has been reset (TDR, etc...)
+    ovrError_DisplayRemoved             = -6004,   ///< HMD removed from the display adapter
+    ovrError_ContentProtectionNotAvailable = -6005,///<Content protection is not available for the display
+    ovrError_ApplicationInvisible       = -6006,   ///< Application declared itself as an invisible type and is not allowed to submit frames.
+    ovrError_Disallowed                 = -6007,   ///< The given request is disallowed under the current conditions.
+    ovrError_DisplayPluggedIncorrectly  = -6008,   ///< Display portion of HMD is plugged into an incompatible port (ex: IGP)
 
     /* Fatal errors */
     ovrError_RuntimeException           = -7000,   ///< A runtime exception occurred. The application is required to shutdown LibOVR and re-initialize it before this error state will be cleared.
 
+
 } ovrErrorType;
+
+
+
+/// Provides information about the last error.
+/// \see ovr_GetLastErrorInfo
+typedef struct ovrErrorInfo_
+{
+    ovrResult Result;               ///< The result from the last API call that generated an error ovrResult.
+    char      ErrorString[512];     ///< A UTF8-encoded null-terminated English string describing the problem. The format of this string is subject to change in future versions.
+} ovrErrorInfo;
 
 
 #endif /* OVR_ErrorCode_h */
