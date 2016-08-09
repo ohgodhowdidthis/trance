@@ -1,10 +1,13 @@
 #ifndef TRANCE_VISUAL_H
 #define TRANCE_VISUAL_H
-
 #include <cstddef>
+#include <string>
+#include <vector>
 #include "theme.h"
 
 class Director;
+
+std::vector<std::string> SplitWords(const std::string& text, bool split = true);
 
 // Interface to an object which can render and control the visual state.
 // These visuals are swapped out by the Director every so often for different
@@ -90,12 +93,13 @@ private:
   static const uint32_t cycle_length = 16;
   static const uint32_t set_length = 4;
 
-  Image _current;
-  std::string _current_text;
-  uint32_t _change_timer;
-
   bool _flash;
   bool _anim;
+
+  Image _current;
+  std::vector<std::string> _current_text;
+  uint32_t _change_timer;
+
   uint32_t _image_count;
   uint32_t _cycle_count;
 
@@ -167,7 +171,7 @@ private:
   std::vector<Image> _images;
   std::vector<uint32_t> _lengths;
   std::size_t _index;
-  std::string _current_text;
+  std::vector<std::string> _current_text;
   uint32_t _timer;
   uint32_t _font_timer;
   uint32_t _cycle;
@@ -211,7 +215,7 @@ private:
   static const uint32_t image_length = 8;
 
   Image _current;
-  std::string _current_text;
+  std::vector<std::string> _current_text;
   uint32_t _start_timer;
   uint32_t _animation_timer;
   bool _animation_alt;

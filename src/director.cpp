@@ -374,17 +374,24 @@ Director::Director(sf::RenderWindow& window,
   }
   for (const auto& font : fonts) {
     FontCache temp_cache{_themes.get_root_path(), 8 * system.font_cache_size()};
+    auto cache_text_size = [&](const std::string& text) {
+      auto cache_key = font + "/\t/\t/" + text;
+      auto cache_it = _text_size_cache.find(cache_key);
+      if (cache_it == _text_size_cache.end()) {
+        _text_size_cache[cache_key] = get_cached_text_size(temp_cache, text, font);
+        std::cout << "-";
+      }
+    };
+
     for (const auto& pair : session.theme_map()) {
       if (!std::count(pair.second.font_path().begin(),
                       pair.second.font_path().end(), font)) {
         continue;
       }
       for (const auto& text : pair.second.text_line()) {
-        auto cache_key = font + "/\t/\t/" + text;
-        auto cache_it = _text_size_cache.find(cache_key);
-        if (cache_it == _text_size_cache.end()) {
-          _text_size_cache[cache_key] = get_cached_text_size(temp_cache, text, font);
-          std::cout << "-";
+        cache_text_size(text);
+        for (const auto& line : SplitWords(text)) {
+          cache_text_size(line);
         }
       }
     }
