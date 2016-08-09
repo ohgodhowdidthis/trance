@@ -40,7 +40,7 @@ public:
 
   // Called from play_session() in main.cpp.
   void set_program(const trance_pb::Program& program);
-  void update();
+  bool update();
   void render() const;
   // Returns screen data only in non-realtime mode.
   const uint8_t* get_screen_data() const;
@@ -109,9 +109,10 @@ private:
 
   struct {
     bool enabled;
+    bool started;
     ovrSession session;
     ovrGraphicsLuid luid;
-    ovrSwapTextureSet* texture_set;
+    ovrTextureSwapChain texture_chain;
     std::vector<uint32_t> fbo_ovr;
     ovrVector3f eye_view_offset[2];
 
