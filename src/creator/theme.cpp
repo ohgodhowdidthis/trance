@@ -426,11 +426,11 @@ ThemePage::ThemePage(wxNotebook* parent,
           if (data != nullptr) {
             std::string path = ((const wxStringClientData*) data)->GetData();
             handle(_complete_theme->image_path(),
-                    *it->second.mutable_image_path(), path);
+                   *it->second.mutable_image_path(), path);
             handle(_complete_theme->animation_path(),
-                    *it->second.mutable_animation_path(), path);
+                   *it->second.mutable_animation_path(), path);
             handle(_complete_theme->font_path(),
-                    *it->second.mutable_font_path(), path);
+                   *it->second.mutable_font_path(), path);
           }
         };
     recurse(e.GetItem());

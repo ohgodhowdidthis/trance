@@ -252,10 +252,14 @@ void play_session(
 
       bool update = false;
       float frame_time = 1.f / program().global_fps();
+      bool continue_playing = true;
       while (update_time >= frame_time) {
         update = true;
         update_time -= frame_time;
-        director->update();
+        continue_playing &= director->update();
+      }
+      if (!continue_playing) {
+        break;
       }
       if (update || !realtime) {
         director->render();

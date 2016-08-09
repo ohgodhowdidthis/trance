@@ -413,13 +413,31 @@ void Director::set_program(const trance_pb::Program& program)
   _program = &program;
 }
 
-void Director::update()
+bool Director::update()
 {
   ++_switch_themes;
   if (_old_visual) {
     _old_visual.reset(nullptr);
   }
   _visual->update();
+
+  bool to_oculus = _realtime && _oculus.enabled;
+  if (to_oculus) {
+    ovrSessionStatus status;
+    auto result = ovr_GetSessionStatus(_oculus.session, &status);
+    if (result != ovrSuccess) {
+      std::cerr << "Oculus session status failed" << std::endl;
+    }
+    if (status.ShouldQuit) {
+      return false;
+    }
+    if (status.DisplayLost) {
+      std::cerr << "Oculus display lost" << std::endl;
+    }
+    _oculus.started =
+        status.IsVisible && status.HmdPresent && !status.DisplayLost;
+  }
+  return true;
 }
 
 void Director::render() const
@@ -442,13 +460,16 @@ void Director::render() const
     ovr_CalcEyePoses(tracking.HeadPose.ThePose,
                      _oculus.eye_view_offset, _oculus.layer.RenderPose);
 
-    _oculus.texture_set->CurrentIndex =
-        (_oculus.texture_set->CurrentIndex + 1) %
-        _oculus.texture_set->TextureCount;
+    int index = 0;
+    auto result = ovr_GetTextureSwapChainCurrentIndex(
+        _oculus.session, _oculus.texture_chain, &index);
+    if (result != ovrSuccess) {
+      std::cerr << "Oculus texture swap chain index failed" << std::endl;
+    }
 
-    glBindFramebuffer(
-        GL_FRAMEBUFFER, _oculus.fbo_ovr[_oculus.texture_set->CurrentIndex]);
+    glBindFramebuffer(GL_FRAMEBUFFER, _oculus.fbo_ovr[index]);
     glClear(GL_COLOR_BUFFER_BIT);
+
     for (int eye = 0; eye < 2; ++eye) {
       _oculus.rendering_right = eye == ovrEye_Right;
       const auto& view = _oculus.layer.Viewport[eye];
@@ -456,9 +477,17 @@ void Director::render() const
       _visual->render();
     }
 
+    result = ovr_CommitTextureSwapChain(_oculus.session, _oculus.texture_chain);
+    if (result != ovrSuccess) {
+      std::cerr << "Oculus commit texture swap chain failed" << std::endl;
+    }
+
     _oculus.layer.SensorSampleTime = sensorTime;
     const ovrLayerHeader* layers = &_oculus.layer.Header;
-    ovr_SubmitFrame(_oculus.session, 0, nullptr, &layers, 1);
+    result = ovr_SubmitFrame(_oculus.session, 0, nullptr, &layers, 1);
+    if (result != ovrSuccess) {
+      std::cerr << "Oculus submit frame failed" << std::endl;
+    }
   }
   else {
     glBindFramebuffer(GL_FRAMEBUFFER, to_window ? 0 : _render_fbo);
@@ -872,6 +901,7 @@ bool Director::init_oculus_rift()
     std::cerr << "Oculus session failed" << std::endl;
     return false;
   }
+  _oculus.started = false;
   auto desc = ovr_GetHmdDesc(_oculus.session);
   ovr_SetBool(_oculus.session, "QueueAheadEnabled", ovrFalse);
 
@@ -882,15 +912,40 @@ bool Director::init_oculus_rift()
   int fw = eye_left.w + eye_right.w;
   int fh = std::max(eye_left.h, eye_right.h);
 
-  auto result = ovr_CreateSwapTextureSetGL(
-      _oculus.session, GL_SRGB8_ALPHA8, fw, fh, &_oculus.texture_set);
+  ovrTextureSwapChainDesc texture_chain_desc;
+  texture_chain_desc.Type = ovrTexture_2D;
+  texture_chain_desc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
+  texture_chain_desc.ArraySize = 1;
+  texture_chain_desc.Width = fw;
+  texture_chain_desc.Height = fh;
+  texture_chain_desc.MipLevels = 0;
+  texture_chain_desc.SampleCount = 1;
+  texture_chain_desc.StaticImage = false;
+  texture_chain_desc.MiscFlags = ovrTextureMisc_None;
+  texture_chain_desc.BindFlags = 0;
+
+  auto result = ovr_CreateTextureSwapChainGL(
+      _oculus.session, &texture_chain_desc, &_oculus.texture_chain);
   if (result != ovrSuccess) {
-    std::cerr << "Oculus swap textures failed" << std::endl;
+    std::cerr << "Oculus texture swap chain failed" << std::endl;
+      ovrErrorInfo info;
+  ovr_GetLastErrorInfo(&info);
+  std::cerr << info.ErrorString << std::endl;
   }
-  for (int i = 0; i < _oculus.texture_set->TextureCount; ++i) {
+  int texture_count = 0;
+  result = ovr_GetTextureSwapChainLength(
+      _oculus.session, _oculus.texture_chain, &texture_count);
+  if (result != ovrSuccess) {
+    std::cerr << "Oculus texture swap chain length failed" << std::endl;
+  }
+  for (int i = 0; i < texture_count; ++i) {
     GLuint fbo;
-    GLuint fb_tex =
-        ((ovrGLTexture*) &_oculus.texture_set->Textures[i])->OGL.TexId;
+    GLuint fb_tex = 0;
+    result = ovr_GetTextureSwapChainBufferGL(
+        _oculus.session, _oculus.texture_chain, i, &fb_tex);
+    if (result != ovrSuccess) {
+      std::cerr << "Oculus texture swap chain buffer failed" << std::endl;
+    }
 
     glGenFramebuffers(1, &fbo);
     _oculus.fbo_ovr.push_back(fbo);
@@ -909,13 +964,13 @@ bool Director::init_oculus_rift()
       _oculus.session, ovrEye_Left, desc.DefaultEyeFov[0]);
   auto erd_right = ovr_GetRenderDesc(
       _oculus.session, ovrEye_Right, desc.DefaultEyeFov[1]);
-  _oculus.eye_view_offset[0] = erd_left.HmdToEyeViewOffset;
-  _oculus.eye_view_offset[1] = erd_right.HmdToEyeViewOffset;
+  _oculus.eye_view_offset[0] = erd_left.HmdToEyeOffset;
+  _oculus.eye_view_offset[1] = erd_right.HmdToEyeOffset;
 
   _oculus.layer.Header.Type = ovrLayerType_EyeFov;
   _oculus.layer.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;
-  _oculus.layer.ColorTexture[0] = _oculus.texture_set;
-  _oculus.layer.ColorTexture[1] = _oculus.texture_set;
+  _oculus.layer.ColorTexture[0] = _oculus.texture_chain;
+  _oculus.layer.ColorTexture[1] = _oculus.texture_chain;
   _oculus.layer.Fov[0] = erd_left.Fov;
   _oculus.layer.Fov[1] = erd_right.Fov;
   _oculus.layer.Viewport[0].Pos.x = 0;
