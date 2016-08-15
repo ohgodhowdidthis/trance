@@ -1,6 +1,6 @@
 gflags: 2.1.2
 giflib: 5.1.0
-libovr: 1.6.0
+libovr: 1.7.0
 libwebm: 852e173
 libvpx: 1.3.0
 protobuf: 3.0.0-beta-1
