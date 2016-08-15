@@ -441,6 +441,9 @@ bool Director::update()
     if (status.DisplayLost) {
       std::cerr << "Oculus display lost" << std::endl;
     }
+    if (status.ShouldRecenter) {
+      ovr_ClearShouldRecenterFlag(_oculus.session);
+    }
     _oculus.started =
         status.IsVisible && status.HmdPresent && !status.DisplayLost;
   }
