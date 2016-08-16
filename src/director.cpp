@@ -463,40 +463,42 @@ void Director::render() const
     _visual->render();
   }
   else if (to_oculus) {
-    auto timing = ovr_GetPredictedDisplayTime(_oculus.session, 0);
-    auto sensorTime = ovr_GetTimeInSeconds();
-    auto tracking =
-        ovr_GetTrackingState(_oculus.session, timing, true);
-    ovr_CalcEyePoses(tracking.HeadPose.ThePose,
-                     _oculus.eye_view_offset, _oculus.layer.RenderPose);
+    if (_oculus.started) {
+      auto timing = ovr_GetPredictedDisplayTime(_oculus.session, 0);
+      auto sensorTime = ovr_GetTimeInSeconds();
+      auto tracking = ovr_GetTrackingState(_oculus.session, timing, true);
+      ovr_CalcEyePoses(tracking.HeadPose.ThePose,
+                        _oculus.eye_view_offset, _oculus.layer.RenderPose);
 
-    int index = 0;
-    auto result = ovr_GetTextureSwapChainCurrentIndex(
-        _oculus.session, _oculus.texture_chain, &index);
-    if (result != ovrSuccess) {
-      std::cerr << "Oculus texture swap chain index failed" << std::endl;
-    }
+      int index = 0;
+      auto result = ovr_GetTextureSwapChainCurrentIndex(
+          _oculus.session, _oculus.texture_chain, &index);
+      if (result != ovrSuccess) {
+        std::cerr << "Oculus texture swap chain index failed" << std::endl;
+      }
 
-    glBindFramebuffer(GL_FRAMEBUFFER, _oculus.fbo_ovr[index]);
-    glClear(GL_COLOR_BUFFER_BIT);
+      glBindFramebuffer(GL_FRAMEBUFFER, _oculus.fbo_ovr[index]);
+      glClear(GL_COLOR_BUFFER_BIT);
 
-    for (int eye = 0; eye < 2; ++eye) {
-      _oculus.rendering_right = eye == ovrEye_Right;
-      const auto& view = _oculus.layer.Viewport[eye];
-      glViewport(view.Pos.x, view.Pos.y, view.Size.w, view.Size.h);
-      _visual->render();
-    }
+      for (int eye = 0; eye < 2; ++eye) {
+        _oculus.rendering_right = eye == ovrEye_Right;
+        const auto& view = _oculus.layer.Viewport[eye];
+        glViewport(view.Pos.x, view.Pos.y, view.Size.w, view.Size.h);
+        _visual->render();
+      }
 
-    result = ovr_CommitTextureSwapChain(_oculus.session, _oculus.texture_chain);
-    if (result != ovrSuccess) {
-      std::cerr << "Oculus commit texture swap chain failed" << std::endl;
-    }
+      result =
+          ovr_CommitTextureSwapChain(_oculus.session, _oculus.texture_chain);
+      if (result != ovrSuccess) {
+        std::cerr << "Oculus commit texture swap chain failed" << std::endl;
+      }
 
-    _oculus.layer.SensorSampleTime = sensorTime;
-    const ovrLayerHeader* layers = &_oculus.layer.Header;
-    result = ovr_SubmitFrame(_oculus.session, 0, nullptr, &layers, 1);
-    if (result != ovrSuccess) {
-      std::cerr << "Oculus submit frame failed" << std::endl;
+      _oculus.layer.SensorSampleTime = sensorTime;
+      const ovrLayerHeader* layers = &_oculus.layer.Header;
+      result = ovr_SubmitFrame(_oculus.session, 0, nullptr, &layers, 1);
+      if (result != ovrSuccess && result != ovrSuccess_NotVisible) {
+        std::cerr << "Oculus submit frame failed" << std::endl;
+      }
     }
   }
   else {

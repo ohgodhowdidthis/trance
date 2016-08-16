@@ -115,10 +115,10 @@ void handle_events(std::atomic<bool>& running, sf::RenderWindow* window)
   }
 }
 
-void print_info(const sf::Clock& clock,
-                uint32_t frames, uint32_t total_frames)
+void print_info(double elapsed_seconds,
+                uint64_t frames, uint64_t total_frames)
 {
-  auto format_time = [](uint32_t seconds) {
+  auto format_time = [](uint64_t seconds) {
     auto minutes = seconds / 60;
     seconds = seconds % 60;
     auto hours = minutes / 60;
@@ -134,10 +134,10 @@ void print_info(const sf::Clock& clock,
   };
 
   float completion = float(frames) / total_frames;
-  auto elapsed = uint32_t(clock.getElapsedTime().asSeconds() + .5f);
-  auto eta = uint32_t(.5f + (completion ?
-      clock.getElapsedTime().asSeconds() * (1.f / completion - 1.f) : 0.f));
-  auto percentage = uint32_t(100 * completion);
+  auto elapsed = uint64_t(elapsed_seconds + .5);
+  auto eta = uint64_t(
+      .5 + (completion ? elapsed_seconds * (1. / completion - 1.) : 0.));
+  auto percentage = uint64_t(100 * completion);
 
   std::cout << std::endl <<
       "frame: " << frames << " / " << total_frames << " [" << percentage <<
@@ -196,45 +196,65 @@ void play_session(
   }
   std::cout << "\n-> " << session.first_playlist_item() << std::endl;
 
-  float update_time = 0.f;
-  float async_update_time = 0.f;
-  float playlist_item_time = 0.f;
-  uint32_t frames = 0;
-  sf::Clock clock;
   try {
+    float update_time = 0.f;
+    float playlist_item_time = 0.f;
+
+    uint64_t elapsed_frames = 0;
+    uint64_t async_update_residual = 0;
+    double elapsed_frames_residual = 0;
+    std::chrono::high_resolution_clock clock;
+    auto clock_time = [&]
+    {
+      return std::chrono::duration_cast<std::chrono::milliseconds>(
+          clock.now().time_since_epoch()).count();
+    };
+    const auto clock_start = clock_time();
+    auto last_clock_time = clock_start;
+    auto last_playlist_switch = clock_start;
+
     while (running) {
       handle_events(running, window.get());
 
-      float elapsed = 0.f;
+      uint32_t frames_this_loop = 0;
       if (realtime) {
-        elapsed = clock.getElapsedTime().asSeconds();
-        clock.restart();
-      }
-      else {
-        elapsed = 1.f / settings.fps;
-        uint32_t total_frames = settings.length * settings.fps;
-        if (frames % 8 == 0) {
-          print_info(clock, frames, total_frames);
+        auto t = clock_time();
+        auto elapsed_ms = t - last_clock_time;
+        last_clock_time = t;
+        elapsed_frames_residual +=
+            double(program().global_fps()) * double(elapsed_ms) / 1000.;
+        while (elapsed_frames_residual >= 1.) {
+          --elapsed_frames_residual;
+          ++frames_this_loop;
         }
-        if (frames >= total_frames) {
+      } else {
+        frames_this_loop = 1;
+      }
+
+      elapsed_frames += frames_this_loop;
+      if (!realtime) {
+        auto total_frames = uint64_t(settings.length) * uint64_t(settings.fps);
+        if (elapsed_frames % 8 == 0) {
+          auto elapsed_seconds = double(clock_time() - clock_start) / 1000.;
+          print_info(elapsed_seconds, elapsed_frames, total_frames);
+        }
+        if (elapsed_frames >= total_frames) {
           running = false;
           break;
         }
-        ++frames;
       }
-      update_time += elapsed;
-      async_update_time += elapsed;
-      playlist_item_time += elapsed;
 
-      float async_frame_time = async_millis * 1.f / 1000;
-      while (!realtime && async_update_time >= async_frame_time) {
-        async_update_time -= async_frame_time;
+      async_update_residual +=
+          uint64_t(1000. * frames_this_loop / double(program().global_fps()));
+      while (!realtime && async_update_residual >= async_millis) {
+        async_update_residual -= async_millis;
         theme_bank->async_update();
       }
 
+      auto time_since_switch = clock_time() - last_playlist_switch;
       if (item->play_time_seconds() &&
-          playlist_item_time >= item->play_time_seconds()) {
-        playlist_item_time -= item->play_time_seconds();
+          time_since_switch >= 1000 * item->play_time_seconds()) {
+        last_playlist_switch = clock_time();
         auto next = next_playlist_item(item);
         item = &session.playlist().find(next)->second;
         if (realtime) {
@@ -251,11 +271,10 @@ void play_session(
       }
 
       bool update = false;
-      float frame_time = 1.f / program().global_fps();
       bool continue_playing = true;
-      while (update_time >= frame_time) {
+      while (frames_this_loop > 0) {
         update = true;
-        update_time -= frame_time;
+        --frames_this_loop;
         continue_playing &= director->update();
       }
       if (!continue_playing) {
