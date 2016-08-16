@@ -442,10 +442,14 @@ bool Director::update()
       std::cerr << "Oculus display lost" << std::endl;
     }
     if (status.ShouldRecenter) {
-      ovr_ClearShouldRecenterFlag(_oculus.session);
+      if (ovr_RecenterTrackingOrigin(_oculus.session) != ovrSuccess) {
+        ovr_ClearShouldRecenterFlag(_oculus.session);
+      }
     }
-    _oculus.started =
-        status.IsVisible && status.HmdPresent && !status.DisplayLost;
+    _oculus.started = status.HmdPresent && !status.DisplayLost;
+    if (!status.IsVisible && _switch_themes % 1000 == 0) {
+      std::cerr << "Lost focus (move the HMD?)" << std::endl;
+    }
   }
   return true;
 }
