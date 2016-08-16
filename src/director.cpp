@@ -42,8 +42,8 @@ void main()
 )";
 
 static const std::string image_vertex = R"(
-uniform vec2 min;
-uniform vec2 max;
+uniform vec2 min_coord;
+uniform vec2 max_coord;
 uniform vec2 flip;
 uniform float alpha;
 uniform float zoom;
@@ -55,7 +55,7 @@ varying float valpha;
 void main()
 {
   vec2 pos = position / 2.0 + 0.5;
-  pos = pos * (max - min) + min;
+  pos = pos * (max_coord - min_coord) + min_coord;
   pos = (pos - 0.5) * 2.0;
   gl_Position = vec4(pos, 0.0, 1.0);
   float z = min(0.5, 0.1 * zoom + 0.005);
@@ -1018,9 +1018,9 @@ uint32_t Director::view_width() const
 void Director::render_texture(float l, float t, float r, float b,
                               bool flip_h, bool flip_v) const
 {
-  glUniform2f(glGetUniformLocation(_image_program, "min"),
+  glUniform2f(glGetUniformLocation(_image_program, "min_coord"),
               l / _width, t / _height);
-  glUniform2f(glGetUniformLocation(_image_program, "max"),
+  glUniform2f(glGetUniformLocation(_image_program, "max_coord"),
               r / _width, b / _height);
   glUniform2f(glGetUniformLocation(_image_program, "flip"),
               flip_h ? 1.f : 0.f, flip_v ? 1.f : 0.f);
