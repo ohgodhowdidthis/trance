@@ -2,15 +2,17 @@
 #include "director.h"
 #include "util.h"
 
-std::vector<std::string> SplitWords(const std::string& text, bool split) {
+std::vector<std::string> SplitWords(const std::string& text, SplitType type)
+{
   std::vector<std::string> result;
-  if (!split) {
+  if (type == SplitType::NONE) {
     result.emplace_back(text);
     return result;
   }
   std::string s = text;
   while (!s.empty()) {
-    auto p = s.find_first_of(" \t\r\n");
+    auto of = type == SplitType::LINE ? "\r\n" : " \t\r\n";
+    auto p = s.find_first_of(of);
     auto q = s.substr(0, p != std::string::npos ? p : s.size());
     if (!q.empty()) {
       result.push_back(q);
@@ -43,7 +45,7 @@ Director& Visual::director()
 AccelerateVisual::AccelerateVisual(Director& director)
 : Visual{director}
 , _current{director.get_image()}
-, _current_text{director.get_text()}
+, _current_text{SplitWords(director.get_text(), SplitType::LINE)}
 , _text_on{true}
 , _change_timer{max_speed}
 , _change_speed{max_speed}
@@ -74,7 +76,14 @@ void AccelerateVisual::update()
   _change_timer = _change_speed;
   _current = director().get_image();
   _text_on = !_text_on;
-  _current_text = director().get_text();
+  if (!_text_on) {
+    _current_text.erase(_current_text.begin());
+    if (_current_text.empty()) {
+      _current_text = SplitWords(
+          director().get_text(),
+          _change_speed < 8 ? SplitType::WORD : SplitType::LINE);
+    }
+  }
   _text_timer = text_time;
 
   if (_change_speed_timer) {
@@ -91,7 +100,7 @@ void AccelerateVisual::update()
 
   director().change_spiral();
   if (director().change_themes()) {
-    _current_text = director().get_text();
+    _current_text = SplitWords(director().get_text(), SplitType::LINE);
   }
   director().change_font();
   // Frames is something like:
@@ -110,14 +119,14 @@ void AccelerateVisual::render() const
   director().render_animation_or_image(Director::Anim::ANIM, {}, .2f, 6.f);
   director().render_spiral();
   if (_change_speed == min_speed || (_text_on && _text_timer)) {
-    director().render_text(_current_text);
+    director().render_text(_current_text[0]);
   }
 }
 
 SubTextVisual::SubTextVisual(Director& director)
 : Visual{director}
 , _current{director.get_image()}
-, _current_text{director.get_text()}
+, _current_text{SplitWords(director.get_text(), SplitType::LINE)}
 , _text_on{true}
 , _change_timer{speed}
 , _sub_timer{sub_speed}
@@ -146,13 +155,13 @@ void SubTextVisual::update()
   _current = director().get_image();
   _text_on = !_text_on;
   if (_text_on) {
-    _current_text = director().get_text();
+    _current_text = SplitWords(director().get_text(), SplitType::LINE);
   }
 
   if (!--_cycle) {
     _cycle = cycles;
     if (director().change_themes()) {
-      _current_text = director().get_text();
+      _current_text = SplitWords(director().get_text(), SplitType::LINE);
     }
     director().change_font();
     // 1/3 chance after 32 * 48 = 1536 frames.
@@ -171,8 +180,11 @@ void SubTextVisual::render() const
                           2.f - float(_change_timer) / speed);
   director().render_subtext(1.f / 4);
   director().render_spiral();
-  if (_text_on && _change_timer >= speed - 3) {
-    director().render_text(_current_text);
+  if (_text_on) {
+    auto index = (speed - _change_timer) / 4;
+    if (index < _current_text.size()) {
+      director().render_text(_current_text[index]);
+    }
   }
 }
 
@@ -181,7 +193,8 @@ SlowFlashVisual::SlowFlashVisual(Director& director)
 , _flash{false}
 , _anim{false}
 , _current{director.get_image()}
-, _current_text{SplitWords(director.get_text(), _flash)}
+, _current_text{SplitWords(director.get_text(),
+                           _flash ? SplitType::WORD : SplitType::LINE)}
 , _change_timer{max_speed}
 , _image_count{cycle_length}
 , _cycle_count{set_length}
@@ -207,7 +220,8 @@ void SlowFlashVisual::update()
       changed_text = true;
       _current_text.erase(_current_text.begin());
       if (_current_text.empty()) {
-        _current_text = SplitWords(director().get_text(_flash), _flash);
+        _current_text = SplitWords(director().get_text(_flash),
+                                   _flash ? SplitType::WORD : SplitType::LINE);
       }
     }
     director().change_spiral();
@@ -227,7 +241,8 @@ void SlowFlashVisual::update()
   if (!changed_text) {
     _current_text.erase(_current_text.begin());
     if (_current_text.empty()) {
-      _current_text = SplitWords(director().get_text(_flash), _flash);
+      _current_text = SplitWords(director().get_text(_flash),
+                                 _flash ? SplitType::WORD : SplitType::LINE);
     }
   }
 }
@@ -255,7 +270,7 @@ FlashTextVisual::FlashTextVisual(Director& director)
 , _animated{random_chance()}
 , _start{director.get_image()}
 , _end{director.get_image()}
-, _current_text{director.get_text()}
+, _current_text{SplitWords(director.get_text(), SplitType::LINE)}
 , _timer{length}
 , _font_timer{font_length}
 , _cycle{cycles}
@@ -271,15 +286,22 @@ void FlashTextVisual::update()
     _font_timer = font_length;
   }
 
+  if (_timer == length / 2 && _cycle % 2 == 0) {
+    _current_text.erase(_current_text.begin());
+    if (_current_text.empty()) {
+      _current_text = SplitWords(director().get_text(), SplitType::LINE);
+    }
+  }
+
   if (!--_timer) {
     if (!--_cycle) {
       _cycle = cycles;
       director().change_themes();
-      _current_text = director().get_text();
       // 1/8 chance after 64 * 8 = 512 frames.
       // Average length 8 * 512 = 4096 frames.
       director().change_visual(8);
     }
+
     _start = _end;
     _end = director().get_image();
     _timer = length;
@@ -307,7 +329,7 @@ void FlashTextVisual::render() const
 
   director().render_spiral();
   if (_cycle % 2) {
-    director().render_text(_current_text, 3.f + 4.f * _timer / length);
+    director().render_text(_current_text[0], 3.f + 4.f * _timer / length);
   }
 }
 
@@ -321,7 +343,7 @@ ParallelVisual::ParallelVisual(Director& director)
 , _alternate_length{length / 2}
 , _switch_alt{false}
 , _text_on{true}
-, _current_text{director.get_text(random_chance())}
+, _current_text{SplitWords(director.get_text(random_chance()), SplitType::LINE)}
 , _timer{length}
 , _cycle{cycles}
 {
@@ -362,7 +384,11 @@ void ParallelVisual::update()
     _length = 0;
   }
   if (_cycle % 4 == 2) {
-    _current_text = director().get_text(random_chance());
+    _current_text.erase(_current_text.begin());
+    if (_current_text.empty()) {
+      _current_text =
+          SplitWords(director().get_text(random_chance()), SplitType::LINE);
+    }
   }
 }
 
@@ -382,14 +408,14 @@ void ParallelVisual::render() const
 
   director().render_spiral();
   if (_cycle % 4 == 1 || _cycle % 4 == 2) {
-    director().render_text(_current_text);
+    director().render_text(_current_text[0]);
   }
 }
 
 SuperParallelVisual::SuperParallelVisual(Director& director)
 : Visual{director}
 , _index{0}
-, _current_text{director.get_text(random_chance())}
+, _current_text{SplitWords(director.get_text(random_chance()), SplitType::WORD)}
 , _timer{length}
 , _font_timer{font_length}
 , _cycle{cycles}
@@ -409,7 +435,7 @@ void SuperParallelVisual::update()
   director().rotate_spiral(3.5f);
   if (!--_font_timer) {
     if (_current_text.empty()) {
-      _current_text = SplitWords(director().get_text(random_chance()));
+      _current_text = SplitWords(director().get_text(random_chance()), SplitType::WORD);
     } else {
       _current_text.erase(_current_text.begin());
     }
@@ -463,7 +489,8 @@ AnimationVisual::AnimationVisual(Director& director)
 : Visual{director}
 , _animation_backup{director.get_image()}
 , _current{director.get_image(true)}
-, _current_text{director.get_text()}
+, _current_text_base{director.get_text()}
+, _current_text{SplitWords(_current_text_base, SplitType::WORD)}
 , _timer{length}
 , _cycle{cycles}
 {
@@ -477,6 +504,15 @@ void AnimationVisual::update()
   }
 
   if (--_timer) {
+    if (_timer % 128 == 0) {
+      director().maybe_upload_next();
+    }
+    if (_timer % 128 == 63) {
+      _current_text.erase(_current_text.begin());
+      if (_current_text.empty()) {
+        _current_text = SplitWords(_current_text_base, SplitType::WORD);
+      }
+    }
     return;
   }
   _timer = length;
@@ -487,14 +523,12 @@ void AnimationVisual::update()
     director().change_font();
     director().change_themes();
     _cycle = cycles;
-    _current_text = director().get_text();
+    _current_text_base = director().get_text();
+    _current_text.erase(_current_text.begin());
+    _current_text = SplitWords(_current_text_base, SplitType::WORD);
     // 1/4 chance after 256 * 4 = 1024 frames.
     // Average length 4 * 1024 = 4096 frames.
     director().change_visual(4);
-  }
-
-  if (_timer % 128 == 0) {
-    director().maybe_upload_next();
   }
 }
 
@@ -511,15 +545,15 @@ void AnimationVisual::render() const
       20.f - 8.f * float(_timer % image_length) / image_length,
       1.f - float(_timer % image_length) / image_length);
   director().render_spiral();
-  if (_timer % 128 < 64) {
-    director().render_text(_current_text, 5.f);
+  if (_timer % 128 >= 64) {
+    director().render_text(_current_text[0], 5.f);
   }
 }
 
 SuperFastVisual::SuperFastVisual(Director& director)
 : Visual{director}
 , _current{director.get_image()}
-, _current_text{SplitWords(director.get_text())}
+, _current_text{SplitWords(director.get_text(), SplitType::WORD)}
 , _start_timer{0}
 , _animation_timer{anim_length + random(anim_length)}
 , _animation_alt{false}
@@ -538,7 +572,7 @@ void SuperFastVisual::update()
     _current = director().get_image();
     _current_text.erase(_current_text.begin());
     if (_current_text.empty()) {
-      _current_text = SplitWords(director().get_text());
+      _current_text = SplitWords(director().get_text(), SplitType::WORD);
     }
   }
   if (!_start_timer && random_chance(128)) {
