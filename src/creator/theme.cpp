@@ -374,17 +374,19 @@ ThemePage::ThemePage(wxNotebook* parent,
       const auto& images = _complete_theme->image_path();
       const auto& anims = _complete_theme->animation_path();
       const auto& fonts = _complete_theme->font_path();
-      if (std::find(images.begin(), images.end(), path) != images.end()) {
-        _image_panel->SetImage(load_image(root + "/" + path));
+      if (_path_selected != path) {
+        if (std::find(images.begin(), images.end(), path) != images.end()) {
+          _image_panel->SetImage(load_image(root + "/" + path));
+        }
+        if (std::find(anims.begin(), anims.end(), path) != anims.end()) {
+          _image_panel->SetAnimation(load_animation(root + "/" + path));
+        }
+        if (std::find(fonts.begin(), fonts.end(), path) != fonts.end()) {
+          _current_font = root + "/" + path;
+          GenerateFontPreview();
+        }
+        _path_selected = path;
       }
-      if (std::find(anims.begin(), anims.end(), path) != anims.end()) {
-        _image_panel->SetAnimation(load_animation(root + "/" + path));
-      }
-      if (std::find(fonts.begin(), fonts.end(), path) != fonts.end()) {
-        _current_font = root + "/" + path;
-        GenerateFontPreview();
-      }
-      _path_selected = path;
     }
     RefreshHighlights();
   }, wxID_ANY);
@@ -529,6 +531,14 @@ void ThemePage::RefreshDirectory(const std::string& directory)
   *_complete_theme = trance_pb::Theme{};
   search_resources(*_complete_theme, directory);
 
+  std::unordered_set<std::string> expanded_items;
+  for (const auto& pair : _tree_lookup) {
+    if (_tree->IsExpanded(pair.second) &&
+        _tree->GetFirstChild(pair.second).IsOk()) {
+      expanded_items.emplace(pair.first);
+    }
+  }
+
   _tree->DeleteAllItems();
   _tree_lookup.clear();
   _tree_lookup["."] = _tree->GetRootItem();
@@ -545,6 +555,19 @@ void ThemePage::RefreshDirectory(const std::string& directory)
   }
   std::sort(paths.begin(), paths.end());
 
+  std::unordered_set<std::string> used_paths;
+  for (const auto& pair : _session.theme_map()) {
+    for (const auto& path : pair.second.image_path()) {
+      used_paths.emplace(path);
+    }
+    for (const auto& path : pair.second.animation_path()) {
+      used_paths.emplace(path);
+    }
+    for (const auto& path : pair.second.font_path()) {
+      used_paths.emplace(path);
+    }
+  }
+
   for (const auto& path_str : paths) {
     std::tr2::sys::path path{path_str};
     for (auto it = ++path.begin(); it != path.end(); ++it) {
@@ -560,8 +583,10 @@ void ThemePage::RefreshDirectory(const std::string& directory)
         if (it == --path.end()) {
           data = new wxStringClientData{component.string()};
         }
+        auto str = it != --path.end() || used_paths.count(component.string()) ?
+            it->string() : "[UNUSED] " + it->string();
         auto item = _tree->AppendItem(
-            _tree_lookup[parent.string()], it->string(), -1, -1, data);
+            _tree_lookup[parent.string()], str, -1, -1, data);
         _tree_lookup[component.string()] = item;
       }
     }
@@ -589,6 +614,12 @@ void ThemePage::RefreshDirectory(const std::string& directory)
          it != pair.second.mutable_font_path()->end();) {
       it = font_set.count(*it) ? 1 + it :
           pair.second.mutable_font_path()->erase(it);
+    }
+  }
+
+  for (const auto& pair : _tree_lookup) {
+    if (expanded_items.find(pair.first) != expanded_items.end()) {
+      _tree->Expand(pair.second);
     }
   }
 }

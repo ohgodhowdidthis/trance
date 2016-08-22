@@ -389,9 +389,11 @@ Director::Director(sf::RenderWindow& window,
         continue;
       }
       for (const auto& text : pair.second.text_line()) {
-        cache_text_size(text);
-        for (const auto& line : SplitWords(text)) {
+        for (const auto& line : SplitWords(text, SplitType::LINE)) {
           cache_text_size(line);
+        }
+        for (const auto& word : SplitWords(text, SplitType::WORD)) {
+          cache_text_size(word);
         }
       }
     }
@@ -1148,7 +1150,7 @@ uint32_t Director::get_cached_text_size(const FontCache& cache,
 
   uint32_t size = minimum_size;
   auto target_x = view_width() - border_x;
-  auto target_y = _height - border_y;
+  auto target_y = std::min(_height / 3, _height - border_y);
   sf::Vector2f last_result;
   while (size < maximum_size) {
     const auto& loaded_font = cache.get_font(font, size);
