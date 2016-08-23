@@ -457,6 +457,7 @@ ThemePage::ThemePage(wxNotebook* parent,
       }
     }
     _creator_frame.RefreshDirectory();
+    _creator_frame.MakeDirty(true);
     RefreshOurData();
   }, ID_RENAME);
 
@@ -636,8 +637,15 @@ void ThemePage::RefreshDirectory(const std::string& directory)
 
   std::unordered_set<std::string> expanded_items;
   for (const auto& pair : _tree_lookup) {
-    if (_tree->IsExpanded(pair.second) &&
-        _tree->GetFirstChild(pair.second).IsOk()) {
+    bool expanded = true;
+    for (auto parent = pair.second; parent != _tree->GetRootItem();
+         parent = _tree->GetItemParent(parent)) {
+      if (!_tree->IsExpanded(parent)) {
+        expanded = false;
+        break;
+      }
+    }
+    if (expanded && _tree->GetFirstChild(pair.second).IsOk()) {
       expanded_items.emplace(pair.first);
     }
   }
