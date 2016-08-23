@@ -37,7 +37,9 @@ private:
     ID_NEW = 10320,
     ID_EDIT = 10321,
     ID_DELETE = 10322,
-    ID_REFRESH = 10323,
+    ID_OPEN = 10323,
+    ID_RENAME = 10324,
+    ID_REFRESH = 10325,
   };
 
   void RefreshHighlights();
@@ -60,6 +62,8 @@ private:
   wxButton* _button_new;
   wxButton* _button_edit;
   wxButton* _button_delete;
+  wxButton* _button_open;
+  wxButton* _button_rename;
   wxButton* _button_refresh;
   wxListCtrl* _text_list;
 };

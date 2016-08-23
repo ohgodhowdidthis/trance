@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+std::string make_relative(const std::string& from, const std::string& to);
+
 namespace trance_pb {
   class Colour;
   class Session;

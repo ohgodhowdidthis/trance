@@ -378,8 +378,8 @@ bool CreatorFrame::OpenSession(const std::string& path)
 {
   try {
     _session = load_session(path);
-    SetSessionPath(path);
     SetStatusText("Read " + _session_path);
+    SetSessionPath(path);
     _menu_bar->Enable(ID_LAUNCH_SESSION, true);
     _menu_bar->Enable(ID_EXPORT_VIDEO, true);
     MakeDirty(false);

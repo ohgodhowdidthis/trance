@@ -13,6 +13,7 @@
 #include <wx/listctrl.h>
 #include <wx/sizer.h>
 #include <wx/splitter.h>
+#include <wx/textdlg.h>
 #include <wx/timer.h>
 #include <wx/treelist.h>
 #pragma warning(pop)
@@ -253,16 +254,27 @@ ThemePage::ThemePage(wxNotebook* parent,
   _button_new = new wxButton{right_panel, ID_NEW, "New"};
   _button_edit = new wxButton{right_panel, ID_EDIT, "Edit"};
   _button_delete = new wxButton{right_panel, ID_DELETE, "Delete"};
+  _button_open =
+      new wxButton{leftleft_panel, ID_OPEN, "Show in explorer"};
+  _button_rename =
+      new wxButton{leftleft_panel, ID_RENAME, "Move / rename"};
   _button_refresh =
       new wxButton{leftleft_panel, ID_REFRESH, "Refresh directory"};
 
   _button_new->SetToolTip("Create a new text item.");
   _button_edit->SetToolTip("Edit the selected text item.");
   _button_delete->SetToolTip("Delete the selected text item.");
+  _button_open->SetToolTip("Open the file in the explorer.");
+  _button_rename->SetToolTip("Move or rename the selected file or directory.");
   _button_refresh->SetToolTip(
       "Scan the session directory for available images, animations and fonts.");
 
+  _button_open->Enable(false);
+  _button_rename->Enable(false);
+
   leftleft->Add(_tree, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft->Add(_button_open, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft->Add(_button_rename, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft->Add(_button_refresh, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft_panel->SetSizer(leftleft);
   leftright->Add(_image_panel, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
@@ -361,6 +373,95 @@ ThemePage::ThemePage(wxNotebook* parent,
 
   leftleft_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
   {
+    auto root = std::tr2::sys::path{_session_path}.parent_path().string();
+    for (const auto& pair : _tree_lookup) {
+      if (pair.second == _tree->GetSelection()) {
+        auto path = root + "\\" + pair.first;
+        _creator_frame.SetStatusText("Opening " + path);
+        wxExecute("explorer /select,\"" + path + "\"", wxEXEC_ASYNC);
+      }
+    }
+  }, ID_OPEN);
+
+  leftleft_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
+  {
+    auto root = std::tr2::sys::path{_session_path}.parent_path().string();
+    std::string old_relative_path;
+    for (const auto& pair : _tree_lookup) {
+      if (pair.second == _tree->GetSelection()) {
+        old_relative_path = pair.first;
+        break;
+      }
+    }
+    if (old_relative_path.empty()) {
+      return;
+    }
+    std::unique_ptr<wxTextEntryDialog> dialog{new wxTextEntryDialog(
+      this, "New location (relative to session directory):",
+      "Move / rename", old_relative_path)};
+    if (dialog->ShowModal() != wxID_OK) {
+      return;
+    }
+    std::string new_relative_path = dialog->GetValue();
+    if (new_relative_path == old_relative_path) {
+      return;
+    }
+    auto rename_file = [&](const std::string old_abs, const std::string& new_abs)
+    {
+      auto old_path = std::tr2::sys::path{old_abs};
+      auto new_path = std::tr2::sys::path{new_abs};
+      std::error_code ec;
+      auto parent = std::tr2::sys::canonical(new_path.parent_path(), ec);
+      if (!std::tr2::sys::is_directory(parent) &&
+          (ec || !std::tr2::sys::create_directories(parent))) {
+        wxMessageBox("Couldn't create directory " + parent.string(),
+                     "", wxICON_ERROR, this);
+        return false;
+      }
+      std::tr2::sys::rename(old_path, new_path, ec);
+      if (ec) {
+        wxMessageBox(
+            "Couldn't rename " + old_path.string() + " to " + new_path.string(),
+            "", wxICON_ERROR, this);
+        return false;
+      }
+      for (auto& pair : *session.mutable_theme_map()) {
+        auto& theme = pair.second;
+        auto c = [&](google::protobuf::RepeatedPtrField<std::string>& field) {
+          auto it = std::find(field.begin(), field.end(),
+                              make_relative(root, old_abs));
+          if (it != field.end()) {
+            *field.Add() = make_relative(root, new_abs);
+          }
+        };
+        c(*theme.mutable_font_path());
+        c(*theme.mutable_image_path());
+        c(*theme.mutable_animation_path());
+      }
+      return true;
+    };
+    auto old_root = root + "/" + old_relative_path;
+    auto new_root = root + "/" + new_relative_path;
+    if (std::tr2::sys::is_regular_file(old_root)) {
+      rename_file(old_root, new_root);
+    } else {
+      for (auto it = std::tr2::sys::recursive_directory_iterator(old_root);
+         it != std::tr2::sys::recursive_directory_iterator(); ++it) {
+        if (!std::tr2::sys::is_regular_file(it->status())) {
+          continue;
+        }
+        auto rel_rel = make_relative(old_root, it->path().string());
+        if (!rename_file(old_root + "/" + rel_rel, new_root + "/" + rel_rel)) {
+          break;
+        }
+      }
+    }
+    _creator_frame.RefreshDirectory();
+    RefreshOurData();
+  }, ID_RENAME);
+
+  leftleft_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
+  {
     _creator_frame.RefreshDirectory();
     RefreshOurData();
   }, ID_REFRESH);
@@ -389,6 +490,8 @@ ThemePage::ThemePage(wxNotebook* parent,
       }
     }
     RefreshHighlights();
+    _button_open->Enable(true);
+    _button_rename->Enable(true);
   }, wxID_ANY);
 
   _tree->Bind(wxEVT_TREELIST_ITEM_CHECKED, [&](wxTreeListEvent& e)
@@ -568,6 +671,7 @@ void ThemePage::RefreshDirectory(const std::string& directory)
     }
   }
 
+  std::size_t file_count = 0;
   for (const auto& path_str : paths) {
     std::tr2::sys::path path{path_str};
     for (auto it = ++path.begin(); it != path.end(); ++it) {
@@ -581,6 +685,7 @@ void ThemePage::RefreshDirectory(const std::string& directory)
       if (_tree_lookup.find(component.string()) == _tree_lookup.end()) {
         wxClientData* data = nullptr;
         if (it == --path.end()) {
+          ++file_count;
           data = new wxStringClientData{component.string()};
         }
         auto str = it != --path.end() || used_paths.count(component.string()) ?
@@ -622,6 +727,8 @@ void ThemePage::RefreshDirectory(const std::string& directory)
       _tree->Expand(pair.second);
     }
   }
+  _creator_frame.SetStatusText(
+      "Scanned " + std::to_string(file_count) + " files in " + directory);
 }
 
 void ThemePage::GenerateFontPreview()

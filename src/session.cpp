@@ -160,6 +160,11 @@ std::tr2::sys::path make_relative(const std::tr2::sys::path& from,
 
 } // anonymous namespace
 
+std::string make_relative(const std::string& from, const std::string& to) {
+  return make_relative(std::tr2::sys::path{from},
+                       std::tr2::sys::path{to}).string();
+}
+
 bool is_image(const std::string& path)
 {
   return ext_is(path, "png") || ext_is(path, "bmp") ||
