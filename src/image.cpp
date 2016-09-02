@@ -312,6 +312,11 @@ const std::shared_ptr<sf::Image>& Image::get_sf_image() const
   return _sf_image;
 }
 
+void Image::clear_sf_image() const
+{
+  _sf_image.reset();
+}
+
 void Image::delete_textures()
 {
   textures_to_delete_mutex.lock();

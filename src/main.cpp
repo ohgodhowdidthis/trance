@@ -177,10 +177,11 @@ void play_session(
   std::cout << "loading themes" << std::endl;
   auto theme_bank =
       std::make_unique<ThemeBank>(root_path, session, system, enabled_themes);
-
+  std::cout << "\nloaded themes" << std::endl;
   auto window = create_window(
       system, realtime ? 0 : settings.width, realtime ? 0 : settings.height,
       realtime, oculus_rift);
+  std::cout << "\nloading session" << std::endl;
   auto director = std::make_unique<Director>(
       *window, session, system, *theme_bank, program(),
       realtime, oculus_rift, exporter && exporter->requires_yuv_input());

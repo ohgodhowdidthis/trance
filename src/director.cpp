@@ -335,10 +335,11 @@ Director::Director(sf::RenderWindow& window,
     _screen_data.reset(new uint8_t[4 * _width * _height]);
   }
 
+  std::cout << "\npreloading GPU" << std::endl;
   static const std::size_t gl_preload = 1000;
   for (std::size_t i = 0; i < gl_preload; ++i) {
-    themes.get().get_image();
-    themes.get(true).get_image();
+    themes.get_image(false);
+    themes.get_image(true);
   }
 
   auto compile_shader = [&](GLuint shader)
@@ -630,7 +631,7 @@ Image Director::get_image(bool alternate) const
   // duplicate images in different sets.
   Image image;
   while (true) {
-    image = _themes.get(alternate).get_image();
+    image = _themes.get_image(alternate);
 
     bool found = false;
     for (const auto& p : _recent_images) {
@@ -656,7 +657,7 @@ Image Director::get_image(bool alternate) const
 
 const std::string& Director::get_text(bool alternate) const
 {
-  return _themes.get(alternate).get_text();
+  return _themes.get_text(alternate);
 }
 
 void Director::maybe_upload_next() const
@@ -668,7 +669,8 @@ void Director::render_animation_or_image(
     Anim type, const Image& image,
     float alpha, float multiplier, float zoom) const
 {
-  Image anim = _themes.get(type == Anim::ANIM_ALTERNATE).get_animation(
+  Image anim = _themes.get_animation(
+      type == Anim::ANIM_ALTERNATE,
       std::size_t((120.f / _program->global_fps()) * _switch_themes / 8));
 
   if (type != Anim::NONE && anim) {
@@ -872,7 +874,7 @@ void Director::change_spiral()
 void Director::change_font(bool force)
 {
   if (force || random_chance(4)) {
-    _current_font = _themes.get().get_font();
+    _current_font = _themes.get_font(false);
   }
 }
 
@@ -881,7 +883,7 @@ void Director::change_subtext(bool alternate)
   static const uint32_t count = 16;
   _subtext.clear();
   for (uint32_t i = 0; i < 16; ++i) {
-    auto s = _themes.get(alternate).get_text();
+    auto s = _themes.get_text(alternate);
     for (auto& c : s) {
       if (c == '\n') {
         c = ' ';
@@ -915,7 +917,7 @@ bool Director::change_visual(uint32_t chance)
       (chance && random(chance * _program->global_fps()) >= 120)) {
     return false;
   }
-  _current_subfont = _themes.get().get_font();
+  _current_subfont = _themes.get_font(false);
   _visual.swap(_old_visual);
 
   uint32_t total = 0;

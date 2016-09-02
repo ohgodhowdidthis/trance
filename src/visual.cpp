@@ -449,7 +449,7 @@ void SuperParallelVisual::update()
     director().change_font();
     director().change_themes();
     _cycle = cycles;
-    // 1/4 chance after 2 * 512 = 1024 frames.
+    // 1/4 chance after 32 * 32 = 1024 frames.
     // Average length 4 * 1024 = 4096 frames.
     director().change_visual(4);
   }
@@ -502,6 +502,9 @@ void AnimationVisual::update()
   if (_timer % image_length == 0) {
     _current = director().get_image(true);
   }
+  if (_timer % animation_length == 0) {
+    _animation_backup = director().get_image();
+  }
 
   if (--_timer) {
     if (_timer % 128 == 0) {
@@ -516,7 +519,6 @@ void AnimationVisual::update()
     return;
   }
   _timer = length;
-  _animation_backup = director().get_image();
 
   if (!--_cycle) {
     director().change_spiral();
