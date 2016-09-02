@@ -1,9 +1,11 @@
 #ifndef TRANCE_UTIL_H
 #define TRANCE_UTIL_H
-
-#include <string>
+#include <cstdint>
+#include <map>
 #include <random>
+#include <string>
 #include <type_traits>
+#include <vector>
 
 inline bool ext_is(const std::string& path, const std::string& ext)
 {
@@ -31,22 +33,6 @@ T random(const T& max)
 }
 
 template<typename T>
-T random_excluding(const T& max, const T& exclude)
-{
-  if (max == 0) {
-    throw std::runtime_error("random() called with maximum 0");
-  }
-  if (max == 1) {
-    return 0;
-  }
-  if (exclude < 0 || exclude >= max) {
-    return random(max);
-  }
-  T t = random(max - 1);
-  return t >= exclude ? 1 + t : t;
-}
-
-template<typename T>
 bool random_chance(const T& divisor)
 {
   return random(divisor) == 0;
@@ -57,106 +43,70 @@ inline bool random_chance()
   return random_chance(2);
 }
 
-template<typename T>
+// Chooses randomly from elements. Elements start with 0 priority, which can
+// be increased or decreased; calling next() gets a random element among all
+// those with the highest priority.
 class Shuffler {
 public:
-  Shuffler(T& data)
-  : _data(data)
-  , _enabled(data.size(), true)
-  , _enabled_count(data.size())
-  , _last_enabled_id(data.empty() ? 0 : random(data.size()))
-  , _last_disabled_id(data.empty() ? 0 :  random(data.size())) {}
-
-  bool empty() const
+  Shuffler(std::size_t size)
+  : _size{size}
   {
-    return _data.empty();
-  }
-
-  std::size_t size() const
-  {
-    return _data.size();
-  }
-
-  std::size_t enabled_count() const
-  {
-    return _enabled_count;
-  }
-
-  void set_enabled(std::size_t index, bool enabled)
-  {
-    if (_enabled[index] != enabled) {
-      _enabled_count += (enabled ? 1 : -1);
+    _enabled_count[-1] = size;
+    for (std::size_t i = 0; i < size; ++i) {
+      _enabled.push_back(0);
     }
-    _enabled[index] = enabled;
   }
 
-  // Get some value, but not the same one as last time.
-  const typename T::value_type& next(bool get_enabled = true) const
+  void increase(std::size_t index)
   {
-    static T::value_type empty;
-    if (get_enabled ? !_enabled_count : _enabled_count == _data.size()) {
-      return empty;
+    auto& v = _enabled[index];
+    if (!_enabled_count.count(v)) {
+      _enabled_count[v] = 0;
     }
-    return get(next_index(get_enabled));
+    ++_enabled_count[v];
+    ++v;
   }
 
-  template<typename U = T,
-           typename std::enable_if<!std::is_const<U>::value>::type* = nullptr>
-  typename T::value_type& next(bool get_enabled = true)
+  void decrease(std::size_t index)
   {
-    static T::value_type empty;
-    if (get_enabled ? !_enabled_count : _enabled_count == _data.size()) {
-      return empty;
+    auto& v = _enabled[index];
+    --v;
+    if (!_enabled_count.count(v)) {
+      _enabled_count[v] = _size;
     }
-    return get(next_index(get_enabled));
+    --_enabled_count[v];
   }
 
-  const typename T::value_type& get(std::size_t index) const
+  void modify(std::size_t index, int32_t amount)
   {
-    return *(_data.begin() + index);
-  }
-
-  template<typename U = T,
-           typename std::enable_if<!std::is_const<U>::value>::type* = nullptr>
-  typename T::value_type& get(std::size_t index)
-  {
-    return *(_data.begin() + index);
-  }
-
-  std::size_t next_index(bool get_enabled = true) const
-  {
-    auto count = get_enabled ? _enabled_count : _data.size() - _enabled_count;
-    auto& last_id = get_enabled ? _last_enabled_id : _last_disabled_id;
-    if (!count) {
-      return -1;
+    for (; amount > 0; --amount) {
+      increase(index);
     }
-
-    std::size_t last_tindex = 0;
-    for (std::size_t i = 0; i < last_id; ++i) {
-      last_tindex += _enabled[i] == get_enabled;
+    for (; amount < 0; ++amount) {
+      decrease(index);
     }
-    std::size_t random_tindex =
-      count > 1 && _enabled[last_id] == get_enabled ?
-      random_excluding(count, last_tindex) : random(count);
+  }
 
-    std::size_t tindex = 0;
-    for (std::size_t i = 0; i < std::size_t(_data.size()); ++i) {
-      tindex += _enabled[i] == get_enabled;
-      if (random_tindex < tindex) {
-        return last_id = i;
+  std::size_t next() const
+  {
+    for (auto it = _enabled_count.rbegin(); it != _enabled_count.rend(); ++it) {
+      auto r = random(it->second);
+      std::size_t t = 0;
+      for (std::size_t i = 0; i < _size; ++i) {
+        t += _enabled[i] > it->first;
+        if (r < t) {
+          return i;
+        }
       }
     }
-    return -1;
+    return _size ? random(_size) : -1;
   }
 
 private:
-
-  T& _data;
-  std::vector<bool> _enabled;
-  std::size_t _enabled_count;
-  mutable std::size_t _last_enabled_id;
-  mutable std::size_t _last_disabled_id;
-  
+  std::size_t _size;
+  // _enabled_count[n] == | k s.t. _enabled[k] > n |.
+  std::map<int32_t, std::size_t> _enabled_count;
+  std::vector<int32_t> _enabled;
 };
 
 #endif

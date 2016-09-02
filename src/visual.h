@@ -149,7 +149,7 @@ public:
 private:
   static const std::size_t image_count = 3;
   static const uint32_t length = 32;
-  static const uint32_t cycles = 128;
+  static const uint32_t cycles = 32;
 
   std::vector<Image> _images;
   std::vector<uint32_t> _lengths;

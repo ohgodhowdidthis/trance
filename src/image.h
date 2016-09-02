@@ -14,7 +14,6 @@ struct vpx_image;
 // and automatically unloaded once no longer used.
 class Image {
 public:
-
   Image();
   Image(uint32_t width, uint32_t height, unsigned char* data);
   Image(const sf::Image& image);
@@ -27,10 +26,10 @@ public:
   // Call from OpenGL context thread only!
   bool ensure_texture_uploaded() const;
   const std::shared_ptr<sf::Image>& get_sf_image() const;
+  void clear_sf_image() const;
   static void delete_textures();
 
 private:
-
   // In order to ensure textures are deleted from the rendering thread, we
   // use a separate set.
   static std::vector<uint32_t> textures_to_delete;

@@ -8,255 +8,92 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)
-Theme::Theme()
-: Theme{"", trance_pb::Theme{}}
-{
-}
-
-Theme::Theme(const std::string& root_path, const trance_pb::Theme& proto)
-: _root_path{root_path}
-, _image_paths{proto.image_path()}
-, _animation_paths{proto.animation_path()}
-, _font_paths{proto.font_path()}
-, _text_lines{proto.text_line()}
-, _target_load{0}
-{
-}
-
-// TODO: get rid of this somehow. Copying needs mutexes, technically.
-Theme::Theme(const Theme& theme)
-: _root_path{theme._root_path}
-, _image_paths{theme._image_paths}
-, _animation_paths{theme._animation_paths}
-, _font_paths{theme._font_paths}
-, _text_lines{theme._text_lines}
-, _target_load{theme._target_load.load()}
-, _purgeable_images{theme._purgeable_images}
-{
-}
-
-Image Theme::get_image() const
-{
-  // Lock the mutex so we don't interfere with the thread calling
-  // ThemeBank::async_update().
-  _image_mutex.lock();
-  if (_images.empty()) {
-    _image_mutex.unlock();
-    return get_animation(random(2 << 16));
-  }
-  std::size_t index = _image_paths.next_index(false);
-  auto it = _images.find(index);
-  if (it->second.ensure_texture_uploaded()) {
-    _purge_mutex.lock();
-    _purgeable_images.push_back(it->second.get_sf_image());
-    _purge_mutex.unlock();
-  }
-  Image image = it->second;
-  _image_mutex.unlock();
-  return image;
-}
-
-Image Theme::get_animation(std::size_t frame) const
-{
-  _animation_mutex.lock();
-  if (_animation_images.empty()) {
-    _animation_mutex.unlock();
-    return {};
-  }
-  auto len = _animation_images.size();
-  auto f = frame % (2 * len - 2);
-  f = f < len ? f : 2 * len - 2 - f;
-  if (_animation_images[f].ensure_texture_uploaded()) {
-    _purge_mutex.lock();
-    _purgeable_images.push_back(_animation_images[f].get_sf_image());
-    _purge_mutex.unlock();
-  }
-  Image image = _animation_images[f];
-  _animation_mutex.unlock();
-  return image;
-}
-
-const std::string& Theme::get_text() const
-{
-  return _text_lines.next();
-}
-
-const std::string& Theme::get_font() const
-{
-  return _font_paths.next();
-}
-
-void Theme::set_target_load(std::size_t target_load)
-{
-  _target_load = target_load;
-}
-
-void Theme::perform_purge()
-{
-  _purge_mutex.lock();
-  for (auto& image : _purgeable_images) {
-    image.reset();
-  }
-  _purgeable_images.clear();
-  _purge_mutex.unlock();
-}
-
-void Theme::perform_swap()
-{
-  if (_animation_paths.enabled_count() >= 2 && random_chance(4)) {
-    load_animation_internal();
-    return;
-  }
-  // Swap if there's definitely an image to load.
-  if (_image_paths.enabled_count()) {
-    unload_image_internal();
-    load_image_internal();
-  }
-}
-
-void Theme::perform_load()
-{
-  if (_animation_paths.enabled_count()) {
-    if (_target_load && _animation_images.empty()) {
-      load_animation_internal();
-    }
-    else if (!_target_load && !_animation_images.empty()) {
-      unload_animation_internal();
-    }
-  }
-
-  if (_images.size() < _target_load && _image_paths.enabled_count()) {
-    load_image_internal();
-  }
-  else if (_images.size() > _target_load) {
-    unload_image_internal();
-  }
-}
-
-void Theme::perform_all_loads()
-{
-  while (!all_loaded()) {
-    perform_load();
-  }
-}
-
-bool Theme::all_loaded() const
-{
-  return (_images.size() == _target_load || !_image_paths.enabled_count()) &&
-      (_animation_images.empty() == !_target_load ||
-       !_animation_paths.enabled_count());
-}
-
-std::size_t Theme::loaded() const
-{
-  return _images.size();
-}
-
-void Theme::load_image_internal()
-{
-  // Take a random still-enabled image, disable it and load the image.
-  _image_mutex.lock();
-  std::size_t index = _image_paths.next_index(true);
-  _image_mutex.unlock();
-
-  auto path = _image_paths.get(index);
-  Image image = load_image(_root_path + "/" + path);
-  _image_mutex.lock();
-  _image_paths.set_enabled(index, false);
-  _images.emplace(index, image ? image : Image{});
-  _image_mutex.unlock();
-}
-
-void Theme::unload_image_internal()
-{
-  // Opposite of load_internal(): pick a disabled image at random, unload it,
-  // and re-enable it.
-  _image_mutex.lock();
-  std::size_t index = _image_paths.next_index(false);
-  _images.erase(index);
-  _image_paths.set_enabled(index, true);
-  _image_mutex.unlock();
-}
-
-void Theme::load_animation_internal()
-{
-  auto index = _animation_paths.next_index();
-  std::vector<Image> images =
-      load_animation(_root_path + "/" + _animation_paths.get(index));
-  if (images.empty()) {
-    // Don't try to load again.
-    _animation_paths.set_enabled(index, false);
-    return;
-  }
-
-  _animation_mutex.lock();
-  std::swap(images, _animation_images);
-  _animation_mutex.unlock();
-  images.clear();
-}
-
-void Theme::unload_animation_internal()
-{
-  _animation_mutex.lock();
-  _animation_images.clear();
-  _animation_mutex.unlock();
-}
 
 ThemeBank::ThemeBank(
     const std::string& root_path, const trance_pb::Session& session,
     const trance_pb::System& system,
     const std::unordered_set<std::string>& enabled_themes)
 : _root_path{root_path}
-, _theme_map{session.theme_map().begin(), session.theme_map().end()}
-, _themes{[&]{
-  std::vector<std::pair<std::string, Theme>> result;
-  for (const auto& pair : _theme_map) {
-    result.emplace_back(pair.first, Theme{root_path, pair.second});
-  }
-  return result;
-}()}
-, _theme_shuffler{[&]{
-  Shuffler<std::vector<std::pair<std::string, Theme>>> result{_themes};
-  for (std::size_t i = 0; i < result.size(); ++i) {
-    result.set_enabled(i, enabled_themes.count(result.get(i).first));
-  }
-  return result;
-}()}
-, _prev{&_theme_shuffler.next().second}
-, _main{&_theme_shuffler.next().second}
-, _alt{&_theme_shuffler.next().second}
-, _next{&_theme_shuffler.next().second}
-, _swaps_to_match_theme{0}
+, _animation_index{0}
+, _last_theme_index{0}
+, _theme_shuffler{session.theme_map().size()}
 , _image_cache_size{system.image_cache_size()}
+, _swaps_to_match_theme{0}
 , _updates{0}
 , _cooldown{switch_cooldown}
 {
-  _main->set_target_load(cache_per_theme());
-  _alt->set_target_load(cache_per_theme());
-  _next->set_target_load(cache_per_theme());
-  _main->perform_all_loads();
-  _alt->perform_all_loads();
-}
-
-void ThemeBank::set_enabled_themes(
-    const std::unordered_set<std::string>& enabled_themes)
-{
-  for (std::size_t i = 0; i < _theme_shuffler.size(); ++i) {
-    _theme_shuffler.set_enabled(
-        i, enabled_themes.count(_theme_shuffler.get(i).first));
+  // Find all images in all themese and set up data for each.
+  std::unordered_set<std::string> all_image_paths;
+  std::unordered_set<std::string> all_animation_paths;
+  for (const auto& pair : session.theme_map()) {
+    const auto& theme = pair.second;
+    all_image_paths.insert(theme.image_path().begin(),
+                           theme.image_path().end());
+    all_animation_paths.insert(theme.animation_path().begin(),
+                               theme.animation_path().end());
   }
-  if (_next != _main && _next != _alt) {
-    _next->set_target_load(0);
+  for (const auto& path : all_image_paths) {
+    _all_images.push_back({path, 0, {}});
   }
-  _next = &_theme_shuffler.next().second;
-  _next->set_target_load(cache_per_theme());
-  // Could check whether the themes we're using are still enabled.
-  _swaps_to_match_theme = 2;
-}
+  _all_animations.insert(_all_animations.begin(),
+                         all_animation_paths.begin(),
+                         all_animation_paths.end());
 
-const Theme& ThemeBank::get(bool alternate) const
-{
-  return alternate ? *_alt : *_main;
+  // Set up data for each theme.
+  for (const auto& pair : session.theme_map()) {
+    // Index lookup.
+    _theme_map[pair.first] = _themes.size();
+    const auto& theme = pair.second;
+
+    std::unordered_set<std::string> images{theme.image_path().begin(),
+                                           theme.image_path().end()};
+    std::unordered_set<std::string> animations{theme.animation_path().begin(),
+                                               theme.animation_path().end()};
+    _themes.emplace_back(new ThemeInfo{
+        images.size(), false, {}, 0, {},
+        {_all_images.size()}, {_all_images.size()}, {_all_animations.size()},
+        {theme.font_path().begin(), theme.font_path().end()},
+        {theme.text_line().begin(), theme.text_line().end()}, {},
+        {static_cast<std::size_t>(theme.text_line().size())}});
+
+    // Disable images not in this theme in both shufflers so that they can
+    // never be chosen.
+    for (std::size_t i = 0; i < _all_images.size(); ++i) {
+      if (images.count(_all_images[i].path)) {
+        _themes.back()->load_shuffler.modify(i, last_image_count);
+        _themes.back()->image_shuffler.modify(i, last_image_count);
+      }
+    }
+    for (std::size_t i = 0; i < _all_animations.size(); ++i) {
+      if (animations.count(_all_animations[i])) {
+        _themes.back()->animation_shuffler
+            .modify(i, 1 + (int32_t) _loaded_animations.size());
+      }
+    }
+    for (std::size_t i = 0; i < _themes.back()->text_lines.size(); ++i) {
+      _themes.back()->text_lookup[_themes.back()->text_lines[i]].push_back(i);
+    }
+  }
+
+  // Set the initially-enabled themes.
+  set_enabled_themes(enabled_themes);
+  _swaps_to_match_theme = 0;
+  for (std::size_t i = 0; i < _active_themes.size(); ++i) {
+    _active_themes[i] = nullptr;
+  }
+  // Choose the initial active themes and load them up.
+  for (std::size_t i = 0; i < _active_themes.size(); ++i) {
+    bool first = !i;
+    advance_theme(first);
+    if (!first) {
+      while (!all_loaded()) {
+        do_reconcile(*_active_themes.back().load());
+      }
+    }
+  }
+  for (std::size_t i = 1; i < _active_themes.size(); ++i) {
+    do_load_animation(*_active_themes[i].load(), animation(i), false);
+  }
 }
 
 const std::string& ThemeBank::get_root_path() const
@@ -264,32 +101,135 @@ const std::string& ThemeBank::get_root_path() const
   return _root_path;
 }
 
+void ThemeBank::set_enabled_themes(
+    const std::unordered_set<std::string>& enabled_themes)
+{
+  // So that the last_theme_index theme still outranks the non-active themes.
+  static const std::int32_t priority = 2;
+  for (std::size_t i = 0; i < _themes.size(); ++i) {
+    if (_themes[i]->enabled) {
+      _theme_shuffler.modify(i, -priority);
+      _themes[i]->enabled = false;
+    }
+  }
+  for (const auto& theme_name : enabled_themes) {
+    auto index = _theme_map[theme_name];
+    _theme_shuffler.modify(index, priority);
+    _themes[index]->enabled = true;
+  }
+  // Could check whether the themes we're using are still enabled?
+  _swaps_to_match_theme = 2;
+}
+
+Image ThemeBank::get_image(bool alternate)
+{
+  auto& theme = *_active_themes[alternate ? 2 : 1].load();
+  if (!theme.size) {
+    return get_animation(alternate, random(2 << 16));
+  }
+  std::size_t index;
+  Image image;
+  {
+    std::lock_guard<std::mutex> lock{theme.load_mutex};
+    index = theme.image_shuffler.next();
+    if (!_all_images[index].image) {
+      return {};
+    }
+    do_video_upload(*_all_images[index].image);
+    image = *_all_images[index].image;
+  }
+  _last_images.push_back(index);
+  for (auto& other_theme : _themes) {
+    std::lock_guard<std::mutex> lock{other_theme->load_mutex};
+    other_theme->image_shuffler.decrease(_last_images.back());
+    if (_last_images.size() > last_image_count) {
+      other_theme->image_shuffler.increase(_last_images.front());
+    }
+  }
+  if (_last_images.size() > last_image_count) {
+    _last_images.erase(_last_images.begin());
+  }
+  return image;
+}
+
+Image ThemeBank::get_animation(bool alternate, std::size_t frame)
+{
+  auto& a = animation(alternate ? 2 : 1);
+  std::lock_guard<std::mutex> lock{a.mutex};
+  if (a.frames.empty()) {
+    return {};
+  }
+  auto len = a.frames.size();
+  auto f = frame % (2 * len - 2);
+  f = f < len ? f : 2 * len - 2 - f;
+  do_video_upload(a.frames[f]);
+  return a.frames[f];
+}
+
+const std::string& ThemeBank::get_text(bool alternate)
+{
+  auto& theme = *_active_themes[alternate ? 2 : 1].load();
+  if (theme.text_lines.empty()) {
+    const static std::string none;
+    return none;
+  }
+  auto text = theme.text_lines[theme.text_shuffler.next()];
+  for (auto& other_theme : _themes) {
+    auto it = other_theme->text_lookup.find(text);
+    if (it != other_theme->text_lookup.end()) {
+      for (auto index : it->second) {
+        other_theme->text_shuffler.decrease(index);
+      }
+    }
+    it = other_theme->text_lookup.find(_last_text);
+    if (!_last_text.empty() && it != other_theme->text_lookup.end()) {
+      for (auto index : it->second) {
+        other_theme->text_shuffler.increase(index);
+      }
+    }
+  }
+  _last_text = text;
+  return _last_text;
+}
+
+const std::string& ThemeBank::get_font(bool alternate)
+{
+  auto& theme = *_active_themes[alternate ? 2 : 1].load();
+  if (theme.font_paths.empty()) {
+    const static std::string none;
+    return none;
+  }
+  auto r = random(theme.font_paths.size());
+  return theme.font_paths[r];
+}
+
 void ThemeBank::maybe_upload_next()
 {
-  if (_next->loaded() > 0) {
-    _next->get_image();
+  auto& theme = *_active_themes.back().load();
+  if (theme.size) {
+    std::lock_guard<std::mutex> lock{theme.load_mutex};
+    auto index = theme.image_shuffler.next();
+    if (_all_images[index].image) {
+      do_video_upload(*_all_images[index].image);
+    }
+  }
+  auto& a = animation(3);
+  if (!a.frames.empty()) {
+    do_video_upload(a.frames[random(a.frames.size())]);
   }
 }
 
 bool ThemeBank::change_themes()
 {
-  if (!_prev->all_loaded() || !_next->all_loaded()) {
+  if (!all_loaded() || !all_unloaded() ||
+      animation(0).loaded || !animation(3).loaded) {
     return false;
   }
   _cooldown = switch_cooldown;
-  _prev = _main;
-  _main = _alt;
-  _alt = _next;
-  _next = &_theme_shuffler.next().second;
+  advance_theme(false);
   if (_swaps_to_match_theme) {
     --_swaps_to_match_theme;
   }
-
-  // Update target loads.
-  if (_prev != _next && _prev != _alt && _prev != _main) {
-    _prev->set_target_load(0);
-  }
-  _next->set_target_load(cache_per_theme());
   return true;
 }
 
@@ -298,11 +238,21 @@ bool ThemeBank::swaps_to_match_theme() const
   return _swaps_to_match_theme;
 }
 
+uint32_t ThemeBank::cache_per_theme() const
+{
+  std::size_t enabled_themes = 0;
+  for (const auto& theme : _themes) {
+    if (theme->enabled) {
+      ++enabled_themes;
+    }
+  }
+  return enabled_themes == 0 ? 0 : _image_cache_size /
+      uint32_t(std::min<std::size_t>(3, enabled_themes));
+}
+
 void ThemeBank::async_update()
 {
-  for (auto& pair : _themes) {
-    pair.second.perform_purge();
-  }
+  do_purge();
   if (_cooldown) {
     --_cooldown;
     return;
@@ -310,23 +260,209 @@ void ThemeBank::async_update()
 
   ++_updates;
   // Swap some images from the active themes in and out every so often.
-  if (_updates > 128) {
-    _main->perform_swap();
-    _alt->perform_swap();
-    if (_themes.size() == 3) {
-      _next->perform_swap();
-    }
+  if (_updates == 128) {
+    do_swap(1);
+    do_swap(2);
     _updates = 0;
-  }
-  else {
-    _prev->perform_load();
-    _next->perform_load();
+  } else {
+    do_reconcile(*_active_themes[1].load());
+    do_reconcile(*_active_themes[2].load());
+    if (animation(0).loaded) {
+      do_load_animation(*_active_themes[0].load(), animation(0), true);
+    } else if (!all_unloaded()) {
+      do_unload(*_active_themes.front().load());
+    }
+    if (!animation(3).loaded) {
+      do_load_animation(*_active_themes[3].load(), animation(3), false);
+    } else if (!all_loaded()) {
+      do_load(*_active_themes.back().load());
+    }
   }
 }
 
-uint32_t ThemeBank::cache_per_theme() const
+void ThemeBank::advance_theme(bool initial_theme)
 {
-  return !_theme_shuffler.enabled_count() ? 0 :
-      _image_cache_size / uint32_t(std::min((std::size_t) 3,
-                                            _theme_shuffler.enabled_count()));
+  // Note: last theme index will break theme weights for 2 active themes.
+  auto last = _last_theme_index;
+  _last_theme_index = _theme_shuffler.next();
+  if (!initial_theme) {
+    _theme_shuffler.increase(last);
+  }
+  _theme_shuffler.decrease(_last_theme_index);
+  for (std::size_t i = 0; 1 + i < _active_themes.size(); ++i) {
+    _active_themes[i].store(_active_themes[1 + i].load());
+  }
+  _active_themes.back() = _themes[_last_theme_index].get();
+  _animation_index = (1 + _animation_index) % _loaded_animations.size();
+}
+
+bool ThemeBank::all_loaded() const
+{
+  const auto& next_theme = *_active_themes.back().load();
+  return next_theme.loaded_size >= next_theme.size ||
+      next_theme.loaded_size >= cache_per_theme();
+}
+
+bool ThemeBank::all_unloaded() const
+{
+  const auto& prev_theme = *_active_themes.front().load();
+  std::size_t count = 0;
+  for (const auto& active_theme : _active_themes) {
+    if (active_theme.load() == &prev_theme) {
+      ++count;
+    }
+  }
+  return !prev_theme.loaded_size || count > 1;
+}
+
+ThemeBank::AnimationInfo&
+ThemeBank::animation(std::size_t active_theme_index)
+{
+  return _loaded_animations[
+      (_animation_index + active_theme_index) % _loaded_animations.size()];
+}
+
+void ThemeBank::do_swap(std::size_t active_theme_index)
+{
+  auto& theme = *_active_themes[active_theme_index].load();
+  if (random_chance(4)) {
+    do_load_animation(theme, animation(active_theme_index), false);
+    return;
+  }
+
+  if (!theme.loaded_size || theme.loaded_size == theme.size) {
+    return;
+  }
+  do_unload(theme);
+  do_load(theme);
+}
+
+void ThemeBank::do_reconcile(ThemeInfo& theme)
+{
+  if (theme.loaded_size < cache_per_theme()) {
+    do_load(theme);
+  }
+  if (theme.loaded_size > cache_per_theme()) {
+    do_unload(theme);
+  }
+}
+
+void ThemeBank::do_load(ThemeInfo& theme)
+{
+  if (theme.loaded_size >= theme.size) {
+    return;
+  }
+  auto index = theme.load_shuffler.next();
+  theme.load_shuffler.decrease(index);
+  theme.loaded_index.emplace_back(index);
+
+  auto& image = _all_images[index];
+  // Could store spare capacity due to duplicated images and load more. Might
+  // get a bit confusing though.
+  if (!image.use_count++) {
+    image.image.reset(new Image{load_image(_root_path + "/" + image.path)});
+  }
+  // Don't try to load again if it failed.
+  if (!*image.image) {
+    for (auto& other_theme : _themes) {
+      other_theme->load_shuffler.modify(
+          index, -static_cast<int32_t>(last_image_count));
+    }
+  }
+  {
+    std::lock_guard<std::mutex> lock{theme.load_mutex};
+    theme.image_shuffler.increase(index);
+  }
+  ++theme.loaded_size;
+}
+
+void ThemeBank::do_unload(ThemeInfo& theme)
+{
+  if (!theme.loaded_size) {
+    return;
+  }
+  auto index = theme.loaded_index.front();
+  theme.load_shuffler.increase(index);
+  theme.loaded_index.erase(theme.loaded_index.begin());
+
+  {
+    std::lock_guard<std::mutex> lock{theme.load_mutex};
+    theme.image_shuffler.decrease(index);
+  }
+  auto& image = _all_images[index];
+  if (!--image.use_count) {
+    _purge_mutex.lock();
+    _purgeable_images.push_back(image.image->get_sf_image());
+    _purge_mutex.unlock();
+    image.image.reset();
+  }
+  --theme.loaded_size;
+}
+
+void ThemeBank::do_load_animation(ThemeInfo& theme,
+                                  AnimationInfo& animation, bool only_unload)
+{
+  if (animation.loaded) {
+    _purge_mutex.lock();
+    for (auto& image : animation.frames) {
+      _purgeable_images.push_back(image.get_sf_image());
+    }
+    _purge_mutex.unlock();
+
+    if (animation.index < _all_animations.size()) {
+      for (auto& other_theme : _themes) {
+        other_theme->animation_shuffler.increase(animation.index);
+      }
+    }
+  }
+  if (only_unload) {
+    std::lock_guard<std::mutex> lock{animation.mutex};
+    animation.frames.clear();
+    animation.loaded = false;
+    return;
+  }
+
+  animation.index = theme.animation_shuffler.next();
+  if (animation.index >= _all_animations.size()) {
+    animation.loaded = true;
+    return;
+  }
+
+
+  auto new_frames =
+      load_animation(_root_path + "/" + _all_animations[animation.index]);
+  int32_t amount = -1;
+  if (new_frames.empty()) {
+    // Don't try to load again if it failed.
+    amount = -static_cast<int32_t>(_loaded_animations.size());
+  }
+
+  {
+    std::lock_guard<std::mutex> lock{animation.mutex};
+    animation.frames = std::move(new_frames);
+  }
+
+  for (auto& other_theme : _themes) {
+    other_theme->animation_shuffler.modify(animation.index, amount);
+  }
+  animation.loaded = true;
+}
+
+void ThemeBank::do_video_upload(const Image& image) const
+{
+  if (image.ensure_texture_uploaded()) {
+    // Swap the sf::Image pointer so we can delete it on the async thread (see
+    // do_purge() below).
+    _purge_mutex.lock();
+    _purgeable_images.push_back(image.get_sf_image());
+    _purge_mutex.unlock();
+    image.clear_sf_image();
+  }
+}
+
+void ThemeBank::do_purge()
+{
+  _purge_mutex.lock();
+  _purgeable_images.clear();
+  _purge_mutex.unlock();
 }

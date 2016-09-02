@@ -4,6 +4,7 @@
 #include "image.h"
 #include "util.h"
 #include <atomic>
+#include <array>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -21,87 +22,32 @@ namespace trance_pb {
   class Theme;
 }
 
-// Theme consists of images, animations, and associated text strings.
-class Theme {
-public:
-
-  Theme();
-  Theme(const std::string& root_path, const trance_pb::Theme& proto);
-  Theme(const Theme& theme);
-
-  // Get a random loaded in-memory Image, text string, etc.
-  //
-  // Note: these are called from the main rendering thread and can upload
-  // images from RAM to video memory on-demand. The other loading functions
-  // are called from the async_update thread and load images from files
-  // into RAM when requested.
-  Image get_image() const;
-  Image get_animation(std::size_t frame) const;
-  const std::string& get_text() const;
-  const std::string& get_font() const;
-
-  // Set the target number of images this set should keep in memory.
-  // Once changed, the asynchronous image-loading thread will gradually
-  // load/unload images until we're at the target.
-  void set_target_load(std::size_t target_load);
-
-  // Purge memory we no longer need.
-  void perform_purge();
-  // Randomly swap out one in-memory image for another unloaded one.
-  void perform_swap();
-  // Perform at most one load or unload towards the target.
-  void perform_load();
-  // Perform all loads/unloads to reach the target.
-  void perform_all_loads();
-
-  // How many images are actually loaded.
-  bool all_loaded() const;
-  std::size_t loaded() const;
-
-private:
-
-  void load_image_internal();
-  void unload_image_internal();
-  void load_animation_internal();
-  void unload_animation_internal();
-
-  std::string _root_path;
-  using StringShuffler =
-      Shuffler<const google::protobuf::RepeatedPtrField<std::string>>;
-  StringShuffler _image_paths;
-  StringShuffler _animation_paths;
-  StringShuffler _font_paths;
-  StringShuffler _text_lines;
-
-  std::atomic<std::size_t> _target_load;
-  std::unordered_map<std::size_t, Image> _images;
-  std::vector<Image> _animation_images;
-  mutable std::mutex _image_mutex;
-  mutable std::mutex _animation_mutex;
-  mutable std::mutex _purge_mutex;
-  mutable std::vector<std::shared_ptr<sf::Image>> _purgeable_images;
-
-};
-
 // ThemeBank keeps two Themes active at all times with a number of images
 // in memory each so that a variety of these images can be displayed with no
 // load delay. It also asynchronously loads a third theme into memory so that
 // the active themes can be swapped out.
 class ThemeBank {
 public:
-
   ThemeBank(const std::string& root_path, const trance_pb::Session& session,
             const trance_pb::System& system,
             const std::unordered_set<std::string>& enabled_themes);
+
+  const std::string& get_root_path() const;
   void set_enabled_themes(
       const std::unordered_set<std::string>& enabled_themes);
 
-  // Get the main or alternate theme.
-  const Theme& get(bool alternate = false) const;
-  const std::string& get_root_path() const;
+  // Get a random loaded in-memory image, text string, etc.
+  //
+  // These are called from the main (rendering) thread and can upload
+  // images from RAM to video memory on-demand.
+  Image get_image(bool alternate);
+  Image get_animation(bool alternate, std::size_t frame);
+  const std::string& get_text(bool alternate);
+  const std::string& get_font(bool alternate);
 
   // Call to upload a random image from the next theme which has been loaded
   // into RAM but not video memory.
+  //
   // This has to happen on the main rendering thread since OpenGL contexts
   // are single-threaded by default, but this function call can be timed to
   // mitigate the upload cost of switching active themes.
@@ -116,25 +62,95 @@ public:
   void async_update();
 
 private:
-
   uint32_t cache_per_theme() const;
   static const std::size_t switch_cooldown = 500;
+  static const std::size_t last_image_count = 8;
 
-  std::string _root_path;
-  std::unordered_map<std::string, trance_pb::Theme> _theme_map;
-  std::vector<std::pair<std::string, Theme>> _themes;
-  Shuffler<std::vector<std::pair<std::string, Theme>>> _theme_shuffler;
+  // Data for each possible theme.
+  struct ThemeInfo {
+    // Number of images.
+    const std::size_t size;
+    // Whether the theme is enabled in the theme shuffler.
+    bool enabled;
+    // Used for synchronizing image loads.
+    std::mutex load_mutex;
+    // Used for synchronizing theme changes.
+    std::atomic<std::size_t> loaded_size;
+    // Indexes of images that this theme has caused to be loaded.
+    std::vector<std::size_t> loaded_index;
+    // Shuffler for loading images; maps onto all_images.
+    Shuffler load_shuffler;
+    // Shuffler for picking loaded images; also maps onto all_images.
+    Shuffler image_shuffler;
+    // Shuffler for choosing animations. Maps on to all_animations.
+    Shuffler animation_shuffler;
+    // All font paths for this theme.
+    std::vector<std::string> font_paths;
+    // All texts for this theme.
+    std::vector<std::string> text_lines;
+    // Lookup from text to index.
+    std::unordered_map<std::string, std::vector<std::size_t>> text_lookup;
+    // Shuffler for choosing text lines. Maps on to text_lines above.
+    Shuffler text_shuffler;
+  };
 
-  Theme* _prev;
-  Theme* _main;
-  Theme* _alt;
-  Theme* _next;
+  // Data for each possible image.
+  struct ImageInfo {
+    const std::string path;
+    // Reference count; corresponds to ThemeInfo::loaded_index.
+    uint32_t use_count;
+    std::unique_ptr<Image> image;
+  };
 
+  struct AnimationInfo {
+    std::atomic<bool> loaded = false;
+    // Index into all_animations.
+    std::size_t index = 0;
+    std::mutex mutex;
+    std::vector<Image> frames;
+  };
+
+  void advance_theme(bool initial_theme);
+  bool all_loaded() const;
+  bool all_unloaded() const;
+  AnimationInfo& animation(std::size_t active_theme_index);
+
+  // Called from the async_update thread and can load images from files
+  // into RAM as necessary.
+  void do_swap(std::size_t active_theme_index);
+  void do_reconcile(ThemeInfo& theme);
+  void do_load(ThemeInfo& theme);
+  void do_unload(ThemeInfo& theme);
+  void do_load_animation(ThemeInfo& theme,
+                         AnimationInfo& animation, bool only_unload);
+  void do_video_upload(const Image& image) const;
+  void do_purge();
+
+  const std::string _root_path;
+  // Data for all images.
+  std::vector<ImageInfo> _all_images;
+  std::vector<std::size_t> _last_images;
+  std::vector<std::string> _all_animations;
+  std::array<AnimationInfo, 4> _loaded_animations;
+  std::atomic<std::size_t> _animation_index;
+  std::string _last_text;
+
+  // Maps theme name to index in theme vector.
+  std::unordered_map<std::string, std::size_t> _theme_map;
+  // Vector of themes.
+  std::vector<std::unique_ptr<ThemeInfo>> _themes;
+  // Currently-active themes in queue.
+  std::array<std::atomic<ThemeInfo*>, 4> _active_themes;
+  std::size_t _last_theme_index;
+  Shuffler _theme_shuffler;
+
+  const uint32_t _image_cache_size;
   uint32_t _swaps_to_match_theme;
-  uint32_t _image_cache_size;
   uint32_t _updates;
   std::atomic<uint32_t> _cooldown;
 
+  mutable std::mutex _purge_mutex;
+  mutable std::vector<std::shared_ptr<sf::Image>> _purgeable_images;
 };
 
 #endif
