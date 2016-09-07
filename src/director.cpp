@@ -711,7 +711,7 @@ void Director::render_text(const std::string& text, float multiplier) const
 
 void Director::render_subtext(float alpha, float multiplier) const
 {
-  if (_subtext.empty()) {
+  if (_current_subfont.empty() || _subtext.empty()) {
     return;
   }
 
