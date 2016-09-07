@@ -689,11 +689,15 @@ void Director::render_image(const Image& image, float alpha,
 
 void Director::render_text(const std::string& text, float multiplier) const
 {
-  if (_current_font.empty()) {
+  if (_current_font.empty() || text.empty()) {
     return;
   }
   auto cache_key = _current_font + "/\t/\t/" + text;
-  auto main_size = _text_size_cache.find(cache_key)->second;
+  auto it = _text_size_cache.find(cache_key);
+  if (it == _text_size_cache.end()) {
+    return;
+  }
+  auto main_size = it->second;
   auto shadow_size = main_size + FontCache::char_size_lock;
   render_raw_text(
       text, _fonts.get_font(_current_font, shadow_size),
@@ -729,6 +733,9 @@ void Director::render_subtext(float alpha, float multiplier) const
   float offx3d = off3d(multiplier, true).x;
   auto text = make_text();
   auto d = get_text_size(text, font);
+  if (d.y <= 0) {
+    return;
+  }
   auto colour = sf::Color(0, 0, 0, sf::Uint8(alpha * 255));
   render_raw_text(text, font, colour, sf::Vector2f{offx3d, 0});
   auto offset = d.y + 4;
@@ -832,6 +839,9 @@ bool Director::change_themes()
   }
   if (_themes.change_themes()) {
     _switch_themes = 0;
+    if (_current_font.empty()) {
+      change_font(true);
+    }
     return true;
   }
   return false;
@@ -1037,7 +1047,7 @@ void Director::render_raw_text(const std::string& text, const Font& font,
                                const sf::Color& colour,
                                const sf::Vector2f& offset, float scale) const
 {
-  if (!text.length()) {
+  if (text.empty()) {
     return;
   }
 
