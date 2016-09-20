@@ -41,6 +41,67 @@ void main()
 }
 )";
 
+static const std::string new_vertex = R"(
+// Distance to near plane. Controls the effect of zoom.
+uniform float near_plane;
+// Distance to far plane. Controls the effect of zoom.
+uniform float far_plane;
+// Unitless eye offset.
+uniform float eye_offset;
+// Alpha value.
+uniform float alpha;
+
+// Virtual position of vertex (in [-1 - |eye|, 1 + |eye|] X [-1, 1] X [0, 1]).
+// The third coordinate is the zoom amount.
+attribute vec3 virtual_position;
+// Texture coordinate for this vertex.
+attribute vec2 texture_coord;
+
+// Output texture coordinate.
+varying vec2 out_texture_coord;
+// Output alpha value.
+varying float out_alpha;
+
+// Applies perspective projection onto unit square.
+mat4 m_perspective = mat4(
+    near_plane, 0., 0., 0.,
+    0., near_plane, 0., 0.,
+    0., 0., (near_plane + far_plane) / (near_plane - far_plane), -1.,
+    0., 0., 2. * (near_plane * far_plane) / (near_plane - far_plane), 0.);
+
+// Applies the zoom coordinate.
+mat4 m_virtual = mat4(
+    far_plane / near_plane, 0., 0., -(far_plane / near_plane) * eye_offset,
+    0., far_plane / near_plane, 0., 0.,
+    0., 0., far_plane - near_plane, 0.,
+    0., 0., -far_plane, 1.);
+
+// Avoids the very edge of images.
+const float texture_epsilon = 1. / 256;
+
+void main()
+{
+  gl_Position = m_perspective * m_virtual * vec4(virtual_position, 1.);
+  out_texture_coord =
+      texture_coord * (1. - texture_epsilon) + texture_epsilon / 2.;
+  out_alpha = alpha;
+}
+)";
+
+static const std::string new_fragment = R"(
+// Active texture for this draw.
+uniform sampler2D texture;
+// Input texture coordinate.
+varying vec2 out_texture_coord;
+// Input alpha value.
+varying float out_alpha;
+
+void main()
+{
+  gl_FragColor = vec4(texture2D(texture, out_texture_coord).rgb, out_alpha);
+}
+)";
+
 static const std::string image_vertex = R"(
 uniform vec2 min_coord;
 uniform vec2 max_coord;
