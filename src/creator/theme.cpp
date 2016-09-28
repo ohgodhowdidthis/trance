@@ -418,6 +418,13 @@ ThemePage::ThemePage(wxNotebook* parent,
                      "", wxICON_ERROR, this);
         return false;
       }
+      bool exists = std::tr2::sys::exists(new_path, ec);
+      if (exists || ec) {
+        wxMessageBox(
+            "Couldn't rename " + old_path.string() + ": " + new_path.string() +
+            " already exists", "", wxICON_ERROR, this);
+        return false;
+      }
       std::tr2::sys::rename(old_path, new_path, ec);
       if (ec) {
         wxMessageBox(
