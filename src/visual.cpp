@@ -317,8 +317,7 @@ void FlashTextVisual::render() const
   float extra = 32.f * _timer / length;
   float zoom = float(_timer) / length;
   director().render_animation_or_image(
-      !_animated ? Director::Anim::NONE :
-      _cycle % 2 ? Director::Anim::ANIM : Director::Anim::ANIM_ALTERNATE,
+      Director::Anim::NONE,
       _start, 1, 8.f + extra, (_animated ? 1.5f : 1.f) * (2.f - zoom));
 
   director().render_animation_or_image(
