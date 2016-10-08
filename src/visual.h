@@ -148,13 +148,11 @@ public:
 
 private:
   static const std::size_t image_count = 3;
-  static const uint32_t font_length = 64;
-  static const uint32_t length = 8;
+  static const uint32_t length = 32;
   static const uint32_t cycles = 128;
 
   std::vector<Image> _images;
   std::vector<uint32_t> _lengths;
-  std::size_t _index;
   std::vector<std::string> _current_text;
   uint32_t _timer;
   uint32_t _font_timer;

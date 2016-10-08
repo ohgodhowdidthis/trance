@@ -413,10 +413,8 @@ void ParallelVisual::render() const
 
 SuperParallelVisual::SuperParallelVisual(Director& director)
 : Visual{director}
-, _index{0}
 , _current_text{SplitWords(director.get_text(random_chance()), SplitType::WORD)}
 , _timer{length}
-, _font_timer{font_length}
 , _cycle{cycles}
 {
   for (std::size_t i = 0; i < image_count; ++i) {
@@ -430,21 +428,21 @@ void SuperParallelVisual::update()
 {
   for (std::size_t i = 0; i < image_count; ++i) {
     ++_lengths[i];
+    if (_lengths[i] == image_count * length) {
+      _images[i] = director().get_image(i % 2 == 0);
+      _lengths[i] = 0;
+    }
   }
   director().rotate_spiral(3.5f);
-  if (!--_font_timer) {
-    if (_current_text.empty()) {
-      _current_text = SplitWords(director().get_text(random_chance()), SplitType::WORD);
-    } else {
-      _current_text.erase(_current_text.begin());
-    }
-    _font_timer = font_length;
-  }
 
   if (--_timer) {
     return;
   }
   _timer = length;
+  _current_text.erase(_current_text.begin());
+  if (_current_text.empty()) {
+    _current_text = SplitWords(director().get_text(random_chance()), SplitType::WORD);
+  }
 
   if (!--_cycle) {
     director().change_spiral();
@@ -459,29 +457,32 @@ void SuperParallelVisual::update()
   if (_cycle % 16 == 0) {
     director().maybe_upload_next();
   }
-
-  _index = (_index + 1) % _images.size();
-  while (_index < _images.size() / 2) {
-    _index = (_index + 1) % _images.size();
-  }
-  _images[_index] = director().get_image(_index % 2 == 0);
-  _lengths[_index] = 0;
 }
 
 void SuperParallelVisual::render() const
 {
   float extra = 16.f - 16.f * (_cycle % 128) / (cycles / 4);
-  for (std::size_t i = 0; i < _images.size(); ++i) {
+  bool single = false;
+  for (uint32_t l : _lengths) {
+    if (l >= image_count * length - length / 2) {
+      single = true;
+    }
+  }
+  for (std::size_t i = 0; i < image_count; ++i) {
     auto anim =
         i >= _images.size() / 2 ? Director::Anim::NONE :
         i % 2 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM;
+    if (single && _lengths[i] < image_count * length - length / 2) {
+      continue;
+    }
     director().render_animation_or_image(
-        anim, _images[i], 1.f / (1 + i), 8.f + 4 * i + extra,
-        i < _images.size() / 2 ? 0.f :
-        float(_lengths[i]) / (image_count * length));
+        anim, _images[i], single ? 1.f : 1.f / (1 + i), 8.f + 4 * i + extra,
+        4.f * float(_lengths[i]) / (image_count * length));
   }
   director().render_spiral();
-  director().render_text(_current_text.empty() ? "" : _current_text[0], 5.f);
+  if (_timer > length / 2) {
+    director().render_text(_current_text.empty() ? "" : _current_text[0], 5.f);
+  }
 }
 
 AnimationVisual::AnimationVisual(Director& director)
