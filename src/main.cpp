@@ -170,13 +170,10 @@ void play_session(
   {
     return session.program_map().find(item->program())->second;
   };
-  std::unordered_set<std::string> enabled_themes{
-      program().enabled_theme_name().begin(),
-      program().enabled_theme_name().end()};
 
   std::cout << "loading themes" << std::endl;
   auto theme_bank =
-      std::make_unique<ThemeBank>(root_path, session, system, enabled_themes);
+      std::make_unique<ThemeBank>(root_path, session, system, program());
   std::cout << "\nloaded themes" << std::endl;
   auto window = create_window(
       system, realtime ? 0 : settings.width, realtime ? 0 : settings.height,
@@ -262,9 +259,7 @@ void play_session(
           audio->TriggerEvents(*item);
         }
         std::cout << "\n-> " << next << std::endl;
-        theme_bank->set_enabled_themes({
-            program().enabled_theme_name().begin(),
-            program().enabled_theme_name().end()});
+        theme_bank->set_program(program());
         director->set_program(program());
       }
       if (theme_bank->swaps_to_match_theme()) {

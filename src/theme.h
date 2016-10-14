@@ -9,7 +9,6 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #pragma warning(push, 0)
@@ -17,6 +16,7 @@
 #pragma warning(pop)
 
 namespace trance_pb {
+  class Program;
   class Session;
   class System;
   class Theme;
@@ -29,12 +29,10 @@ namespace trance_pb {
 class ThemeBank {
 public:
   ThemeBank(const std::string& root_path, const trance_pb::Session& session,
-            const trance_pb::System& system,
-            const std::unordered_set<std::string>& enabled_themes);
+            const trance_pb::System& system, const trance_pb::Program& program);
 
   const std::string& get_root_path() const;
-  void set_enabled_themes(
-      const std::unordered_set<std::string>& enabled_themes);
+  void set_program(const trance_pb::Program& program);
 
   // Get a random loaded in-memory image, text string, etc.
   //
@@ -110,7 +108,7 @@ private:
     std::vector<Image> frames;
   };
 
-  void advance_theme(bool initial_theme);
+  void advance_theme();
   bool all_loaded() const;
   bool all_unloaded() const;
   AnimationInfo& animation(std::size_t active_theme_index);
@@ -137,12 +135,12 @@ private:
 
   // Maps theme name to index in theme vector.
   std::unordered_map<std::string, std::size_t> _theme_map;
+  std::unordered_map<std::string, uint32_t> _enabled_theme_weights;
+  std::string _pinned_theme;
   // Vector of themes.
   std::vector<std::unique_ptr<ThemeInfo>> _themes;
   // Currently-active themes in queue.
   std::array<std::atomic<ThemeInfo*>, 4> _active_themes;
-  std::size_t _last_theme_index;
-  Shuffler _theme_shuffler;
 
   const uint32_t _image_cache_size;
   uint32_t _swaps_to_match_theme;

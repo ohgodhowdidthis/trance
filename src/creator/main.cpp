@@ -254,10 +254,10 @@ void CreatorFrame::ThemeCreated(const std::string& theme_name) {
 
 void CreatorFrame::ThemeDeleted(const std::string& theme_name) {
   for (auto& pair : *_session.mutable_program_map()) {
-    auto it = pair.second.mutable_enabled_theme_name()->begin();
-    while (it != pair.second.mutable_enabled_theme_name()->end()) {
-      if (*it == theme_name) {
-        it = pair.second.mutable_enabled_theme_name()->erase(it);
+    auto it = pair.second.mutable_enabled_theme()->begin();
+    while (it != pair.second.mutable_enabled_theme()->end()) {
+      if (it->theme_name() == theme_name) {
+        it = pair.second.mutable_enabled_theme()->erase(it);
       } else {
         ++it;
       }
@@ -272,9 +272,9 @@ void CreatorFrame::ThemeDeleted(const std::string& theme_name) {
 void CreatorFrame::ThemeRenamed(const std::string& old_name,
                                 const std::string& new_name) {
   for (auto& pair : *_session.mutable_program_map()) {
-    for (auto& theme_name : *pair.second.mutable_enabled_theme_name()) {
-      if (theme_name == old_name) {
-        theme_name = new_name;
+    for (auto& theme : *pair.second.mutable_enabled_theme()) {
+      if (theme.theme_name() == old_name) {
+        theme.set_theme_name(new_name);
       }
     }
   }

@@ -12,7 +12,6 @@
 #include <wx/spinctrl.h>
 #include <wx/splitter.h>
 #include <wx/stattext.h>
-#include <wx/treelist.h>
 #pragma warning(pop)
 
 namespace {
@@ -74,6 +73,10 @@ namespace {
       "Two colours for the spiral.";
   const std::string TEXT_COLOUR_TOOLTIP =
       "Main colour and shadow effect colour for text messages.";
+  const std::string PINNED_TOOLTIP =
+      "A pinned theme is always one of the two active themes while the "
+      "program is running. If a theme is pinned, the random weights are "
+      "used only for selecting the second theme.";
 }
 
 ProgramPage::ProgramPage(wxNotebook* parent,
@@ -112,9 +115,9 @@ ProgramPage::ProgramPage(wxNotebook* parent,
   left_splitter->SetSashGravity(0.5);
   left_splitter->SetMinimumPaneSize(128);
 
-  auto leftleft_panel = new wxPanel{left_splitter, wxID_ANY};
-  auto leftleft =
-      new wxStaticBoxSizer{wxVERTICAL, leftleft_panel, "Enabled themes"};
+  _leftleft_panel = new wxPanel{left_splitter, wxID_ANY};
+  _themes_sizer =
+      new wxStaticBoxSizer{wxVERTICAL, _leftleft_panel, "Theme weights"};
   auto leftright_panel = new wxPanel{left_splitter, wxID_ANY};
   auto leftright =
       new wxStaticBoxSizer{wxVERTICAL, leftright_panel, "Visualizer weights"};
@@ -129,15 +132,7 @@ ProgramPage::ProgramPage(wxNotebook* parent,
       std::bind(&CreatorFrame::ProgramRenamed, &_creator_frame,
                 std::placeholders::_1, std::placeholders::_2)};
 
-  _tree = new wxTreeListCtrl{
-      leftleft_panel, 0, wxDefaultPosition, wxDefaultSize,
-      wxTL_SINGLE | wxTL_CHECKBOX | wxTL_3STATE | wxTL_NO_HEADER};
-  _tree->AppendColumn("");
-  _tree->GetView()->SetToolTip(
-      "Themes that are part of the currently-selected program.");
-
-  leftleft->Add(_tree, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
-  leftleft_panel->SetSizer(leftleft);
+  _leftleft_panel->SetSizer(_themes_sizer);
 
   auto add_visual = [&](const std::string& name, const std::string& tooltip,
                         trance_pb::Program::VisualType type) {
@@ -186,7 +181,7 @@ ProgramPage::ProgramPage(wxNotebook* parent,
 
   leftright_panel->SetSizer(leftright);
   left->Add(left_splitter, 1, wxEXPAND, 0);
-  left_splitter->SplitVertically(leftleft_panel, leftright_panel);
+  left_splitter->SplitVertically(_leftleft_panel, leftright_panel);
   left_panel->SetSizer(left);
 
   wxStaticText* label = nullptr;
@@ -253,32 +248,6 @@ ProgramPage::ProgramPage(wxNotebook* parent,
   splitter->SplitHorizontally(_item_list, bottom_panel);
   SetSizer(sizer);
 
-  _tree->Bind(wxEVT_TREELIST_ITEM_CHECKED, [&](wxTreeListEvent& e)
-  {
-    auto it = _session.mutable_program_map()->find(_item_selected);
-    if (it == _session.mutable_program_map()->end()) {
-      e.Veto();
-      return;
-    }
-    auto checked = _tree->GetCheckedState(e.GetItem());
-    auto data = _tree->GetItemData(e.GetItem());
-    std::string theme = ((const wxStringClientData*) data)->GetData();
-    auto& theme_names = *it->second.mutable_enabled_theme_name();
-
-    if (checked == wxCHK_CHECKED) {
-      if (std::find(theme_names.begin(),
-                    theme_names.end(), theme) == theme_names.end()) {
-        it->second.add_enabled_theme_name(theme);
-      }
-    } else {
-      auto it = theme_names.begin();
-      while (it != theme_names.end()) {
-        it = *it == theme ? theme_names.erase(it) : 1 + it;
-      }
-    }
-    _creator_frame.MakeDirty(true);
-  }, wxID_ANY);
-
   auto changed = [&](wxCommandEvent&) { Changed(); };
   right_panel->Bind(wxEVT_COMMAND_CHECKBOX_CLICKED, changed);
   right_panel->Bind(wxEVT_SLIDER, changed);
@@ -292,26 +261,19 @@ ProgramPage::~ProgramPage()
 
 void ProgramPage::RefreshOurData()
 {
-  for (auto item = _tree->GetFirstItem(); item.IsOk();
-       item = _tree->GetNextItem(item)) {
-    _tree->CheckItem(item, wxCHK_UNCHECKED);
+  for (const auto& pair : _theme_lookup) {
+    pair.second.first->SetValue(0);
+    pair.second.second->SetValue(false);
   }
-
-  for (const auto& pair : _visual_lookup) {
-    pair.second->SetValue(0);
-  }
-
-  auto select = [&](const std::string& s) {
-    auto it = _tree_lookup.find(s);
-    if (it != _tree_lookup.end()) {
-      _tree->CheckItem(it->second);
-    }
-  };
 
   auto it = _session.program_map().find(_item_selected);
   if (it != _session.program_map().end()) {
-    for (const auto& theme : it->second.enabled_theme_name()) {
-      select(theme);
+    for (const auto& theme : it->second.enabled_theme()) {
+      auto it = _theme_lookup.find(theme.theme_name());
+      if (it != _theme_lookup.end()) {
+        it->second.first->SetValue(theme.random_weight());
+        it->second.second->SetValue(theme.pinned());
+      }
     }
     for (const auto& visual : it->second.visual_type()) {
       auto jt = _visual_lookup.find(visual.type());
@@ -340,8 +302,8 @@ void ProgramPage::RefreshData()
 
 void ProgramPage::RefreshThemes()
 {
-  _tree->DeleteAllItems();
-  _tree_lookup.clear();
+  _themes_sizer->Clear(true);
+  _theme_lookup.clear();
 
   std::vector<std::string> themes;
   for (const auto& pair : _session.theme_map()) {
@@ -349,18 +311,80 @@ void ProgramPage::RefreshThemes()
   }
   std::sort(themes.begin(), themes.end());
 
-  for (const auto& theme : themes) {
-    wxClientData* data = new wxStringClientData{theme};
-    auto item = _tree->AppendItem(_tree->GetRootItem(), theme, -1, -1, data);
-    _tree_lookup[theme] = item;
+  for (const auto& theme_name : themes) {
+    auto row_sizer = new wxBoxSizer{wxHORIZONTAL};
+    auto label = new wxStaticText{
+        _leftleft_panel, wxID_ANY, theme_name + ":"};
+    auto pinned = new wxCheckBox{_leftleft_panel, wxID_ANY, "Pinned"};
+    auto weight = new wxSpinCtrl{_leftleft_panel, wxID_ANY};
+
+    label->SetToolTip("Themes that can be enabled in this program.");
+    pinned->SetToolTip(PINNED_TOOLTIP);
+    weight->SetToolTip("A higher weight makes this "
+                       "theme more likely to be chosen.");
+    weight->SetRange(0, 100);
+    row_sizer->Add(label, 1, wxALL, DEFAULT_BORDER);
+    row_sizer->Add(pinned, 0, wxALL, DEFAULT_BORDER);
+    row_sizer->Add(weight, 0, wxALL, DEFAULT_BORDER);
+    _themes_sizer->Add(row_sizer, 0, wxEXPAND);
+
+    _theme_lookup.emplace(theme_name, std::make_pair(weight, pinned));
+
+    weight->Bind(wxEVT_SPINCTRL, [this,weight,theme_name](wxCommandEvent& e) {
+      auto it = _session.mutable_program_map()->find(_item_selected);
+      if (it == _session.mutable_program_map()->end()) {
+        return;
+      }
+      bool found = false;
+      for (auto& theme : *it->second.mutable_enabled_theme()) {
+        if (theme.theme_name() == theme_name) {
+          theme.set_random_weight(weight->GetValue());
+          found = true;
+        }
+      }
+      if (!found) {
+        auto& theme = *it->second.add_enabled_theme();
+        theme.set_theme_name(theme_name);
+        theme.set_random_weight(weight->GetValue());
+      }
+      _creator_frame.MakeDirty(true);
+    });
+
+    pinned->Bind(wxEVT_CHECKBOX, [this,pinned,theme_name](wxCommandEvent& e) {
+      auto it = _session.mutable_program_map()->find(_item_selected);
+      if (it == _session.mutable_program_map()->end()) {
+        return;
+      }
+      for (const auto& pair : _theme_lookup) {
+        if (pair.first != theme_name) {
+          pair.second.second->SetValue(false);
+        }
+      }
+      bool found = false;
+      for (auto& theme : *it->second.mutable_enabled_theme()) {
+        if (theme.theme_name() == theme_name) {
+          theme.set_pinned(pinned->GetValue());
+          found = true;
+        } else {
+          theme.set_pinned(false);
+        }
+      }
+      if (!found) {
+        auto& theme = *it->second.add_enabled_theme();
+        theme.set_theme_name(theme_name);
+        theme.set_pinned(pinned->GetValue());
+      }
+      _creator_frame.MakeDirty(true);
+    });
   }
+  _leftleft_panel->Layout();
 
   std::set<std::string> theme_set{themes.begin(), themes.end()};
   for (auto& pair : *_session.mutable_program_map()) {
-    for (auto it = pair.second.mutable_enabled_theme_name()->begin();
-         it != pair.second.mutable_enabled_theme_name()->end();) {
-      it = theme_set.count(*it) ? 1 + it :
-          pair.second.mutable_enabled_theme_name()->erase(it);
+    for (auto it = pair.second.mutable_enabled_theme()->begin();
+         it != pair.second.mutable_enabled_theme()->end();) {
+      it = theme_set.count(it->theme_name()) ? 1 + it :
+          pair.second.mutable_enabled_theme()->erase(it);
     }
   }
 }

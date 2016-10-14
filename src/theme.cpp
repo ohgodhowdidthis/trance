@@ -11,12 +11,9 @@
 
 ThemeBank::ThemeBank(
     const std::string& root_path, const trance_pb::Session& session,
-    const trance_pb::System& system,
-    const std::unordered_set<std::string>& enabled_themes)
+    const trance_pb::System& system, const trance_pb::Program& program)
 : _root_path{root_path}
 , _animation_index{0}
-, _last_theme_index{0}
-, _theme_shuffler{session.theme_map().size()}
 , _image_cache_size{system.image_cache_size()}
 , _swaps_to_match_theme{0}
 , _updates{0}
@@ -76,16 +73,14 @@ ThemeBank::ThemeBank(
   }
 
   // Set the initially-enabled themes.
-  set_enabled_themes(enabled_themes);
-  _swaps_to_match_theme = 0;
   for (std::size_t i = 0; i < _active_themes.size(); ++i) {
     _active_themes[i] = nullptr;
   }
+  set_program(program);
   // Choose the initial active themes and load them up.
   for (std::size_t i = 0; i < _active_themes.size(); ++i) {
-    bool first = !i;
-    advance_theme(first);
-    if (!first) {
+    advance_theme();
+    if (i) {
       while (!all_loaded()) {
         do_reconcile(*_active_themes.back().load());
       }
@@ -101,24 +96,28 @@ const std::string& ThemeBank::get_root_path() const
   return _root_path;
 }
 
-void ThemeBank::set_enabled_themes(
-    const std::unordered_set<std::string>& enabled_themes)
+void ThemeBank::set_program(const trance_pb::Program& program)
 {
-  // So that the last_theme_index theme still outranks the non-active themes.
-  static const std::int32_t priority = 2;
-  for (std::size_t i = 0; i < _themes.size(); ++i) {
-    if (_themes[i]->enabled) {
-      _theme_shuffler.modify(i, -priority);
-      _themes[i]->enabled = false;
-    }
+  _enabled_theme_weights.clear();
+  _pinned_theme.clear();
+  for (auto& theme : _themes) {
+    theme->enabled = false;
   }
-  for (const auto& theme_name : enabled_themes) {
-    auto index = _theme_map[theme_name];
-    _theme_shuffler.modify(index, priority);
+  for (const auto& theme : program.enabled_theme()) {
+    if (theme.random_weight()) {
+      _enabled_theme_weights[theme.theme_name()] = theme.random_weight();
+    }
+    if (theme.pinned()) {
+      _pinned_theme = theme.theme_name();
+    }
+    auto index = _theme_map[theme.theme_name()];
     _themes[index]->enabled = true;
   }
-  // Could check whether the themes we're using are still enabled?
-  _swaps_to_match_theme = 2;
+  for (uint32_t i = 1; i < _active_themes.size(); ++i) {
+    if (_active_themes[i].load() && !_active_themes[i].load()->enabled) {
+      _swaps_to_match_theme = std::max(_swaps_to_match_theme, i);
+    }
+  }
 }
 
 Image ThemeBank::get_image(bool alternate)
@@ -226,7 +225,7 @@ bool ThemeBank::change_themes()
     return false;
   }
   _cooldown = switch_cooldown;
-  advance_theme(false);
+  advance_theme();
   if (_swaps_to_match_theme) {
     --_swaps_to_match_theme;
   }
@@ -280,19 +279,37 @@ void ThemeBank::async_update()
   }
 }
 
-void ThemeBank::advance_theme(bool initial_theme)
+void ThemeBank::advance_theme()
 {
-  // Note: last theme index will break theme weights for 2 active themes.
-  auto last = _last_theme_index;
-  _last_theme_index = _theme_shuffler.next();
-  if (!initial_theme) {
-    _theme_shuffler.increase(last);
+  std::size_t random_theme_index = 0;
+  if (_enabled_theme_weights.empty()) {
+    random_theme_index = random(_themes.size());
+  } else {
+    uint32_t total = 0;
+    for (const auto& pair : _enabled_theme_weights) {
+      total += pair.second;
+    }
+    auto r = random(total);
+    total = 0;
+    for (const auto& pair : _enabled_theme_weights) {
+      total += pair.second;
+      if (r < total) {
+        random_theme_index = _theme_map[pair.first];
+        break;
+      };
+    }
   }
-  _theme_shuffler.decrease(_last_theme_index);
+  if (!_pinned_theme.empty()) {
+    auto pinned_index = _theme_map[_pinned_theme];
+    if (_themes[pinned_index].get() != _active_themes.back()) {
+      random_theme_index = pinned_index;
+    }
+  }
+
   for (std::size_t i = 0; 1 + i < _active_themes.size(); ++i) {
     _active_themes[i].store(_active_themes[1 + i].load());
   }
-  _active_themes.back() = _themes[_last_theme_index].get();
+  _active_themes.back() = _themes[random_theme_index].get();
   _animation_index = (1 + _animation_index) % _loaded_animations.size();
 }
 

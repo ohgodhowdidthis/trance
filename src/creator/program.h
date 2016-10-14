@@ -15,10 +15,12 @@ namespace trance_pb {
 class CreatorFrame;
 template<typename T>
 class ItemList;
-class wxSpinCtrl;
+class wxBoxSizer;
 class wxCheckBox;
 class wxColourPickerCtrl;
+class wxPanel;
 class wxSlider;
+class wxSpinCtrl;
 class wxTreeListCtrl;
 class wxTreeListItem;
 
@@ -40,10 +42,12 @@ private:
   std::string _item_selected;
 
   ItemList<trance_pb::Program>* _item_list;
-  std::unordered_map<std::string, wxTreeListItem> _tree_lookup;
   std::unordered_map<unsigned int, wxSpinCtrl*> _visual_lookup;
-  wxTreeListCtrl* _tree;
+  std::unordered_map<std::string,
+                     std::pair<wxSpinCtrl*, wxCheckBox*>> _theme_lookup;
 
+  wxPanel* _leftleft_panel;
+  wxBoxSizer* _themes_sizer;
   wxSpinCtrl* _global_fps;
   wxSlider* _zoom_intensity;
   wxCheckBox* _reverse_spiral;
