@@ -72,6 +72,19 @@ message Program {
     SUPER_FAST = 8;
   }
 
+  // Controls enabling/frequency of each theme.
+  message EnabledTheme {
+    string theme_name = 1;
+
+    // How frequently this theme will be selected relative to others.
+    uint32 random_weight = 2;
+
+    // If pinned, this theme is always one of the two active themes, and
+    // the weights are used only for choosing the other theme. Only one
+    // theme can be pinned in a program.
+    bool pinned = 3;
+  }
+
   // Controls enabling/frequency of each visual type.
   message VisualTypeConfig {
     VisualType type = 1;
@@ -81,9 +94,11 @@ message Program {
     uint32 random_weight = 2;
   }
 
-  // Which themes and visual types to use. Theme names reference the themes
-  // configured in the session.
-  repeated string enabled_theme_name = 1;
+  // Deprecated; replaced by enabled_theme!
+  repeated string enabled_theme_name = 100;
+  // Themes to use.
+  repeated EnabledTheme enabled_theme = 1;
+  // Visual types to use.
   repeated VisualTypeConfig visual_type = 2;
 
   // Ticks per second. Controls the global speed of everything; higher is faster,

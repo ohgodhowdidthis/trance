@@ -94,9 +94,47 @@ void validate_colour(trance_pb::Colour& colour)
   colour.set_a(std::max(0.f, std::min(1.f, colour.a())));
 }
 
-void validate_program(trance_pb::Program& program)
+void validate_program(trance_pb::Program& program,
+                      const trance_pb::Session& session)
 {
+  for (const auto& deprecated_theme : program.enabled_theme_name()) {
+    auto t = program.add_enabled_theme();
+    t->set_theme_name(deprecated_theme);
+    t->set_random_weight(1);
+  }
+  program.clear_enabled_theme_name();
+
   uint32_t count = 0;
+  std::string pinned;
+  for (auto& theme : *program.mutable_enabled_theme()) {
+    if (session.theme_map().find(theme.theme_name()) !=
+        session.theme_map().end()) {
+      count += theme.random_weight();
+      if (theme.pinned()) {
+        if (pinned.empty()) {
+          pinned = theme.theme_name();
+        } else {
+          theme.set_pinned(false);
+        }
+      }
+    } else {
+      theme.set_random_weight(0);
+      theme.set_pinned(false);
+    }
+  }
+  if (!count) {
+    program.clear_enabled_theme();
+    if (!pinned.empty()) {
+      auto t = program.add_enabled_theme();
+      t->set_theme_name(pinned);
+      t->set_random_weight(1);
+    } else for (const auto& pair : session.theme_map()) {
+      auto t = program.add_enabled_theme();
+      t->set_theme_name(pair.first);
+      t->set_random_weight(1);
+    }
+  }
+  count = 0;
   for (const auto& type : program.visual_type()) {
     count += type.random_weight();
   }
@@ -402,7 +440,7 @@ void validate_session(trance_pb::Session& session)
     }
   }
   for (auto& pair : *session.mutable_program_map()) {
-    validate_program(pair.second);
+    validate_program(pair.second, session);
   }
   auto it = session.playlist().find(session.first_playlist_item());
   if (it == session.playlist().end()) {
