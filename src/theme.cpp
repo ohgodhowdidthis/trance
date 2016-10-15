@@ -118,6 +118,18 @@ void ThemeBank::set_program(const trance_pb::Program& program)
       _swaps_to_match_theme = std::max(_swaps_to_match_theme, i);
     }
   }
+  if (!_pinned_theme.empty()) {
+    auto pinned_index = _theme_map[_pinned_theme];
+    uint32_t count = 0;
+    for (uint32_t i = 1; i < _active_themes.size(); ++i) {
+      if (_themes[pinned_index].get() == _active_themes[i]) {
+        ++count;
+      }
+    }
+    if (count < 2) {
+      _swaps_to_match_theme = std::max(_swaps_to_match_theme, 3u);
+    }
+  }
 }
 
 Image ThemeBank::get_image(bool alternate)
