@@ -24,7 +24,8 @@ public:
            std::function<void(const std::string&)> on_create,
            std::function<void(const std::string&)> on_delete,
            std::function<void(const std::string&,
-                              const std::string&)> on_rename)
+                              const std::string&)> on_rename,
+           bool allow_empty = false)
   : wxPanel{parent, wxID_ANY}
   , _data{data}
   , _type_name{type_name}
@@ -33,6 +34,7 @@ public:
   , _on_create{on_create}
   , _on_delete{on_delete}
   , _on_rename{on_rename}
+  , _allow_empty{allow_empty}
   {
     auto sizer = new wxBoxSizer{wxHORIZONTAL};
     auto right = new wxBoxSizer{wxVERTICAL};
@@ -180,7 +182,7 @@ public:
     }
     _button_rename->Enable(!items.empty());
     _button_duplicate->Enable(!items.empty());
-    _button_delete->Enable(items.size() > 1);
+    _button_delete->Enable(_allow_empty || items.size() > 1);
   }
 
   void ClearHighlights() {
@@ -216,6 +218,7 @@ private:
   std::function<void(const std::string&)> _on_create;
   std::function<void(const std::string&)> _on_delete;
   std::function<void(const std::string&, const std::string&)> _on_rename;
+  bool _allow_empty;
 
   wxButton* _button_new;
   wxButton* _button_rename;

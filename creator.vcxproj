@@ -182,6 +182,7 @@
     <ClCompile Include="src\creator\program.cpp" />
     <ClCompile Include="src\creator\settings.cpp" />
     <ClCompile Include="src\creator\theme.cpp" />
+    <ClCompile Include="src\creator\variables.cpp" />
     <ClCompile Include="src\image.cpp" />
     <ClCompile Include="src\jpgd\jpgd.cpp" />
     <ClCompile Include="src\session.cpp" />
@@ -194,6 +195,7 @@
     <ClInclude Include="src\creator\program.h" />
     <ClInclude Include="src\creator\settings.h" />
     <ClInclude Include="src\creator\theme.h" />
+    <ClInclude Include="src\creator\variables.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
