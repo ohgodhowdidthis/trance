@@ -4,6 +4,7 @@
 #include "program.h"
 #include "settings.h"
 #include "theme.h"
+#include "variables.h"
 #include "../common.h"
 #include "../session.h"
 #include "../util.h"
@@ -34,6 +35,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
 , _theme_page{nullptr}
 , _program_page{nullptr}
 , _playlist_page{nullptr}
+, _variable_page{nullptr}
 , _panel{new wxPanel{this}}
 , _menu_bar{new wxMenuBar}
 {
@@ -76,10 +78,12 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
       new ThemePage{notebook, *this, _session, _session_path};
   _program_page = new ProgramPage{notebook, *this, _session};
   _playlist_page = new PlaylistPage{notebook, *this, _session};
+  _variable_page = new VariablePage{notebook, *this, _session};
 
   notebook->AddPage(_theme_page, "Themes");
   notebook->AddPage(_program_page, "Programs");
   notebook->AddPage(_playlist_page, "Playlist");
+  notebook->AddPage(_variable_page, "Variables");
 
   auto sizer = new wxBoxSizer{wxHORIZONTAL};
   sizer->Add(notebook, 1, wxEXPAND, 0);
@@ -231,6 +235,7 @@ void CreatorFrame::RefreshDirectory()
   _program_page->RefreshData();
   _playlist_page->RefreshProgramsAndPlaylists();
   _playlist_page->RefreshData();
+  _variable_page->RefreshData();
   _system.set_last_root_directory(parent);
   SaveSystem(false);
 }

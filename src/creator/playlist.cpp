@@ -215,6 +215,13 @@ void PlaylistPage::RefreshProgramsAndPlaylists()
   }
 }
 
+void PlaylistPage::RefreshDirectory(const std::string& directory)
+{
+  _audio_files.clear();
+  search_audio_files(_audio_files, directory);
+  std::sort(_audio_files.begin(), _audio_files.end());
+}
+
 void PlaylistPage::AddNextItem(const std::string& name,
                                std::uint32_t weight_value)
 {
@@ -435,11 +442,4 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
 
   _audio_events_sizer->Add(sizer, 0, wxEXPAND);
   _right_panel->Layout();
-}
-
-void PlaylistPage::RefreshDirectory(const std::string& directory)
-{
-  _audio_files.clear();
-  search_audio_files(_audio_files, directory);
-  std::sort(_audio_files.begin(), _audio_files.end());
 }

@@ -11,6 +11,7 @@ class PlaylistPage;
 class ProgramPage;
 class ThemePage;
 class SettingsFrame;
+class VariablePage;
 class wxPanel;
 
 class CreatorFrame : public wxFrame {
@@ -54,6 +55,7 @@ private:
   ThemePage* _theme_page;
   ProgramPage* _program_page;
   PlaylistPage* _playlist_page;
+  VariablePage* _variable_page;
   wxPanel* _panel;
   wxMenuBar* _menu_bar;
 

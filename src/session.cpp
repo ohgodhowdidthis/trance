@@ -150,6 +150,22 @@ void validate_program(trance_pb::Program& program,
   validate_colour(*program.mutable_shadow_text_colour());
 }
 
+void validate_variable(trance_pb::Variable& variable)
+{
+  if (!variable.value_size()) {
+    variable.add_value("Default");
+  }
+  bool found_default = false;
+  for (const auto& value : variable.value()) {
+    if (value == variable.default_value()) {
+      found_default = true;
+    }
+  }
+  if (!found_default) {
+    variable.set_default_value(variable.value(0));
+  }
+}
+
 template<typename T>
 T load_proto(const std::string& path)
 {
@@ -441,6 +457,9 @@ void validate_session(trance_pb::Session& session)
   }
   for (auto& pair : *session.mutable_program_map()) {
     validate_program(pair.second, session);
+  }
+  for (auto& pair : *session.mutable_variable_map()) {
+    validate_variable(pair.second);
   }
   auto it = session.playlist().find(session.first_playlist_item());
   if (it == session.playlist().end()) {

@@ -170,6 +170,15 @@ message Theme {
   repeated string text_line = 5;
 }
 
+message Variable {
+  // Description of the variable.
+  string description = 1;
+  // Possible values for this variable.
+  repeated string value = 2;
+  // Default value.
+  string default_value = 3;
+}
+
 message Session {
   // The playlist of programs.
   string first_playlist_item = 1;
@@ -180,4 +189,7 @@ message Session {
 
   // Available themes.
   map<string, Theme> theme_map = 4;
+
+  // Configurable variables for this session.
+  map<string, Variable> variable_map = 5;
 }
