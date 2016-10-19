@@ -37,6 +37,19 @@ public:
   void PlaylistItemRenamed(const std::string& old_name,
                            const std::string& new_name);
 
+  void VariableCreated(const std::string& variable_name);
+  void VariableDeleted(const std::string& variable_name);
+  void VariableRenamed(const std::string& old_name,
+                       const std::string& new_name);
+
+  void VariableValueCreated(const std::string& variable_name,
+                            const std::string& value_name);
+  void VariableValueDeleted(const std::string& variable_name,
+                            const std::string& value_name);
+  void VariableValueRenamed(const std::string& variable_name,
+                            const std::string& old_name,
+                            const std::string& new_name);
+
 private:
   enum {
     ID_EDIT_SYSTEM_CONFIG = 10101,

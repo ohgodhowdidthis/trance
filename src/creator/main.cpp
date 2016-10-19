@@ -250,14 +250,16 @@ void CreatorFrame::ExportClosed()
   _export = nullptr;
 }
 
-void CreatorFrame::ThemeCreated(const std::string& theme_name) {
+void CreatorFrame::ThemeCreated(const std::string& theme_name)
+{
   _program_page->RefreshThemes();
   _program_page->RefreshOurData();
   SetStatusText("Created theme '" + theme_name + "'");
   MakeDirty(true);
 }
 
-void CreatorFrame::ThemeDeleted(const std::string& theme_name) {
+void CreatorFrame::ThemeDeleted(const std::string& theme_name)
+{
   for (auto& pair : *_session.mutable_program_map()) {
     auto it = pair.second.mutable_enabled_theme()->begin();
     while (it != pair.second.mutable_enabled_theme()->end()) {
@@ -275,7 +277,8 @@ void CreatorFrame::ThemeDeleted(const std::string& theme_name) {
 }
 
 void CreatorFrame::ThemeRenamed(const std::string& old_name,
-                                const std::string& new_name) {
+                                const std::string& new_name)
+{
   for (auto& pair : *_session.mutable_program_map()) {
     for (auto& theme : *pair.second.mutable_enabled_theme()) {
       if (theme.theme_name() == old_name) {
@@ -289,14 +292,16 @@ void CreatorFrame::ThemeRenamed(const std::string& old_name,
   MakeDirty(true);
 }
 
-void CreatorFrame::ProgramCreated(const std::string& program_name) {
+void CreatorFrame::ProgramCreated(const std::string& program_name)
+{
   _playlist_page->RefreshProgramsAndPlaylists();
   _playlist_page->RefreshOurData();
   SetStatusText("Created program '" + program_name + "'");
   MakeDirty(true);
 }
 
-void CreatorFrame::ProgramDeleted(const std::string& program_name) {
+void CreatorFrame::ProgramDeleted(const std::string& program_name)
+{
   for (auto& pair : *_session.mutable_playlist()) {
     if (pair.second.program() == program_name) {
       if (_session.program_map().empty()) {
@@ -313,7 +318,8 @@ void CreatorFrame::ProgramDeleted(const std::string& program_name) {
 }
 
 void CreatorFrame::ProgramRenamed(const std::string& old_name,
-                                  const std::string& new_name) {
+                                  const std::string& new_name)
+{
   for (auto& pair : *_session.mutable_playlist()) {
     if (pair.second.program() == old_name) {
       pair.second.set_program(new_name);
@@ -325,14 +331,16 @@ void CreatorFrame::ProgramRenamed(const std::string& old_name,
   MakeDirty(true);
 }
 
-void CreatorFrame::PlaylistItemCreated(const std::string& playlist_item_name) {
+void CreatorFrame::PlaylistItemCreated(const std::string& playlist_item_name)
+{
   _playlist_page->RefreshProgramsAndPlaylists();
   _playlist_page->RefreshOurData();
   SetStatusText("Created playlist item '" + playlist_item_name + "'");
   MakeDirty(true);
 }
 
-void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name) {
+void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name)
+{
   if (_session.first_playlist_item() == playlist_item_name) {
     _session.set_first_playlist_item(
         _session.playlist().empty() ? "" : _session.playlist().begin()->first);
@@ -351,7 +359,8 @@ void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name) {
 }
 
 void CreatorFrame::PlaylistItemRenamed(const std::string& old_name,
-                                       const std::string& new_name) {
+                                       const std::string& new_name)
+{
   if (_session.first_playlist_item() == old_name) {
     _session.set_first_playlist_item(new_name);
   }
@@ -367,6 +376,46 @@ void CreatorFrame::PlaylistItemRenamed(const std::string& old_name,
   SetStatusText(
       "Renamed playlist item '" + old_name + "' to '" + new_name + "'");
   MakeDirty(true);
+}
+
+void CreatorFrame::VariableCreated(const std::string& variable_name)
+{
+  static const std::string new_value_name = "Default";
+  auto& variable = (*_session.mutable_variable_map())[variable_name];
+  variable.add_value(new_value_name);
+  variable.set_default_value(new_value_name);
+  _variable_page->RefreshOurData();
+  MakeDirty(true);
+}
+
+void CreatorFrame::VariableDeleted(const std::string& variable_name)
+{
+  MakeDirty(true);
+}
+
+void CreatorFrame::VariableRenamed(const std::string& old_name,
+                                   const std::string& new_name)
+{
+  MakeDirty(true);
+}
+
+void CreatorFrame::VariableValueCreated(const std::string& variable_name,
+                                        const std::string& value_name)
+{
+
+}
+
+void CreatorFrame::VariableValueDeleted(const std::string& variable_name,
+                                        const std::string& value_name)
+{
+
+}
+
+void CreatorFrame::VariableValueRenamed(const std::string& variable_name,
+                                        const std::string& old_name,
+                                        const std::string& new_name)
+{
+
 }
 
 bool CreatorFrame::ConfirmDiscardChanges()

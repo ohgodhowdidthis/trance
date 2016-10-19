@@ -309,6 +309,7 @@ void search_resources(trance_pb::Session& session, const std::string& root)
   }
 
   // Leave wildcards theme if there are no others.
+  themes.erase("default");
   if (themes.size() == 1) {
     themes["default"] = themes[wildcards];
   }
@@ -427,6 +428,9 @@ trance_pb::Session get_default_session()
 
 void validate_session(trance_pb::Session& session)
 {
+  if (session.theme_map().empty()) {
+    (*session.mutable_theme_map())["default"];
+  }
   if (session.playlist().empty() && session.program_map().empty()) {
     set_default_playlist(session, "default");
     set_default_program(session, "default");

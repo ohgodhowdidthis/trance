@@ -153,6 +153,11 @@ message PlaylistItem {
 
     // Controls how frequently this item will be selected relative to others.
     uint32 random_weight = 2;
+
+    // References variable_map.
+    string condition_variable_name = 3;
+    // References value in chosen variable.
+    string condition_variable_value = 4;
   }
 
   repeated NextItem next_item = 3;

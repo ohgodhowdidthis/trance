@@ -308,6 +308,29 @@ ThemePage::ThemePage(wxNotebook* parent,
     GenerateFontPreview();
   }, wxID_ANY);
 
+  _text_list->Bind(wxEVT_LIST_END_LABEL_EDIT, [&](wxListEvent& e)
+  {
+    if (e.IsEditCancelled()) {
+      return;
+    }
+    e.Veto();
+    std::string new_text = e.GetLabel();
+    new_text = UserToNl(new_text);
+    if (new_text.empty()) {
+      return;
+    }
+    for (int i = 0; i < _text_list->GetItemCount(); ++i) {
+      if (_text_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
+        *(*_session.mutable_theme_map())[_item_selected]
+            .mutable_text_line()->Mutable(i) = new_text;
+      }
+    }
+    RefreshOurData();
+    _current_text_line = new_text;
+    GenerateFontPreview();
+    _creator_frame.MakeDirty(true);
+  }, wxID_ANY);
+
   right_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
   {
     (*_session.mutable_theme_map())[_item_selected].add_text_line("NEW TEXT");
@@ -347,29 +370,6 @@ ThemePage::ThemePage(wxNotebook* parent,
     }
     _creator_frame.MakeDirty(true);
   }, ID_DELETE);
-
-  right_panel->Bind(wxEVT_LIST_END_LABEL_EDIT, [&](wxListEvent& e)
-  {
-    if (e.IsEditCancelled()) {
-      return;
-    }
-    e.Veto();
-    std::string new_text = e.GetLabel();
-    new_text = UserToNl(new_text);
-    if (new_text.empty()) {
-      return;
-    }
-    for (int i = 0; i < _text_list->GetItemCount(); ++i) {
-      if (_text_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
-        *(*_session.mutable_theme_map())[_item_selected]
-            .mutable_text_line()->Mutable(i) = new_text;
-      }
-    }
-    RefreshOurData();
-    _current_text_line = new_text;
-    GenerateFontPreview();
-    _creator_frame.MakeDirty(true);
-  }, wxID_ANY);
 
   leftleft_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
   {
@@ -600,13 +600,13 @@ void ThemePage::RefreshOurData()
     for (int i = 0; i < it->second.text_line_size(); ++i) {
       _text_list->SetItemText((long) i, NlToUser(it->second.text_line(i)));
     }
+    if (it->second.text_line_size()) {
+      _text_list->SetItemState(
+          std::min(selected_text, it->second.text_line_size() - 1),
+          wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
+    }
   } else {
     _text_list->DeleteAllItems();
-  }
-  if (!_item_selected.empty() && it->second.text_line_size()) {
-    _text_list->SetItemState(
-        std::min(selected_text, it->second.text_line_size() - 1),
-        wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
   }
   _button_new->Enable(!_item_selected.empty());
   _button_edit->Enable(!_item_selected.empty() && it->second.text_line_size());
