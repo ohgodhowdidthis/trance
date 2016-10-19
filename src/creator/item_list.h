@@ -182,7 +182,8 @@ public:
     }
     _button_rename->Enable(!items.empty());
     _button_duplicate->Enable(!items.empty());
-    _button_delete->Enable(_allow_empty || items.size() > 1);
+    _button_delete->Enable(
+        (_allow_empty && !items.empty()) || items.size() > 1);
   }
 
   void ClearHighlights() {
