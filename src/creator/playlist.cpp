@@ -12,6 +12,7 @@
 #include <wx/spinctrl.h>
 #include <wx/splitter.h>
 #include <wx/stattext.h>
+#include <wx/wrapsizer.h>
 #pragma warning(pop)
 
 namespace {
@@ -254,24 +255,30 @@ void PlaylistPage::AddNextItem(const std::string& name,
     }
     ++i;
   }
-  sizer->Add(choice, 1, wxALL, DEFAULT_BORDER);
+  sizer->Add(choice, 0, wxALL, DEFAULT_BORDER);
+  auto wrap_sizer = new wxWrapSizer{wxHORIZONTAL};
 
   wxStaticText* label;
+  wxSizer* box_sizer;
+
+  box_sizer = new wxBoxSizer{wxHORIZONTAL};
   label = new wxStaticText{_left_panel, wxID_ANY, "Weight:"};
   label->SetToolTip(NEXT_ITEM_WEIGHT_TOOLTIP);
-  sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+  box_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
   label->Enable(name != "");
 
   auto weight = new wxSpinCtrl{_left_panel, wxID_ANY};
   weight->SetToolTip(NEXT_ITEM_WEIGHT_TOOLTIP);
   weight->SetRange(name == "" ? 0 : 1, 100);
   weight->SetValue(weight_value);
-  sizer->Add(weight, 0, wxALL, DEFAULT_BORDER);
+  box_sizer->Add(weight, 0, wxALL, DEFAULT_BORDER);
   weight->Enable(name != "");
+  wrap_sizer->Add(box_sizer, 0, wxEXPAND);
 
+  box_sizer = new wxBoxSizer{wxHORIZONTAL};
   label = new wxStaticText{_left_panel, wxID_ANY, "Condition variable:"};
   label->SetToolTip(NEXT_ITEM_VARIABLE_TOOLTIP);
-  sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+  box_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
   label->Enable(name != "");
 
   auto variable_choice = new wxChoice{_left_panel, wxID_ANY};
@@ -286,11 +293,11 @@ void PlaylistPage::AddNextItem(const std::string& name,
     }
     ++i;
   }
-  sizer->Add(variable_choice, 0, wxALL, DEFAULT_BORDER);
+  box_sizer->Add(variable_choice, 0, wxALL, DEFAULT_BORDER);
 
   label = new wxStaticText{_left_panel, wxID_ANY, "Value:"};
   label->SetToolTip(NEXT_ITEM_VARIABLE_VALUE_TOOLTIP);
-  sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+  box_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
   label->Enable(name != "" && variable != "");
 
   auto variable_value_choice = new wxChoice{_left_panel, wxID_ANY};
@@ -307,8 +314,10 @@ void PlaylistPage::AddNextItem(const std::string& name,
       ++i;
     }
   }
-  sizer->Add(variable_value_choice, 0, wxALL, DEFAULT_BORDER);
+  box_sizer->Add(variable_value_choice, 0, wxALL, DEFAULT_BORDER);
+  wrap_sizer->Add(box_sizer, 0, wxEXPAND);
 
+  sizer->Add(wrap_sizer, 1, wxEXPAND);
   _next_items_sizer->Add(sizer, 0, wxEXPAND);
   _left_panel->Layout();
 
@@ -397,6 +406,7 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
   choice->Append("Fade channel volume");
   choice->SetSelection(event.type());
   sizer->Add(choice, 0, wxALL, DEFAULT_BORDER);
+  auto wrap_sizer = new wxWrapSizer{wxHORIZONTAL};
 
   choice->Bind(wxEVT_CHOICE, [&, index, choice](const wxCommandEvent&) {
     auto it = _session.mutable_playlist()->find(_item_selected);
@@ -423,16 +433,18 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
     RefreshOurData();
   });
 
+  wxSizer* box_sizer;
   if (event.type() != trance_pb::AudioEvent::NONE) {
+    box_sizer = new wxBoxSizer{wxHORIZONTAL};
     auto label = new wxStaticText{_right_panel, wxID_ANY, "Channel:"};
     label->SetToolTip(AUDIO_EVENT_CHANNEL_TOOLTIP);
-    sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+    box_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
 
     auto channel = new wxSpinCtrl{_right_panel, wxID_ANY};
     channel->SetToolTip(AUDIO_EVENT_CHANNEL_TOOLTIP);
     channel->SetRange(0, 32);
     channel->SetValue(event.channel());
-    sizer->Add(channel, 0, wxALL, DEFAULT_BORDER);
+    box_sizer->Add(channel, 0, wxALL, DEFAULT_BORDER);
 
     channel->Bind(wxEVT_SPINCTRL, [&, index, channel](const wxCommandEvent&) {
       auto it = _session.mutable_playlist()->find(_item_selected);
@@ -443,20 +455,22 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
           channel->GetValue());
       _creator_frame.MakeDirty(true);
     });
+    wrap_sizer->Add(box_sizer, 0, wxEXPAND);
   }
   if (event.type() == trance_pb::AudioEvent::AUDIO_PLAY ||
       event.type() == trance_pb::AudioEvent::AUDIO_FADE) {
+    box_sizer = new wxBoxSizer{wxHORIZONTAL};
     auto tooltip = event.type() == trance_pb::AudioEvent::AUDIO_PLAY ?
         AUDIO_EVENT_INITIAL_VOLUME_TOOLTIP : AUDIO_EVENT_FADE_VOLUME_TOOLTIP;
     auto label = new wxStaticText{_right_panel, wxID_ANY, "Volume:"};
     label->SetToolTip(tooltip);
-    sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+    box_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
 
     auto volume = new wxSpinCtrl{_right_panel, wxID_ANY};
     volume->SetToolTip(tooltip);
     volume->SetRange(0, 100);
     volume->SetValue(event.volume());
-    sizer->Add(volume, 0, wxALL, DEFAULT_BORDER);
+    box_sizer->Add(volume, 0, wxALL, DEFAULT_BORDER);
 
     volume->Bind(wxEVT_SPINCTRL, [&, index, volume](const wxCommandEvent&) {
       auto it = _session.mutable_playlist()->find(_item_selected);
@@ -467,11 +481,13 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
           volume->GetValue());
       _creator_frame.MakeDirty(true);
     });
+    wrap_sizer->Add(box_sizer, 0, wxEXPAND);
   }
   if (event.type() == trance_pb::AudioEvent::AUDIO_PLAY) {
+    box_sizer = new wxBoxSizer{wxHORIZONTAL};
     auto label = new wxStaticText{_right_panel, wxID_ANY, "File:"};
     label->SetToolTip(AUDIO_EVENT_PATH_TOOLTIP);
-    sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+    box_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
 
     auto path_choice = new wxChoice{_right_panel, wxID_ANY};
     path_choice->SetToolTip(AUDIO_EVENT_PATH_TOOLTIP);
@@ -483,12 +499,13 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
       }
       ++i;
     }
-    sizer->Add(path_choice, 0, wxALL, DEFAULT_BORDER);
+    box_sizer->Add(path_choice, 0, wxALL, DEFAULT_BORDER);
 
     auto loop = new wxCheckBox{_right_panel, wxID_ANY, "Loop"};
     loop->SetToolTip(AUDIO_EVENT_LOOP_TOOLTIP);
     loop->SetValue(event.loop());
-    sizer->Add(loop, 0, wxALL, DEFAULT_BORDER);
+    box_sizer->Add(loop, 0, wxALL, DEFAULT_BORDER);
+    wrap_sizer->Add(box_sizer, 0, wxEXPAND);
 
     path_choice->Bind(wxEVT_CHOICE, [&, index, path_choice]
                                     (const wxCommandEvent&) {
@@ -512,15 +529,17 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
     });
   }
   if (event.type() == trance_pb::AudioEvent::AUDIO_FADE) {
+    box_sizer = new wxBoxSizer{wxHORIZONTAL};
     auto label = new wxStaticText{_right_panel, wxID_ANY, "Time (seconds):"};
     label->SetToolTip(AUDIO_EVENT_FADE_TIME_TOOLTIP);
-    sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+    box_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
 
     auto time = new wxSpinCtrl{_right_panel, wxID_ANY};
     time->SetToolTip(AUDIO_EVENT_FADE_TIME_TOOLTIP);
     time->SetRange(0, 3600);
     time->SetValue(event.time_seconds());
-    sizer->Add(time, 0, wxALL, DEFAULT_BORDER);
+    box_sizer->Add(time, 0, wxALL, DEFAULT_BORDER);
+    wrap_sizer->Add(box_sizer, 0, wxEXPAND);
 
     time->Bind(wxEVT_SPINCTRL, [&, index, time](const wxCommandEvent&) {
       auto it = _session.mutable_playlist()->find(_item_selected);
@@ -533,6 +552,7 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
     });
   }
 
+  sizer->Add(wrap_sizer, 1, wxEXPAND);
   _audio_events_sizer->Add(sizer, 0, wxEXPAND);
   _right_panel->Layout();
 }
