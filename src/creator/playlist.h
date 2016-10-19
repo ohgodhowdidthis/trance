@@ -35,7 +35,9 @@ public:
   void RefreshDirectory(const std::string& directory);
 
 private:
-  void AddNextItem(const std::string& name, std::uint32_t weight_value);
+  void AddNextItem(const std::string& name, std::uint32_t weight_value,
+                   const std::string& variable,
+                   const std::string& variable_value);
   void AddAudioEvent(const trance_pb::AudioEvent& event);
 
   CreatorFrame& _creator_frame;

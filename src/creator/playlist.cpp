@@ -34,7 +34,14 @@ namespace {
       "Which playlist item might be chosen next.";
 
   const std::string NEXT_ITEM_WEIGHT_TOOLTIP =
-      "A higher weight makes this playlist item more likely to be chosen next.";
+      "A higher weight makes this entry more likely to be chosen next.";
+
+  const std::string NEXT_ITEM_VARIABLE_TOOLTIP =
+      "A variable whose value controls whether this entry is available.";
+
+  const std::string NEXT_ITEM_VARIABLE_VALUE_TOOLTIP =
+      "The value that the chosen condition variable must have in order for "
+      "this entry to be available.";
 
   const std::string AUDIO_EVENT_TYPE_TOOLTIP =
       "What kind of audio change to apply.";
@@ -186,13 +193,15 @@ void PlaylistPage::RefreshOurData()
     }
     _play_time_seconds->SetValue(it->second.play_time_seconds());
     for (const auto& item : it->second.next_item()) {
-      AddNextItem(item.playlist_item_name(), item.random_weight());
+      AddNextItem(item.playlist_item_name(), item.random_weight(),
+                  item.condition_variable_name(),
+                  item.condition_variable_value());
     }
     for (const auto& event : it->second.audio_event()) {
       AddAudioEvent(event);
     }
   }
-  AddNextItem("", 0);
+  AddNextItem("", 0, "", "");
   AddAudioEvent({});
 }
 
@@ -223,7 +232,9 @@ void PlaylistPage::RefreshDirectory(const std::string& directory)
 }
 
 void PlaylistPage::AddNextItem(const std::string& name,
-                               std::uint32_t weight_value)
+                               std::uint32_t weight_value,
+                               const std::string& variable,
+                               const std::string& variable_value)
 {
   std::vector<std::string> playlist_items;
   for (const auto& pair : _session.playlist()) {
@@ -244,17 +255,61 @@ void PlaylistPage::AddNextItem(const std::string& name,
     ++i;
   }
   sizer->Add(choice, 1, wxALL, DEFAULT_BORDER);
-  auto label = new wxStaticText{_left_panel, wxID_ANY, "Weight:"};
+
+  wxStaticText* label;
+  label = new wxStaticText{_left_panel, wxID_ANY, "Weight:"};
   label->SetToolTip(NEXT_ITEM_WEIGHT_TOOLTIP);
   sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+  label->Enable(name != "");
+
   auto weight = new wxSpinCtrl{_left_panel, wxID_ANY};
   weight->SetToolTip(NEXT_ITEM_WEIGHT_TOOLTIP);
   weight->SetRange(name == "" ? 0 : 1, 100);
   weight->SetValue(weight_value);
   sizer->Add(weight, 0, wxALL, DEFAULT_BORDER);
-  _next_items_sizer->Add(sizer, 0, wxEXPAND);
-  label->Enable(name != "");
   weight->Enable(name != "");
+
+  label = new wxStaticText{_left_panel, wxID_ANY, "Condition variable:"};
+  label->SetToolTip(NEXT_ITEM_VARIABLE_TOOLTIP);
+  sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+  label->Enable(name != "");
+
+  auto variable_choice = new wxChoice{_left_panel, wxID_ANY};
+  variable_choice->SetToolTip(NEXT_ITEM_VARIABLE_TOOLTIP);
+  variable_choice->Enable(name != "");
+  variable_choice->Append("[None]");
+  i = 1;
+  for (const auto& pair : _session.variable_map()) {
+    variable_choice->Append(pair.first);
+    if (pair.first == variable) {
+      variable_choice->SetSelection(i);
+    }
+    ++i;
+  }
+  sizer->Add(variable_choice, 0, wxALL, DEFAULT_BORDER);
+
+  label = new wxStaticText{_left_panel, wxID_ANY, "Value:"};
+  label->SetToolTip(NEXT_ITEM_VARIABLE_VALUE_TOOLTIP);
+  sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+  label->Enable(name != "" && variable != "");
+
+  auto variable_value_choice = new wxChoice{_left_panel, wxID_ANY};
+  variable_value_choice->SetToolTip(NEXT_ITEM_VARIABLE_VALUE_TOOLTIP);
+  variable_value_choice->Enable(name != "" && variable != "");
+  if (!variable.empty()) {
+    auto it = _session.variable_map().find(variable);
+    i = 0;
+    for (const auto& value : it->second.value()) {
+      variable_value_choice->Append(value);
+      if (value == variable_value) {
+        variable_value_choice->SetSelection(i);
+      }
+      ++i;
+    }
+  }
+  sizer->Add(variable_value_choice, 0, wxALL, DEFAULT_BORDER);
+
+  _next_items_sizer->Add(sizer, 0, wxEXPAND);
   _left_panel->Layout();
 
   auto index = _next_items.size();
@@ -288,6 +343,44 @@ void PlaylistPage::AddNextItem(const std::string& name,
     it->second.mutable_next_item(int(index))->set_random_weight(
         weight->GetValue());
   });
+
+  variable_choice->Bind(
+      wxEVT_CHOICE,
+      [&, index, variable_choice](const wxCommandEvent&) {
+        auto it = _session.mutable_playlist()->find(_item_selected);
+        if (it == _session.mutable_playlist()->end()) {
+          return;
+        }
+        auto& item = *it->second.mutable_next_item(int(index));
+        if (!variable_choice->GetSelection()) {
+          item.clear_condition_variable_name();
+          item.clear_condition_variable_value();
+        } else {
+          std::string name =
+              variable_choice->GetString(variable_choice->GetSelection());
+          item.set_condition_variable_name(name);
+          auto variable_it = _session.variable_map().find(name);
+          item.set_condition_variable_value(
+              variable_it->second.default_value());
+        }
+        _creator_frame.MakeDirty(true);
+        RefreshOurData();
+      });
+
+  variable_value_choice->Bind(
+      wxEVT_CHOICE,
+      [&, index, variable_value_choice](const wxCommandEvent&) {
+        auto it = _session.mutable_playlist()->find(_item_selected);
+        if (it == _session.mutable_playlist()->end()) {
+          return;
+        }
+        auto& item = *it->second.mutable_next_item(int(index));
+        std::string value = variable_value_choice->GetString(
+            variable_value_choice->GetSelection());
+        item.set_condition_variable_value(value);
+        _creator_frame.MakeDirty(true);
+        RefreshOurData();
+      });
 }
 
 void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
