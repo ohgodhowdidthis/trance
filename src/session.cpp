@@ -150,6 +150,41 @@ void validate_program(trance_pb::Program& program,
   validate_colour(*program.mutable_shadow_text_colour());
 }
 
+void validate_playlist_item(trance_pb::PlaylistItem& playlist_item,
+                            trance_pb::Session& session)
+{
+  auto it = session.program_map().find(playlist_item.program());
+  if (it == session.program_map().end()) {
+    set_default_program(session, playlist_item.program());
+  }
+
+  bool has_next_item = false;
+  for (auto& next_item : *playlist_item.mutable_next_item()) {
+    auto it = session.playlist().find(next_item.playlist_item_name());
+    if (next_item.random_weight() > 0 && it != session.playlist().end()) {
+      has_next_item = true;
+      break;
+    }
+
+    auto variable_it =
+        session.variable_map().find(next_item.condition_variable_name());
+    if (variable_it == session.variable_map().end()) {
+      next_item.clear_condition_variable_name();
+      next_item.clear_condition_variable_value();
+    } else {
+      auto& data = variable_it->second.value();
+      if (std::find(data.begin(), data.end(),
+                    next_item.condition_variable_value()) == data.end()) {
+        next_item.clear_condition_variable_name();
+        next_item.clear_condition_variable_value();
+      }
+    }
+  }
+  if (!has_next_item) {
+    playlist_item.set_play_time_seconds(0);
+  }
+}
+
 void validate_variable(trance_pb::Variable& variable)
 {
   if (!variable.value_size()) {
@@ -441,29 +476,14 @@ void validate_session(trance_pb::Session& session)
   if (session.program_map().empty()) {
     set_default_program(session, session.playlist().begin()->second.program());
   }
+  for (auto& pair : *session.mutable_variable_map()) {
+    validate_variable(pair.second);
+  }
   for (auto& pair : *session.mutable_playlist()) {
-    auto it = session.program_map().find(pair.second.program());
-    if (it == session.program_map().end()) {
-      set_default_program(session, pair.second.program());
-    }
-
-    bool has_next_item = false;
-    for (const auto& next_item : pair.second.next_item()) {
-      auto it = session.playlist().find(next_item.playlist_item_name());
-      if (next_item.random_weight() > 0 && it != session.playlist().end()) {
-        has_next_item = true;
-        break;
-      }
-    }
-    if (!has_next_item) {
-      pair.second.set_play_time_seconds(0);
-    }
+    validate_playlist_item(pair.second, session);
   }
   for (auto& pair : *session.mutable_program_map()) {
     validate_program(pair.second, session);
-  }
-  for (auto& pair : *session.mutable_variable_map()) {
-    validate_variable(pair.second);
   }
   auto it = session.playlist().find(session.first_playlist_item());
   if (it == session.playlist().end()) {

@@ -385,37 +385,75 @@ void CreatorFrame::VariableCreated(const std::string& variable_name)
   variable.add_value(new_value_name);
   variable.set_default_value(new_value_name);
   _variable_page->RefreshOurData();
+  _playlist_page->RefreshOurData();
   MakeDirty(true);
 }
 
 void CreatorFrame::VariableDeleted(const std::string& variable_name)
 {
+  for (auto& pair : *_session.mutable_playlist()) {
+    for (auto& next_item : *pair.second.mutable_next_item()) {
+      if (next_item.condition_variable_name() == variable_name) {
+        next_item.clear_condition_variable_name();
+        next_item.clear_condition_variable_value();
+      }
+    }
+  }
+  _playlist_page->RefreshOurData();
   MakeDirty(true);
 }
 
 void CreatorFrame::VariableRenamed(const std::string& old_name,
                                    const std::string& new_name)
 {
+  for (auto& pair : *_session.mutable_playlist()) {
+    for (auto& next_item : *pair.second.mutable_next_item()) {
+      if (next_item.condition_variable_name() == old_name) {
+        next_item.set_condition_variable_name(new_name);
+      }
+    }
+  }
+  _playlist_page->RefreshOurData();
   MakeDirty(true);
 }
 
 void CreatorFrame::VariableValueCreated(const std::string& variable_name,
                                         const std::string& value_name)
 {
-
+  _playlist_page->RefreshOurData();
+  MakeDirty(true);
 }
 
 void CreatorFrame::VariableValueDeleted(const std::string& variable_name,
                                         const std::string& value_name)
 {
-
+  for (auto& pair : *_session.mutable_playlist()) {
+    for (auto& next_item : *pair.second.mutable_next_item()) {
+      if (next_item.condition_variable_name() == variable_name &&
+          next_item.condition_variable_value() == value_name) {
+        next_item.clear_condition_variable_name();
+        next_item.clear_condition_variable_value();
+      }
+    }
+  }
+  _playlist_page->RefreshOurData();
+  MakeDirty(true);
 }
 
 void CreatorFrame::VariableValueRenamed(const std::string& variable_name,
                                         const std::string& old_name,
                                         const std::string& new_name)
 {
-
+  for (auto& pair : *_session.mutable_playlist()) {
+    for (auto& next_item : *pair.second.mutable_next_item()) {
+      if (next_item.condition_variable_name() == variable_name &&
+          next_item.condition_variable_value() == old_name) {
+        next_item.set_condition_variable_value(new_name);
+      }
+    }
+  }
+  _playlist_page->RefreshOurData();
+  MakeDirty(true);
 }
 
 bool CreatorFrame::ConfirmDiscardChanges()
@@ -448,9 +486,9 @@ void CreatorFrame::SetSessionPath(const std::string& path)
 {
   _session_path = path;
   _menu_bar->Enable(wxID_SAVE, true);
+  RefreshDirectory();
   _panel->Show();
   _panel->Layout();
-  RefreshDirectory();
 }
 
 class CreatorApp : public wxApp {
