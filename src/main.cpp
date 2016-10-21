@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <string>
 #include <thread>
+#include <unordered_map>
 
 std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
 {
@@ -60,22 +61,37 @@ std::unique_ptr<sf::RenderWindow> create_window(
   return window;
 }
 
-const std::string& next_playlist_item(
+std::string next_playlist_item(
+    const std::unordered_map<std::string, std::string>& variables,
     const trance_pb::PlaylistItem* item)
 {
+  auto is_enabled = [&](const trance_pb::PlaylistItem::NextItem next) {
+    if (next.condition_variable_name().empty()) {
+      return true;
+    }
+    std::string value;
+    auto it = variables.find(next.condition_variable_name());
+    if (it != variables.end()) {
+      value = it->second;
+    }
+    return value == next.condition_variable_value();
+  };
+
   uint32_t total = 0;
   for (const auto& next : item->next_item()) {
-    total += next.random_weight();
+    total += (is_enabled(next) ? next.random_weight() : 0);
+  }
+  if (!total) {
+    return {};
   }
   auto r = random(total);
   total = 0;
   for (const auto& next : item->next_item()) {
-    if (r < (total += next.random_weight())) {
+    if (r < (total += (is_enabled(next) ? next.random_weight() : 0))) {
       return next.playlist_item_name();
     }
   }
-  static std::string never_happens;
-  return never_happens;
+  return {};
 }
 
 static const std::string bad_alloc =
@@ -147,7 +163,9 @@ void print_info(double elapsed_seconds,
 
 void play_session(
     const std::string& root_path, const trance_pb::Session& session,
-    const trance_pb::System& system, const exporter_settings& settings)
+    const trance_pb::System& system,
+    const std::unordered_map<std::string, std::string> variables,
+    const exporter_settings& settings)
 {
   bool realtime = settings.path.empty();
   auto exporter = create_exporter(settings);
@@ -192,7 +210,7 @@ void play_session(
     audio.reset(new Audio{root_path});
     audio->TriggerEvents(*item);
   }
-  std::cout << "\n-> " << session.first_playlist_item() << std::endl;
+  std::cout << std::endl << "-> " << session.first_playlist_item() << std::endl;
 
   try {
     float update_time = 0.f;
@@ -250,10 +268,10 @@ void play_session(
       }
 
       auto time_since_switch = clock_time() - last_playlist_switch;
-      if (item->play_time_seconds() &&
-          time_since_switch >= 1000 * item->play_time_seconds()) {
+      std::string next;
+      while (time_since_switch >= 1000 * item->play_time_seconds() &&
+             !(next = next_playlist_item(variables, item)).empty()) {
         last_playlist_switch = clock_time();
-        auto next = next_playlist_item(item);
         item = &session.playlist().find(next)->second;
         if (realtime) {
           audio->TriggerEvents(*item);
@@ -303,6 +321,63 @@ void play_session(
   }
 }
 
+std::unordered_map<std::string, std::string>
+parse_variables(const std::string& variables)
+{
+  std::unordered_map<std::string, std::string> result;
+  std::vector<std::string> current;
+  current.emplace_back();
+  bool escaped = false;
+  for (char c : variables) {
+    if (c == '\\' && !escaped) {
+      escaped = true;
+      continue;
+    }
+    if (escaped) {
+      if (c == '\\') {
+        current.back() += '\\';
+      } else if (c == ';') {
+        current.back() += ';';
+      } else if (c == '=') {
+        current.back() += '=';
+      } else {
+        std::cerr << "couldn't parse variables: " << variables << std::endl;
+        return {};
+      }
+      escaped = false;
+      continue;
+    }
+    if (c == '=' && current.size() == 1 && !current.back().empty()) {
+      current.emplace_back();
+      continue;
+    }
+    if (c == ';' && current.size() == 2 && !current.back().empty()) {
+      result[current.front()] = current.back();
+      current.clear();
+      current.emplace_back();
+      continue;
+    }
+    if (c != '=' && c != ';') {
+      current.back() += c;
+      continue;
+    }
+    std::cerr << "couldn't parse variables: " << variables << std::endl;
+    return {};
+  }
+  if (current.size() == 2 && !current.back().empty()) {
+    result[current.front()] = current.back();
+    current.clear();
+    current.emplace_back();
+  }
+  if (current.size() == 1 && current.back().empty()) {
+    return result;
+  }
+  std::cerr << "couldn't parse variables: " << variables << std::endl;
+  return {};
+}
+
+DEFINE_string(variables, "",
+              "semicolon-separated list of key=value variable assignments");
 DEFINE_string(export_path, "", "export video to this path");
 DEFINE_uint64(export_width, 1280, "export video resolution width");
 DEFINE_uint64(export_height, 720, "export video resolution height");
@@ -318,6 +393,11 @@ int main(int argc, char** argv)
     std::cerr << "usage: " << argv[0] << " [session.cfg [system.cfg]]" << std::endl;
     return 1;
   }
+  auto variables = parse_variables(FLAGS_variables);
+  for (const auto& pair : variables) {
+    std::cout << "variable " << pair.first << " = " << pair.second << std::endl;
+  }
+
   exporter_settings settings{
       FLAGS_export_path,
       uint32_t(FLAGS_export_width), uint32_t(FLAGS_export_height),
@@ -349,6 +429,6 @@ int main(int argc, char** argv)
   }
 
   auto root_path = std::tr2::sys::path{session_path}.parent_path().string();
-  play_session(root_path, session, system, settings);
+  play_session(root_path, session, system, variables, settings);
   return 0;
 }

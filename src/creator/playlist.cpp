@@ -116,7 +116,7 @@ PlaylistPage::PlaylistPage(wxNotebook* parent,
   _program->SetToolTip(PROGRAM_TOOLTIP);
   left->Add(_program, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
   label = new wxStaticText{
-      _left_panel, wxID_ANY, "Play time (seconds, 0 is forever):"};
+      _left_panel, wxID_ANY, "Play time (seconds):"};
   label->SetToolTip(PLAY_TIME_SECONDS_TOOLTIP);
   left->Add(label, 0, wxALL, DEFAULT_BORDER);
   _play_time_seconds = new wxSpinCtrl{_left_panel, wxID_ANY};

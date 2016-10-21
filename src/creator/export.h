@@ -19,10 +19,7 @@ public:
     ID_CANCEL = 11040,
   };
   ExportFrame(CreatorFrame* parent, trance_pb::System& system,
-              const std::string& executable_path,
               const std::string& default_path);
-
-  bool Cancelled() const;
 
 private:
   void Export();
@@ -30,7 +27,6 @@ private:
   trance_pb::System& _system;
   std::string _executable_path;
   std::string _path;
-  bool _cancelled;
 
   CreatorFrame* _parent;
   wxSpinCtrl* _width;

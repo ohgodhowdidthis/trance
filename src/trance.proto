@@ -53,6 +53,12 @@ message System {
   string last_root_directory = 8;
   // Last used export settings.
   ExportSettings last_export_settings = 9;
+
+  message LastSession {
+    map<string, string> variable_map = 1;
+  }
+  // Last used variable settings for each session.
+  map<string, LastSession> last_session_map = 10;
 }
 
 // Configuration for a single program, i.e. a combination of a selection of

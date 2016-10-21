@@ -1,5 +1,7 @@
 #ifndef TRANCE_CREATOR_MAIN_H
 #define TRANCE_CREATOR_MAIN_H
+#include <string>
+#include <unordered_map>
 
 #pragma warning(push, 0)
 #include <src/trance.pb.h>
@@ -7,11 +9,13 @@
 #pragma warning(pop)
 
 class ExportFrame;
+class LaunchFrame;
 class PlaylistPage;
 class ProgramPage;
-class ThemePage;
 class SettingsFrame;
+class ThemePage;
 class VariablePage;
+class wxNotebook;
 class wxPanel;
 
 class CreatorFrame : public wxFrame {
@@ -19,10 +23,15 @@ public:
   CreatorFrame(const std::string& executable_path, const std::string& parameter);
   void MakeDirty(bool dirty);
   void SaveSystem(bool show_status);
+
+  void Launch();
   void ExportVideo(const std::string& path);
+  void ExportVideoLaunch(const std::string& path);
+
   void RefreshDirectory();
   void SettingsClosed();
   void ExportClosed();
+  void LaunchClosed();
 
   void ThemeCreated(const std::string& theme_name);
   void ThemeDeleted(const std::string& theme_name);
@@ -64,8 +73,8 @@ private:
   std::string _executable_path;
 
   SettingsFrame* _settings;
-  ExportFrame* _export;
   ThemePage* _theme_page;
+  wxNotebook* _notebook;
   ProgramPage* _program_page;
   PlaylistPage* _playlist_page;
   VariablePage* _variable_page;
@@ -75,6 +84,7 @@ private:
   bool ConfirmDiscardChanges();
   bool OpenSession(const std::string& path);
   void SetSessionPath(const std::string& path);
+  std::string EncodeVariables();
 };
 
 #endif
