@@ -657,7 +657,7 @@ Image Director::get_image(bool alternate) const
 
 const std::string& Director::get_text(bool alternate) const
 {
-  return _themes.get_text(alternate);
+  return _themes.get_text(alternate, true);
 }
 
 void Director::maybe_upload_next() const
@@ -883,7 +883,7 @@ void Director::change_subtext(bool alternate)
   static const uint32_t count = 16;
   _subtext.clear();
   for (uint32_t i = 0; i < 16; ++i) {
-    auto s = _themes.get_text(alternate);
+    auto s = _themes.get_text(alternate, false);
     for (auto& c : s) {
       if (c == '\n') {
         c = ' ';
