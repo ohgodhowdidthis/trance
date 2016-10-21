@@ -177,7 +177,7 @@ Image ThemeBank::get_animation(bool alternate, std::size_t frame)
   return a.frames[f];
 }
 
-const std::string& ThemeBank::get_text(bool alternate)
+const std::string& ThemeBank::get_text(bool alternate, bool exclusive)
 {
   auto& theme = *_active_themes[alternate ? 2 : 1].load();
   if (theme.text_lines.empty()) {
@@ -185,6 +185,9 @@ const std::string& ThemeBank::get_text(bool alternate)
     return none;
   }
   auto text = theme.text_lines[theme.text_shuffler.next()];
+  if (!exclusive) {
+    return text;
+  }
   for (auto& other_theme : _themes) {
     auto it = other_theme->text_lookup.find(text);
     if (it != other_theme->text_lookup.end()) {

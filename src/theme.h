@@ -40,7 +40,7 @@ public:
   // images from RAM to video memory on-demand.
   Image get_image(bool alternate);
   Image get_animation(bool alternate, std::size_t frame);
-  const std::string& get_text(bool alternate);
+  const std::string& get_text(bool alternate, bool exclusive);
   const std::string& get_font(bool alternate);
 
   // Call to upload a random image from the next theme which has been loaded
