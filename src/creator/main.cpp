@@ -1,5 +1,6 @@
 #include "main.h"
 #include "export.h"
+#include "launch.h"
 #include "playlist.h"
 #include "program.h"
 #include "settings.h"
@@ -31,7 +32,6 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
 , _session_dirty{false}
 , _executable_path{executable_path}
 , _settings{nullptr}
-, _export{nullptr}
 , _theme_page{nullptr}
 , _program_page{nullptr}
 , _playlist_page{nullptr}
@@ -73,20 +73,20 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   }
   SetStatusText(status);
 
-  auto notebook = new wxNotebook{_panel, wxID_ANY};
+  _notebook = new wxNotebook{_panel, wxID_ANY};
   _theme_page =
-      new ThemePage{notebook, *this, _session, _session_path};
-  _program_page = new ProgramPage{notebook, *this, _session};
-  _playlist_page = new PlaylistPage{notebook, *this, _session};
-  _variable_page = new VariablePage{notebook, *this, _session};
+      new ThemePage{_notebook, *this, _session, _session_path};
+  _program_page = new ProgramPage{_notebook, *this, _session};
+  _playlist_page = new PlaylistPage{_notebook, *this, _session};
+  _variable_page = new VariablePage{_notebook, *this, _session};
 
-  notebook->AddPage(_theme_page, "Themes");
-  notebook->AddPage(_program_page, "Programs");
-  notebook->AddPage(_playlist_page, "Playlist");
-  notebook->AddPage(_variable_page, "Variables");
+  _notebook->AddPage(_theme_page, "Themes");
+  _notebook->AddPage(_program_page, "Programs");
+  _notebook->AddPage(_playlist_page, "Playlist");
+  _notebook->AddPage(_variable_page, "Variables");
 
   auto sizer = new wxBoxSizer{wxHORIZONTAL};
-  sizer->Add(notebook, 1, wxEXPAND, 0);
+  sizer->Add(_notebook, 1, wxEXPAND, 0);
   _panel->SetSizer(sizer);
   _panel->Hide();
   Show(true);
@@ -141,26 +141,25 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
 
   Bind(wxEVT_MENU, [&](wxCommandEvent& event)
   {
-    auto trance_exe_path = get_trance_exe_path(_executable_path);
-    auto system_config_path = get_system_config_path(_executable_path);
-    auto command_line = trance_exe_path +
-        " \"" + _session_path + "\" \"" + system_config_path + "\"";
-    SetStatusText("Running " + command_line);
-    wxExecute(command_line, wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE);
+    if (!ConfirmDiscardChanges()) {
+      return;
+    }
+    Disable();
+    _notebook->Disable();
+    auto frame = new LaunchFrame{
+        this, _system, _session, _session_path, [&] { Launch(); }};
   }, ID_LAUNCH_SESSION);
 
   Bind(wxEVT_MENU, [&](wxCommandEvent& event)
   {
-    if (_export) {
-      _export->Raise();
+    if (!ConfirmDiscardChanges()) {
       return;
     }
     auto default_path = (_executable_path /
         *--std::tr2::sys::path{_session_path}.end()).string();
-    _export = new ExportFrame{this, _system, _executable_path, default_path};
-    if (_export->Cancelled()) {
-      _export->Close();
-    }
+    Disable();
+    _notebook->Disable();
+    auto frame = new ExportFrame{this, _system, default_path};
   }, ID_EXPORT_VIDEO);
 
   Bind(wxEVT_MENU, [&](wxCommandEvent& event)
@@ -202,7 +201,29 @@ void CreatorFrame::SaveSystem(bool show_status)
   }
 }
 
-void CreatorFrame::ExportVideo(const std::string& path) {
+void CreatorFrame::Launch()
+{
+  auto trance_exe_path = get_trance_exe_path(_executable_path);
+  auto system_config_path = get_system_config_path(_executable_path);
+  auto command_line = trance_exe_path +
+      " \"" + _session_path + "\" \"" + system_config_path + "\"";
+  if (!_session.variable_map().empty()) {
+    command_line += " \"--variables=" + EncodeVariables() + "\"";
+  }
+  SetStatusText("Running " + command_line);
+  wxExecute(command_line, wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE);
+}
+
+void CreatorFrame::ExportVideo(const std::string& path)
+{
+  Disable();
+  _notebook->Disable();
+  new LaunchFrame{this, _system, _session, _session_path,
+                  [&, path] { ExportVideoLaunch(path); }};
+}
+
+void CreatorFrame::ExportVideoLaunch(const std::string& path)
+{
   bool frame_by_frame =
       ext_is(path, "jpg") || ext_is(path, "png") || ext_is(path, "bmp");
   const auto& settings = _system.last_export_settings();
@@ -220,6 +241,9 @@ void CreatorFrame::ExportVideo(const std::string& path) {
     command_line +=
         " --export_quality=" + std::to_string(settings.quality()) +
         " --export_threads=" + std::to_string(settings.threads());
+  }
+  if (!_session.variable_map().empty()) {
+    command_line += " \"--variables=" + EncodeVariables() + "\"";
   }
   SetStatusText("Running " + command_line);
   wxExecute(command_line, wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE);
@@ -247,7 +271,14 @@ void CreatorFrame::SettingsClosed()
 
 void CreatorFrame::ExportClosed()
 {
-  _export = nullptr;
+  _notebook->Enable();
+  Enable();
+}
+
+void CreatorFrame::LaunchClosed()
+{
+  _notebook->Enable();
+  Enable();
 }
 
 void CreatorFrame::ThemeCreated(const std::string& theme_name)
@@ -489,6 +520,52 @@ void CreatorFrame::SetSessionPath(const std::string& path)
   RefreshDirectory();
   _panel->Show();
   _panel->Layout();
+}
+
+std::string CreatorFrame::EncodeVariables()
+{
+  auto encode = [](const std::string& s) {
+    std::string r;
+    for (char c : s) {
+      if (c == '\\') {
+        r += "\\\\";
+      } else if (c == ';') {
+        r += "\\;";
+      } else if (c == '=') {
+        r += "\\=";
+      } else if (c == '"') {
+        r += "\\\"";
+      } else {
+        r += c;
+      }
+    }
+    return r;
+  };
+
+  std::string result;
+  bool first = true;
+  auto it = _system.last_session_map().find(_session_path);
+  for (const auto& pair : _session.variable_map()) {
+    if (first) {
+      first = false;
+    } else {
+      result += ";";
+    }
+    result += encode(pair.first) + "=";
+
+    bool found = false;
+    if (it != _system.last_session_map().end()) {
+      auto jt = it->second.variable_map().find(pair.first);
+      if (jt != it->second.variable_map().end()) {
+        result += encode(jt->second);
+        found = true;
+      }
+    }
+    if (!found) {
+      result += encode(pair.second.default_value());
+    }
+  }
+  return result;
 }
 
 class CreatorApp : public wxApp {

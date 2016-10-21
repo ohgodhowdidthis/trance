@@ -43,14 +43,11 @@ namespace {
 }
 
 ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
-                         const std::string& executable_path,
                          const std::string& default_path)
 : wxFrame{parent, wxID_ANY, "Export video",
           wxDefaultPosition, wxDefaultSize,
           wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN}
 , _system{system}
-, _executable_path{executable_path}
-, _cancelled{false}
 , _parent{parent}
 {
   const auto& settings = system.last_export_settings();
@@ -83,7 +80,7 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
   });
 
   if (dialog.ShowModal() == wxID_CANCEL) {
-    _cancelled = true;
+    Close();
     return;
   }
   _path = dialog.GetPath();
@@ -189,11 +186,6 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
        [&](wxCommandEvent&) { Export(); Close(); }, ID_EXPORT);
   Bind(wxEVT_COMMAND_BUTTON_CLICKED,
        [&](wxCommandEvent&) { Close(); }, ID_CANCEL);
-}
-
-bool ExportFrame::Cancelled() const
-{
-  return _cancelled;
 }
 
 void ExportFrame::Export()
