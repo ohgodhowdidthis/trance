@@ -8,13 +8,14 @@
 #include <memory>
 #include <vector>
 
-namespace trance_pb {
-  class AudioEvent;
-  class PlaylistItem;
-  class Session;
+namespace trance_pb
+{
+class AudioEvent;
+class PlaylistItem;
+class Session;
 }
 class CreatorFrame;
-template<typename T>
+template <typename T>
 class ItemList;
 class wxBoxSizer;
 class wxCheckBox;
@@ -23,11 +24,10 @@ class wxPanel;
 class wxSpinCtrl;
 class wxStaticText;
 
-class PlaylistPage : public wxNotebookPage {
+class PlaylistPage : public wxNotebookPage
+{
 public:
-  PlaylistPage(wxNotebook* parent,
-               CreatorFrame& creator_frame,
-               trance_pb::Session& session);
+  PlaylistPage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb::Session& session);
   ~PlaylistPage();
   void RefreshOurData();
   void RefreshData();
@@ -35,8 +35,7 @@ public:
   void RefreshDirectory(const std::string& directory);
 
 private:
-  void AddNextItem(const std::string& name, std::uint32_t weight_value,
-                   const std::string& variable,
+  void AddNextItem(const std::string& name, std::uint32_t weight_value, const std::string& variable,
                    const std::string& variable_value);
   void AddAudioEvent(const trance_pb::AudioEvent& event);
 

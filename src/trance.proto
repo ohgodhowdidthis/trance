@@ -1,14 +1,16 @@
 syntax = "proto3";
 package trance_pb;
 
-message Colour {
+message Colour
+{
   float r = 1;
   float g = 2;
   float b = 3;
   float a = 4;
 }
 
-message ExportSettings {
+message ExportSettings
+{
   // Last path exported to.
   string path = 1;
   // Width in pixels of the video.
@@ -26,7 +28,8 @@ message ExportSettings {
 }
 
 // General system-wide configuration.
-message System {
+message System
+{
   // Enable vsync to eliminate tearing, but can cause stuttering.
   bool enable_vsync = 1;
 
@@ -54,7 +57,8 @@ message System {
   // Last used export settings.
   ExportSettings last_export_settings = 9;
 
-  message LastSession {
+  message LastSession
+  {
     map<string, string> variable_map = 1;
   }
   // Last used variable settings for each session.
@@ -64,7 +68,8 @@ message System {
 // Configuration for a single program, i.e. a combination of a selection of
 // themes with settings related to visual styles, visual effects and so on.
 // Different programs can be swapped in during a single session.
-message Program {
+message Program
+{
   // The different implemented visual types.
   enum VisualType {
     NONE = 0;
@@ -79,7 +84,8 @@ message Program {
   }
 
   // Controls enabling/frequency of each theme.
-  message EnabledTheme {
+  message EnabledTheme
+  {
     string theme_name = 1;
 
     // How frequently this theme will be selected relative to others.
@@ -92,7 +98,8 @@ message Program {
   }
 
   // Controls enabling/frequency of each visual type.
-  message VisualTypeConfig {
+  message VisualTypeConfig
+  {
     VisualType type = 1;
 
     // Controls how frequently this program will be randomly selected relative
@@ -125,7 +132,8 @@ message Program {
   Colour shadow_text_colour = 9;
 }
 
-message AudioEvent {
+message AudioEvent
+{
   enum Type {
     NONE = 0;
     AUDIO_PLAY = 1;
@@ -147,13 +155,15 @@ message AudioEvent {
   uint32 time_seconds = 6;
 }
 
-message PlaylistItem {
+message PlaylistItem
+{
   string program = 1;
 
   // How long to play this item before choosing a new one.
   uint32 play_time_seconds = 2;
 
-  message NextItem {
+  message NextItem
+  {
     // References playlist item in Session.
     string playlist_item_name = 1;
 
@@ -170,7 +180,8 @@ message PlaylistItem {
   repeated AudioEvent audio_event = 4;
 }
 
-message Theme {
+message Theme
+{
   // Paths to be used as images.
   repeated string image_path = 2;
   // Paths to be used as animations.
@@ -181,7 +192,8 @@ message Theme {
   repeated string text_line = 5;
 }
 
-message Variable {
+message Variable
+{
   // Description of the variable.
   string description = 1;
   // Possible values for this variable.
@@ -190,7 +202,8 @@ message Variable {
   string default_value = 3;
 }
 
-message Session {
+message Session
+{
   // The playlist of programs.
   string first_playlist_item = 1;
   map<string, PlaylistItem> playlist = 2;

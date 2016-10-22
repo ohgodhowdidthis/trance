@@ -10,8 +10,8 @@
 #include <filesystem>
 #include <fstream>
 
-namespace {
-
+namespace
+{
 trance_pb::Colour make_colour(float r, float g, float b, float a)
 {
   trance_pb::Colour colour;
@@ -80,8 +80,7 @@ void set_default_program(trance_pb::Session& session, const std::string& name)
   *program.mutable_shadow_text_colour() = make_colour(0, 0, 0, 192);
 }
 
-void set_default_playlist(trance_pb::Session& session,
-                          const std::string& program)
+void set_default_playlist(trance_pb::Session& session, const std::string& program)
 {
   (*session.mutable_playlist())["default"].set_program(program);
 }
@@ -94,8 +93,7 @@ void validate_colour(trance_pb::Colour& colour)
   colour.set_a(std::max(0.f, std::min(1.f, colour.a())));
 }
 
-void validate_program(trance_pb::Program& program,
-                      const trance_pb::Session& session)
+void validate_program(trance_pb::Program& program, const trance_pb::Session& session)
 {
   for (const auto& deprecated_theme : program.enabled_theme_name()) {
     auto t = program.add_enabled_theme();
@@ -107,8 +105,7 @@ void validate_program(trance_pb::Program& program,
   uint32_t count = 0;
   std::string pinned;
   for (auto& theme : *program.mutable_enabled_theme()) {
-    if (session.theme_map().find(theme.theme_name()) !=
-        session.theme_map().end()) {
+    if (session.theme_map().find(theme.theme_name()) != session.theme_map().end()) {
       count += theme.random_weight();
       if (theme.pinned()) {
         if (pinned.empty()) {
@@ -128,11 +125,12 @@ void validate_program(trance_pb::Program& program,
       auto t = program.add_enabled_theme();
       t->set_theme_name(pinned);
       t->set_random_weight(1);
-    } else for (const auto& pair : session.theme_map()) {
-      auto t = program.add_enabled_theme();
-      t->set_theme_name(pair.first);
-      t->set_random_weight(1);
-    }
+    } else
+      for (const auto& pair : session.theme_map()) {
+        auto t = program.add_enabled_theme();
+        t->set_theme_name(pair.first);
+        t->set_random_weight(1);
+      }
   }
   count = 0;
   for (const auto& type : program.visual_type()) {
@@ -142,16 +140,14 @@ void validate_program(trance_pb::Program& program,
     set_default_visual_types(program);
   }
   program.set_global_fps(std::max(1u, std::min(240u, program.global_fps())));
-  program.set_zoom_intensity(
-    std::max(0.f, std::min(1.f, program.zoom_intensity())));
+  program.set_zoom_intensity(std::max(0.f, std::min(1.f, program.zoom_intensity())));
   validate_colour(*program.mutable_spiral_colour_a());
   validate_colour(*program.mutable_spiral_colour_b());
   validate_colour(*program.mutable_main_text_colour());
   validate_colour(*program.mutable_shadow_text_colour());
 }
 
-void validate_playlist_item(trance_pb::PlaylistItem& playlist_item,
-                            trance_pb::Session& session)
+void validate_playlist_item(trance_pb::PlaylistItem& playlist_item, trance_pb::Session& session)
 {
   auto it = session.program_map().find(playlist_item.program());
   if (it == session.program_map().end()) {
@@ -166,15 +162,13 @@ void validate_playlist_item(trance_pb::PlaylistItem& playlist_item,
       break;
     }
 
-    auto variable_it =
-        session.variable_map().find(next_item.condition_variable_name());
+    auto variable_it = session.variable_map().find(next_item.condition_variable_name());
     if (variable_it == session.variable_map().end()) {
       next_item.clear_condition_variable_name();
       next_item.clear_condition_variable_value();
     } else {
       auto& data = variable_it->second.value();
-      if (std::find(data.begin(), data.end(),
-                    next_item.condition_variable_value()) == data.end()) {
+      if (std::find(data.begin(), data.end(), next_item.condition_variable_value()) == data.end()) {
         next_item.clear_condition_variable_name();
         next_item.clear_condition_variable_value();
       }
@@ -201,14 +195,13 @@ void validate_variable(trance_pb::Variable& variable)
   }
 }
 
-template<typename T>
+template <typename T>
 T load_proto(const std::string& path)
 {
   T proto;
   std::ifstream f{path};
   if (f) {
-    std::string str{std::istreambuf_iterator<char>{f},
-                    std::istreambuf_iterator<char>{}};
+    std::string str{std::istreambuf_iterator<char>{f}, std::istreambuf_iterator<char>{}};
     if (google::protobuf::TextFormat::ParseFromString(str, &proto)) {
       return proto;
     }
@@ -224,8 +217,7 @@ void save_proto(const google::protobuf::Message& proto, const std::string& path)
   f << str;
 }
 
-std::tr2::sys::path make_relative(const std::tr2::sys::path& from,
-                                  const std::tr2::sys::path& to)
+std::tr2::sys::path make_relative(const std::tr2::sys::path& from, const std::tr2::sys::path& to)
 {
   auto cfrom = std::tr2::sys::canonical(from);
   auto cto = std::tr2::sys::canonical(to);
@@ -249,15 +241,14 @@ std::tr2::sys::path make_relative(const std::tr2::sys::path& from,
 
 } // anonymous namespace
 
-std::string make_relative(const std::string& from, const std::string& to) {
-  return make_relative(std::tr2::sys::path{from},
-                       std::tr2::sys::path{to}).string();
+std::string make_relative(const std::string& from, const std::string& to)
+{
+  return make_relative(std::tr2::sys::path{from}, std::tr2::sys::path{to}).string();
 }
 
 bool is_image(const std::string& path)
 {
-  return ext_is(path, "png") || ext_is(path, "bmp") ||
-         ext_is(path, "jpg") || ext_is(path, "jpeg");
+  return ext_is(path, "png") || ext_is(path, "bmp") || ext_is(path, "jpg") || ext_is(path, "jpeg");
 }
 
 bool is_animation(const std::string& path)
@@ -278,8 +269,7 @@ bool is_text_file(const std::string& path)
 
 bool is_audio_file(const std::string& path)
 {
-  return ext_is(path, "wav") || ext_is(path, "ogg") ||
-         ext_is(path, "flac") || ext_is(path, "aiff");
+  return ext_is(path, "wav") || ext_is(path, "ogg") || ext_is(path, "flac") || ext_is(path, "aiff");
 }
 
 bool is_enabled(const trance_pb::PlaylistItem::NextItem& next,
@@ -315,8 +305,7 @@ void search_resources(trance_pb::Session& session, const std::string& root)
       auto rel_str = relative_path.string();
       if (is_font(rel_str)) {
         themes[theme_name].add_font_path(rel_str);
-      }
-      else if (is_text_file(rel_str)) {
+      } else if (is_text_file(rel_str)) {
         std::ifstream f(it->path());
         std::string line;
         while (std::getline(f, line)) {
@@ -328,11 +317,9 @@ void search_resources(trance_pb::Session& session, const std::string& root)
           }
           themes[theme_name].add_text_line(split_text_line(line));
         }
-      }
-      else if (is_animation(rel_str)) {
+      } else if (is_animation(rel_str)) {
         themes[theme_name].add_animation_path(rel_str);
-      }
-      else if (is_image(rel_str)) {
+      } else if (is_image(rel_str)) {
         themes[theme_name].add_image_path(rel_str);
       }
     }
@@ -385,19 +372,17 @@ void search_resources(trance_pb::Theme& theme, const std::string& root)
       auto rel_str = relative_path.string();
       if (is_font(rel_str)) {
         theme.add_font_path(rel_str);
-      }
-      else if (is_animation(rel_str)) {
+      } else if (is_animation(rel_str)) {
         theme.add_animation_path(rel_str);
-      }
-      else if (is_image(rel_str)) {
+      } else if (is_image(rel_str)) {
         theme.add_image_path(rel_str);
       }
     }
   }
 }
 
-void search_audio_files(std::vector<std::string>& files,
-                        const std::string& root) {
+void search_audio_files(std::vector<std::string>& files, const std::string& root)
+{
   std::tr2::sys::path root_path(root);
   for (auto it = std::tr2::sys::recursive_directory_iterator(root_path);
        it != std::tr2::sys::recursive_directory_iterator(); ++it) {

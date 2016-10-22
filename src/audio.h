@@ -5,15 +5,18 @@
 #include <string>
 #include <vector>
 
-namespace trance_pb {
-  class AudioEvent;
-  class PlaylistItem;
+namespace trance_pb
+{
+class AudioEvent;
+class PlaylistItem;
 }
-namespace sf {
-  class Music;
+namespace sf
+{
+class Music;
 }
 
-class Audio {
+class Audio
+{
 public:
   Audio(const std::string& root_path);
   ~Audio();

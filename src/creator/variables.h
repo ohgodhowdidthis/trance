@@ -5,23 +5,23 @@
 #include <wx/notebook.h>
 #pragma warning(pop)
 
-namespace trance_pb {
-  class Session;
-  class Variable;
+namespace trance_pb
+{
+class Session;
+class Variable;
 }
 class CreatorFrame;
-template<typename T>
+template <typename T>
 class ItemList;
 class wxButton;
 class wxChoice;
 class wxListCtrl;
 class wxTextCtrl;
 
-class VariablePage : public wxNotebookPage {
+class VariablePage : public wxNotebookPage
+{
 public:
-  VariablePage(wxNotebook* parent,
-               CreatorFrame& creator_frame,
-               trance_pb::Session& session);
+  VariablePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb::Session& session);
   ~VariablePage();
   void RefreshOurData();
   void RefreshData();

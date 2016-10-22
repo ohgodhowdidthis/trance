@@ -1,36 +1,33 @@
 #include "image.h"
-#include "util.h"
 #include <iostream>
+#include "util.h"
 
 #define VPX_CODEC_DISABLE_COMPAT 1
 #pragma warning(push, 0)
-#include "jpgd/jpgd.h"
 #include <giflib/gif_lib.h>
-#include <libwebm/mkvreader.hpp>
-#include <libwebm/mkvparser.hpp>
-#include <libvpx/vpx_decoder.h>
 #include <libvpx/vp8dx.h>
+#include <libvpx/vpx_decoder.h>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
+#include <libwebm/mkvparser.hpp>
+#include <libwebm/mkvreader.hpp>
+#include "jpgd/jpgd.h"
 #pragma warning(pop)
 
-namespace {
-
+namespace
+{
 std::vector<Image> load_animation_gif(const std::string& path)
 {
   int error_code = 0;
   GifFileType* gif = DGifOpenFileName(path.c_str(), &error_code);
   if (!gif) {
-    std::cerr << "couldn't load " << path <<
-        ": " << GifErrorString(error_code) << std::endl;
+    std::cerr << "couldn't load " << path << ": " << GifErrorString(error_code) << std::endl;
     return {};
   }
   if (DGifSlurp(gif) != GIF_OK) {
-    std::cerr << "couldn't slurp " << path <<
-        ": " << GifErrorString(gif->Error) << std::endl;
+    std::cerr << "couldn't slurp " << path << ": " << GifErrorString(gif->Error) << std::endl;
     if (DGifCloseFile(gif, &error_code) != GIF_OK) {
-      std::cerr << "couldn't close " << path <<
-          ": " << GifErrorString(error_code) << std::endl;
+      std::cerr << "couldn't close " << path << ": " << GifErrorString(error_code) << std::endl;
     }
     return {};
   }
@@ -67,8 +64,7 @@ std::vector<Image> load_animation_gif(const std::string& path)
         }
       }
     }
-    auto map = frame.ImageDesc.ColorMap ?
-        frame.ImageDesc.ColorMap : gif->SColorMap;
+    auto map = frame.ImageDesc.ColorMap ? frame.ImageDesc.ColorMap : gif->SColorMap;
 
     auto fw = frame.ImageDesc.Width;
     auto fh = frame.ImageDesc.Height;
@@ -83,8 +79,7 @@ std::vector<Image> load_animation_gif(const std::string& path)
         }
         const auto& c = map->Colors[byte];
         // Still get segfaults here sometimes...
-        pixels[fl + x + (ft + y) * width] =
-            c.Red | (c.Green << 8) | (c.Blue << 16) | (0xff << 24);
+        pixels[fl + x + (ft + y) * width] = c.Red | (c.Green << 8) | (c.Blue << 16) | (0xff << 24);
       }
     }
 
@@ -93,8 +88,7 @@ std::vector<Image> load_animation_gif(const std::string& path)
   }
 
   if (DGifCloseFile(gif, &error_code) != GIF_OK) {
-    std::cerr << "couldn't close " << path <<
-        ": " << GifErrorString(error_code) << std::endl;
+    std::cerr << "couldn't close " << path << ": " << GifErrorString(error_code) << std::endl;
   }
   return result;
 }
@@ -113,15 +107,13 @@ std::vector<Image> load_animation_webm(const std::string& path)
 
   mkvparser::Segment* segment_tmp;
   if (mkvparser::Segment::CreateInstance(&reader, pos, segment_tmp)) {
-    std::cerr << "couldn't load " << path <<
-        ": segment create failed" << std::endl;
+    std::cerr << "couldn't load " << path << ": segment create failed" << std::endl;
     return {};
   }
 
   std::unique_ptr<mkvparser::Segment> segment(segment_tmp);
   if (segment->Load() < 0) {
-    std::cerr << "couldn't load " << path <<
-        ": segment load failed" << std::endl;
+    std::cerr << "couldn't load " << path << ": segment load failed" << std::endl;
     return {};
   }
 
@@ -136,16 +128,14 @@ std::vector<Image> load_animation_webm(const std::string& path)
   }
 
   if (!video_track) {
-    std::cerr << "couldn't load " << path <<
-        ": no VP8 video track found" << std::endl;
+    std::cerr << "couldn't load " << path << ": no VP8 video track found" << std::endl;
     return {};
   }
 
   vpx_codec_ctx_t codec;
   auto codec_error = [&](const std::string& s) {
     auto detail = vpx_codec_error_detail(&codec);
-    std::cerr << "couldn't load " << path <<
-        ": " << s << ": " << vpx_codec_error(&codec);
+    std::cerr << "couldn't load " << path << ": " << s << ": " << vpx_codec_error(&codec);
     if (detail) {
       std::cerr << ": " << detail;
     }
@@ -162,8 +152,8 @@ std::vector<Image> load_animation_webm(const std::string& path)
        cluster = segment->GetNext(cluster)) {
     const mkvparser::BlockEntry* block;
     if (cluster->GetFirst(block) < 0) {
-      std::cerr << "couldn't load " << path <<
-          ": couldn't parse first block of cluster" << std::endl;
+      std::cerr << "couldn't load " << path << ": couldn't parse first block of cluster"
+                << std::endl;
       return {};
     }
 
@@ -189,22 +179,15 @@ std::vector<Image> load_animation_webm(const std::string& path)
             auto h = img->d_h;
             for (uint32_t y = 0; y < h; ++y) {
               for (uint32_t x = 0; x < w; ++x) {
-                uint8_t Y = img->planes[VPX_PLANE_Y]
-                    [x + y * img->stride[VPX_PLANE_Y]];
-                uint8_t U = img->planes[VPX_PLANE_U]
-                    [x / 2 + (y / 2) * img->stride[VPX_PLANE_U]];
-                uint8_t V = img->planes[VPX_PLANE_V]
-                    [x / 2 + (y / 2) * img->stride[VPX_PLANE_V]];
+                uint8_t Y = img->planes[VPX_PLANE_Y][x + y * img->stride[VPX_PLANE_Y]];
+                uint8_t U = img->planes[VPX_PLANE_U][x / 2 + (y / 2) * img->stride[VPX_PLANE_U]];
+                uint8_t V = img->planes[VPX_PLANE_V][x / 2 + (y / 2) * img->stride[VPX_PLANE_V]];
 
-                auto cl = [](float f) {
-                  return (uint8_t) std::max(0, std::min(255, (int) f));
-                };
+                auto cl = [](float f) { return (uint8_t) std::max(0, std::min(255, (int) f)); };
                 auto R = cl(1.164f * (Y - 16.f) + 1.596f * (V - 128.f));
-                auto G = cl(1.164f * (Y - 16.f) -
-                    0.391f * (U - 128.f) - 0.813f * (V - 128.f));
+                auto G = cl(1.164f * (Y - 16.f) - 0.391f * (U - 128.f) - 0.813f * (V - 128.f));
                 auto B = cl(1.164f * (Y - 16.f) + 2.017f * (U - 128.f));
-                data[x + y * w] =
-                    R | (G << 8) | (B << 16) | (0xff << 24);
+                data[x + y * w] = R | (G << 8) | (B << 16) | (0xff << 24);
               }
             }
 
@@ -215,8 +198,8 @@ std::vector<Image> load_animation_webm(const std::string& path)
       }
 
       if (cluster->GetNext(block, block) < 0) {
-        std::cerr << "couldn't load " << path <<
-            ": couldn't parse next block of cluster" << std::endl;
+        std::cerr << "couldn't load " << path << ": couldn't parse next block of cluster"
+                  << std::endl;
         return {};
       }
     }
@@ -229,24 +212,17 @@ std::vector<Image> load_animation_webm(const std::string& path)
 
   return result;
 }
-
 }
 
 std::vector<GLuint> Image::textures_to_delete;
 std::mutex Image::textures_to_delete_mutex;
 
-Image::Image()
-: _width{0}
-, _height{0}
-, _texture{0}
+Image::Image() : _width{0}, _height{0}, _texture{0}
 {
 }
 
 Image::Image(uint32_t width, uint32_t height, unsigned char* data)
-: _width{width}
-, _height{height}
-, _texture{0}
-, _sf_image{new sf::Image}
+: _width{width}, _height{height}, _texture{0}, _sf_image{new sf::Image}
 {
   _sf_image->create(width, height, data);
 }
@@ -294,9 +270,8 @@ bool Image::ensure_texture_uploaded() const
   // to mutex while uploading. This probably doesn't actually block though so no
   // worries.
   glBindTexture(GL_TEXTURE_2D, _texture);
-  glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_RGBA, _width, _height,
-      0, GL_RGBA, GL_UNSIGNED_BYTE, _sf_image->getPixelsPtr());
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, _width, _height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+               _sf_image->getPixelsPtr());
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -339,21 +314,17 @@ bool is_gif_animated(const std::string& path)
   int error_code = 0;
   GifFileType* gif = DGifOpenFileName(path.c_str(), &error_code);
   if (!gif) {
-    std::cerr << "couldn't load " << path <<
-        ": " << GifErrorString(error_code) << std::endl;
+    std::cerr << "couldn't load " << path << ": " << GifErrorString(error_code) << std::endl;
     return false;
   }
   int frames = 0;
   if (DGifSlurp(gif) != GIF_OK) {
-    std::cerr << "couldn't slurp " << path <<
-        ": " << GifErrorString(gif->Error) << std::endl;
-  }
-  else {
+    std::cerr << "couldn't slurp " << path << ": " << GifErrorString(gif->Error) << std::endl;
+  } else {
     frames = gif->ImageCount;
   }
   if (DGifCloseFile(gif, &error_code) != GIF_OK) {
-    std::cerr << "couldn't close " << path <<
-        ": " << GifErrorString(error_code) << std::endl;
+    std::cerr << "couldn't close " << path << ": " << GifErrorString(error_code) << std::endl;
   }
   return frames > 0;
 }
@@ -366,8 +337,8 @@ Image load_image(const std::string& path)
     int width = 0;
     int height = 0;
     int reqs = 0;
-    unsigned char* data = jpgd::decompress_jpeg_image_from_file(
-        path.c_str(), &width, &height, &reqs, 4);
+    unsigned char* data =
+        jpgd::decompress_jpeg_image_from_file(path.c_str(), &width, &height, &reqs, 4);
     if (!data) {
       std::cerr << "\ncouldn't load " << path << std::endl;
       return {};

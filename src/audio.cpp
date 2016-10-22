@@ -2,12 +2,11 @@
 #include <iostream>
 
 #pragma warning(push, 0)
-#include <SFML/Audio/Music.hpp>
 #include <src/trance.pb.h>
+#include <SFML/Audio/Music.hpp>
 #pragma warning(pop)
 
-Audio::Audio(const std::string& root_path)
-: _root_path{root_path}
+Audio::Audio(const std::string& root_path) : _root_path{root_path}
 {
 }
 
@@ -50,7 +49,8 @@ void Audio::TriggerEvent(const trance_pb::AudioEvent& event)
   }
 }
 
-void Audio::Update() {
+void Audio::Update()
+{
   for (auto& channel : _channels) {
     if (!channel.current_fade) {
       continue;
@@ -62,12 +62,11 @@ void Audio::Update() {
       channel.current_fade = false;
       continue;
     }
-    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        _clock.now() - channel.fade_start);
+    auto elapsed_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(_clock.now() - channel.fade_start);
     auto r = float(elapsed_ms.count()) / (1000.f * channel.fade_time_seconds);
     r = std::max(0.f, std::min(1.f, r));
-    auto volume = r * channel.fade_target_volume +
-        (1 - r) * channel.fade_initial_volume;
+    auto volume = r * channel.fade_target_volume + (1 - r) * channel.fade_initial_volume;
     channel.volume = std::uint32_t(volume + .5f);
     channel.music->setVolume(volume);
   }

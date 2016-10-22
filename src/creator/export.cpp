@@ -1,7 +1,7 @@
 #include "export.h"
-#include "main.h"
 #include "../common.h"
 #include "../util.h"
+#include "main.h"
 
 #pragma warning(push, 0)
 #include <src/trance.pb.h>
@@ -14,46 +14,42 @@
 #include <wx/stattext.h>
 #pragma warning(pop)
 
-namespace {
-  const std::string WIDTH_TOOLTIP = "Width, in pixels, of the exported video.";
-  const std::string HEIGHT_TOOLTIP =
-      "Height, in pixels, of the exported video.";
-  const std::string FPS_TOOLTIP =
-      "Number of frames per second in the exported video.";
-  const std::string LENGTH_TOOLTIP =
-      "Length, in seconds, of the exported video.";
-  const std::string THREADS_TOOLTIP =
-      "Number of threads to use for rendering the video. "
-      "Increase to make use of all CPU cores.";
-  const std::string QUALITY_TOOLTIP =
-      "Quality of the exported video. 0 is best, 4 is worst. "
-      "Better-quality videos take longer to export.";
+namespace
+{
+const std::string WIDTH_TOOLTIP = "Width, in pixels, of the exported video.";
+const std::string HEIGHT_TOOLTIP = "Height, in pixels, of the exported video.";
+const std::string FPS_TOOLTIP = "Number of frames per second in the exported video.";
+const std::string LENGTH_TOOLTIP = "Length, in seconds, of the exported video.";
+const std::string THREADS_TOOLTIP =
+    "Number of threads to use for rendering the video. "
+    "Increase to make use of all CPU cores.";
+const std::string QUALITY_TOOLTIP =
+    "Quality of the exported video. 0 is best, 4 is worst. "
+    "Better-quality videos take longer to export.";
 
-  const std::vector<std::string> EXPORT_FILE_PATTERNS = {
-      "H.264 video (*.h264)|*.h264",
-      "WebM video (*.webm)|*.webm",
-      "JPEG frame-by-frame (*.jpg)|*.jpg",
-      "PNG frame-by-frame (*.png)|*.png",
-      "BMP frame-by-frame (*.bmp)|*.bmp",
-  };
+const std::vector<std::string> EXPORT_FILE_PATTERNS = {
+    "H.264 video (*.h264)|*.h264",       "WebM video (*.webm)|*.webm",
+    "JPEG frame-by-frame (*.jpg)|*.jpg", "PNG frame-by-frame (*.png)|*.png",
+    "BMP frame-by-frame (*.bmp)|*.bmp",
+};
 
-  const std::vector<std::string> EXPORT_FILE_EXTENSIONS = {
-      "h264", "webm", "jpg", "png", "bmp",
-  };
+const std::vector<std::string> EXPORT_FILE_EXTENSIONS = {
+    "h264", "webm", "jpg", "png", "bmp",
+};
 }
 
 ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
                          const std::string& default_path)
-: wxFrame{parent, wxID_ANY, "Export video",
-          wxDefaultPosition, wxDefaultSize,
-          wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN}
+: wxFrame{parent,         wxID_ANY,
+          "Export video", wxDefaultPosition,
+          wxDefaultSize,  wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN}
 , _system{system}
 , _parent{parent}
 {
   const auto& settings = system.last_export_settings();
 
-  std::tr2::sys::path last_path = settings.path().empty() ?
-      default_path + ".h264" : settings.path();
+  std::tr2::sys::path last_path =
+      settings.path().empty() ? default_path + ".h264" : settings.path();
   auto patterns = EXPORT_FILE_PATTERNS;
   for (std::size_t i = 0; i < patterns.size(); ++i) {
     for (const auto& ext : EXPORT_FILE_EXTENSIONS) {
@@ -68,13 +64,14 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
     pattern_str += (first ? "" : "|") + p;
     first = false;
   }
-  wxFileDialog dialog{
-      parent, "Choose export file", last_path.parent_path().string(),
-      (--last_path.end())->string(), pattern_str,
-      wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
+  wxFileDialog dialog{parent,
+                      "Choose export file",
+                      last_path.parent_path().string(),
+                      (--last_path.end())->string(),
+                      pattern_str,
+                      wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
 
-  Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event)
-  {
+  Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event) {
     _parent->ExportClosed();
     Destroy();
   });
@@ -84,15 +81,13 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
     return;
   }
   _path = dialog.GetPath();
-  bool frame_by_frame =
-      ext_is(_path, "jpg") || ext_is(_path, "png") || ext_is(_path, "bmp");
+  bool frame_by_frame = ext_is(_path, "jpg") || ext_is(_path, "png") || ext_is(_path, "bmp");
 
   auto panel = new wxPanel{this};
   auto sizer = new wxBoxSizer{wxVERTICAL};
   auto top = new wxBoxSizer{wxVERTICAL};
   auto bottom = new wxBoxSizer{wxHORIZONTAL};
-  auto top_inner = new wxStaticBoxSizer{
-      wxVERTICAL, panel, "Export settings for " + _path};
+  auto top_inner = new wxStaticBoxSizer{wxVERTICAL, panel, "Export settings for " + _path};
   auto quality = new wxBoxSizer{wxHORIZONTAL};
 
   _width = new wxSpinCtrl{panel, wxID_ANY};
@@ -100,10 +95,14 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
   _fps = new wxSpinCtrl{panel, wxID_ANY};
   _length = new wxSpinCtrl{panel, wxID_ANY};
   _threads = new wxSpinCtrl{panel, wxID_ANY};
-  _quality = new wxSlider{
-      panel, wxID_ANY, (int) settings.quality(), 0, 4,
-      wxDefaultPosition, wxDefaultSize,
-      wxSL_HORIZONTAL | wxSL_AUTOTICKS | wxSL_VALUE_LABEL};
+  _quality = new wxSlider{panel,
+                          wxID_ANY,
+                          (int) settings.quality(),
+                          0,
+                          4,
+                          wxDefaultPosition,
+                          wxDefaultSize,
+                          wxSL_HORIZONTAL | wxSL_AUTOTICKS | wxSL_VALUE_LABEL};
   auto button_export = new wxButton{panel, ID_EXPORT, "Export"};
   auto button_cancel = new wxButton{panel, ID_CANCEL, "Cancel"};
 
@@ -183,9 +182,12 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
   Show(true);
 
   Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-       [&](wxCommandEvent&) { Export(); Close(); }, ID_EXPORT);
-  Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-       [&](wxCommandEvent&) { Close(); }, ID_CANCEL);
+       [&](wxCommandEvent&) {
+         Export();
+         Close();
+       },
+       ID_EXPORT);
+  Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { Close(); }, ID_CANCEL);
 }
 
 void ExportFrame::Export()

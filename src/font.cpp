@@ -3,13 +3,11 @@
 #include "util.h"
 
 FontCache::FontCache(const std::string& root_path, uint32_t font_cache_size)
-: _root_path{root_path}
-, _font_cache_size{font_cache_size}
+: _root_path{root_path}, _font_cache_size{font_cache_size}
 {
 }
 
-const Font& FontCache::get_font(
-    const std::string& font_path, uint32_t char_size) const
+const Font& FontCache::get_font(const std::string& font_path, uint32_t char_size) const
 {
   char_size -= char_size % char_size_lock;
   auto full_path = _root_path + "/" + font_path;

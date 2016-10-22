@@ -1,4 +1,8 @@
 #include "main.h"
+#include <filesystem>
+#include "../common.h"
+#include "../session.h"
+#include "../util.h"
 #include "export.h"
 #include "launch.h"
 #include "playlist.h"
@@ -6,10 +10,6 @@
 #include "settings.h"
 #include "theme.h"
 #include "variables.h"
-#include "../common.h"
-#include "../session.h"
-#include "../util.h"
-#include <filesystem>
 
 #pragma warning(push, 0)
 #include <wx/app.h>
@@ -23,11 +23,9 @@
 #include <wx/stdpaths.h>
 #pragma warning(pop)
 
-static const std::string session_file_pattern =
-    "Session files (*.session)|*.session";
+static const std::string session_file_pattern = "Session files (*.session)|*.session";
 
-CreatorFrame::CreatorFrame(const std::string& executable_path, 
-                           const std::string& parameter)
+CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string& parameter)
 : wxFrame{nullptr, wxID_ANY, "Creator", wxDefaultPosition, wxSize{640, 640}}
 , _session_dirty{false}
 , _executable_path{executable_path}
@@ -44,13 +42,12 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   menu_file->Append(wxID_OPEN);
   menu_file->Append(wxID_SAVE);
   menu_file->AppendSeparator();
-  menu_file->Append(ID_LAUNCH_SESSION, "&Launch session\tCtrl+L",
-                   "Launch the current session");
+  menu_file->Append(ID_LAUNCH_SESSION, "&Launch session\tCtrl+L", "Launch the current session");
   menu_file->Append(ID_EXPORT_VIDEO, "Export &video...\tCtrl+V",
-                   "Export the current session as a video");
+                    "Export the current session as a video");
   menu_file->AppendSeparator();
   menu_file->Append(ID_EDIT_SYSTEM_CONFIG, "&Edit system settings...\tCtrl+E",
-                   "Edit global system settings that apply to all sessions");
+                    "Edit global system settings that apply to all sessions");
   menu_file->AppendSeparator();
   menu_file->Append(wxID_EXIT);
   _menu_bar->Append(menu_file, "&File");
@@ -74,8 +71,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
   SetStatusText(status);
 
   _notebook = new wxNotebook{_panel, wxID_ANY};
-  _theme_page =
-      new ThemePage{_notebook, *this, _session, _session_path};
+  _theme_page = new ThemePage{_notebook, *this, _session, _session_path};
   _program_page = new ProgramPage{_notebook, *this, _session};
   _playlist_page = new PlaylistPage{_notebook, *this, _session};
   _variable_page = new VariablePage{_notebook, *this, _session};
@@ -95,89 +91,90 @@ CreatorFrame::CreatorFrame(const std::string& executable_path,
     OpenSession(parameter);
   }
 
-  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
-  {
-    if (!ConfirmDiscardChanges()) {
-      return;
-    }
-    wxFileDialog dialog{
-        this, "Choose session location", _system.last_root_directory(),
-        DEFAULT_SESSION_PATH, session_file_pattern,
-        wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
-    if (dialog.ShowModal() == wxID_CANCEL) {
-      return;
-    }
-    _session = get_default_session();
-    std::tr2::sys::path path{std::string(dialog.GetPath())};
-    search_resources(_session, path.parent_path().string());
-    SetSessionPath(std::string(dialog.GetPath()));
-    SetStatusText("Generated default session for " +
-                  path.parent_path().string());
-    MakeDirty(true);
-  }, wxID_NEW);
+  Bind(wxEVT_MENU,
+       [&](wxCommandEvent& event) {
+         if (!ConfirmDiscardChanges()) {
+           return;
+         }
+         wxFileDialog dialog{this,
+                             "Choose session location",
+                             _system.last_root_directory(),
+                             DEFAULT_SESSION_PATH,
+                             session_file_pattern,
+                             wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
+         if (dialog.ShowModal() == wxID_CANCEL) {
+           return;
+         }
+         _session = get_default_session();
+         std::tr2::sys::path path{std::string(dialog.GetPath())};
+         search_resources(_session, path.parent_path().string());
+         SetSessionPath(std::string(dialog.GetPath()));
+         SetStatusText("Generated default session for " + path.parent_path().string());
+         MakeDirty(true);
+       },
+       wxID_NEW);
 
-  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
-  {
-    if (!ConfirmDiscardChanges()) {
-      return;
-    }
-    wxFileDialog dialog{
-        this, "Open session file", _system.last_root_directory(),
-        "", session_file_pattern, wxFD_OPEN | wxFD_FILE_MUST_EXIST};
-    if (dialog.ShowModal() == wxID_CANCEL) {
-      return;
-    }
-    OpenSession(std::string(dialog.GetPath()));
-  }, wxID_OPEN);
+  Bind(wxEVT_MENU,
+       [&](wxCommandEvent& event) {
+         if (!ConfirmDiscardChanges()) {
+           return;
+         }
+         wxFileDialog dialog{this, "Open session file",  _system.last_root_directory(),
+                             "",   session_file_pattern, wxFD_OPEN | wxFD_FILE_MUST_EXIST};
+         if (dialog.ShowModal() == wxID_CANCEL) {
+           return;
+         }
+         OpenSession(std::string(dialog.GetPath()));
+       },
+       wxID_OPEN);
 
-  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
-  {
-    save_session(_session, _session_path);
-    MakeDirty(false);
-    SetStatusText("Wrote " + _session_path);
-    _menu_bar->Enable(ID_LAUNCH_SESSION, true);
-    _menu_bar->Enable(ID_EXPORT_VIDEO, true);
-  }, wxID_SAVE);
+  Bind(wxEVT_MENU,
+       [&](wxCommandEvent& event) {
+         save_session(_session, _session_path);
+         MakeDirty(false);
+         SetStatusText("Wrote " + _session_path);
+         _menu_bar->Enable(ID_LAUNCH_SESSION, true);
+         _menu_bar->Enable(ID_EXPORT_VIDEO, true);
+       },
+       wxID_SAVE);
 
-  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
-  {
-    if (!ConfirmDiscardChanges()) {
-      return;
-    }
-    Disable();
-    _notebook->Disable();
-    auto frame = new LaunchFrame{
-        this, _system, _session, _session_path, [&] { Launch(); }};
-  }, ID_LAUNCH_SESSION);
+  Bind(wxEVT_MENU,
+       [&](wxCommandEvent& event) {
+         if (!ConfirmDiscardChanges()) {
+           return;
+         }
+         Disable();
+         _notebook->Disable();
+         auto frame = new LaunchFrame{this, _system, _session, _session_path, [&] { Launch(); }};
+       },
+       ID_LAUNCH_SESSION);
 
-  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
-  {
-    if (!ConfirmDiscardChanges()) {
-      return;
-    }
-    auto default_path = (_executable_path /
-        *--std::tr2::sys::path{_session_path}.end()).string();
-    Disable();
-    _notebook->Disable();
-    auto frame = new ExportFrame{this, _system, default_path};
-  }, ID_EXPORT_VIDEO);
+  Bind(wxEVT_MENU,
+       [&](wxCommandEvent& event) {
+         if (!ConfirmDiscardChanges()) {
+           return;
+         }
+         auto default_path =
+             (_executable_path / *--std::tr2::sys::path{_session_path}.end()).string();
+         Disable();
+         _notebook->Disable();
+         auto frame = new ExportFrame{this, _system, default_path};
+       },
+       ID_EXPORT_VIDEO);
 
-  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
-  {
-    if (_settings) {
-      _settings->Raise();
-      return;
-    }
-    _settings = new SettingsFrame{this, _system};
-  }, ID_EDIT_SYSTEM_CONFIG);
+  Bind(wxEVT_MENU,
+       [&](wxCommandEvent& event) {
+         if (_settings) {
+           _settings->Raise();
+           return;
+         }
+         _settings = new SettingsFrame{this, _system};
+       },
+       ID_EDIT_SYSTEM_CONFIG);
 
-  Bind(wxEVT_MENU, [&](wxCommandEvent& event)
-  {
-    Close(false);
-  }, wxID_EXIT);
+  Bind(wxEVT_MENU, [&](wxCommandEvent& event) { Close(false); }, wxID_EXIT);
 
-  Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event)
-  {
+  Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event) {
     if (event.CanVeto() && !ConfirmDiscardChanges()) {
       event.Veto();
       return;
@@ -205,8 +202,7 @@ void CreatorFrame::Launch()
 {
   auto trance_exe_path = get_trance_exe_path(_executable_path);
   auto system_config_path = get_system_config_path(_executable_path);
-  auto command_line = trance_exe_path +
-      " \"" + _session_path + "\" \"" + system_config_path + "\"";
+  auto command_line = trance_exe_path + " \"" + _session_path + "\" \"" + system_config_path + "\"";
   if (!_session.variable_map().empty()) {
     command_line += " \"--variables=" + EncodeVariables() + "\"";
   }
@@ -218,28 +214,22 @@ void CreatorFrame::ExportVideo(const std::string& path)
 {
   Disable();
   _notebook->Disable();
-  new LaunchFrame{this, _system, _session, _session_path,
-                  [&, path] { ExportVideoLaunch(path); }};
+  new LaunchFrame{this, _system, _session, _session_path, [&, path] { ExportVideoLaunch(path); }};
 }
 
 void CreatorFrame::ExportVideoLaunch(const std::string& path)
 {
-  bool frame_by_frame =
-      ext_is(path, "jpg") || ext_is(path, "png") || ext_is(path, "bmp");
+  bool frame_by_frame = ext_is(path, "jpg") || ext_is(path, "png") || ext_is(path, "bmp");
   const auto& settings = _system.last_export_settings();
 
   auto trance_exe_path = get_trance_exe_path(_executable_path);
   auto system_config_path = get_system_config_path(_executable_path);
-  auto command_line = trance_exe_path +
-      " \"" + _session_path + "\" \"" + system_config_path +
-      "\" --export_path=\"" + path +
-      "\" --export_width=" + std::to_string(settings.width()) +
-      " --export_height=" + std::to_string(settings.height()) +
-      " --export_fps=" + std::to_string(settings.fps()) +
-      " --export_length=" + std::to_string(settings.length());
+  auto command_line = trance_exe_path + " \"" + _session_path + "\" \"" + system_config_path +
+      "\" --export_path=\"" + path + "\" --export_width=" + std::to_string(settings.width()) +
+      " --export_height=" + std::to_string(settings.height()) + " --export_fps=" +
+      std::to_string(settings.fps()) + " --export_length=" + std::to_string(settings.length());
   if (!frame_by_frame) {
-    command_line +=
-        " --export_quality=" + std::to_string(settings.quality()) +
+    command_line += " --export_quality=" + std::to_string(settings.quality()) +
         " --export_threads=" + std::to_string(settings.threads());
   }
   if (!_session.variable_map().empty()) {
@@ -307,8 +297,7 @@ void CreatorFrame::ThemeDeleted(const std::string& theme_name)
   MakeDirty(true);
 }
 
-void CreatorFrame::ThemeRenamed(const std::string& old_name,
-                                const std::string& new_name)
+void CreatorFrame::ThemeRenamed(const std::string& old_name, const std::string& new_name)
 {
   for (auto& pair : *_session.mutable_program_map()) {
     for (auto& theme : *pair.second.mutable_enabled_theme()) {
@@ -348,8 +337,7 @@ void CreatorFrame::ProgramDeleted(const std::string& program_name)
   MakeDirty(true);
 }
 
-void CreatorFrame::ProgramRenamed(const std::string& old_name,
-                                  const std::string& new_name)
+void CreatorFrame::ProgramRenamed(const std::string& old_name, const std::string& new_name)
 {
   for (auto& pair : *_session.mutable_playlist()) {
     if (pair.second.program() == old_name) {
@@ -383,8 +371,9 @@ void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name)
   for (auto& pair : *_session.mutable_playlist()) {
     auto it = pair.second.mutable_next_item()->begin();
     while (it != pair.second.mutable_next_item()->end()) {
-      it = it->playlist_item_name() == playlist_item_name ?
-          pair.second.mutable_next_item()->erase(it) : 1 + it;
+      it = it->playlist_item_name() == playlist_item_name
+          ? pair.second.mutable_next_item()->erase(it)
+          : 1 + it;
     }
   }
   _playlist_page->RefreshProgramsAndPlaylists();
@@ -393,8 +382,7 @@ void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name)
   MakeDirty(true);
 }
 
-void CreatorFrame::PlaylistItemRenamed(const std::string& old_name,
-                                       const std::string& new_name)
+void CreatorFrame::PlaylistItemRenamed(const std::string& old_name, const std::string& new_name)
 {
   if (_session.first_playlist_item() == old_name) {
     _session.set_first_playlist_item(new_name);
@@ -408,8 +396,7 @@ void CreatorFrame::PlaylistItemRenamed(const std::string& old_name,
   }
   _playlist_page->RefreshProgramsAndPlaylists();
   _playlist_page->RefreshOurData();
-  SetStatusText(
-      "Renamed playlist item '" + old_name + "' to '" + new_name + "'");
+  SetStatusText("Renamed playlist item '" + old_name + "' to '" + new_name + "'");
   MakeDirty(true);
 }
 
@@ -438,8 +425,7 @@ void CreatorFrame::VariableDeleted(const std::string& variable_name)
   MakeDirty(true);
 }
 
-void CreatorFrame::VariableRenamed(const std::string& old_name,
-                                   const std::string& new_name)
+void CreatorFrame::VariableRenamed(const std::string& old_name, const std::string& new_name)
 {
   for (auto& pair : *_session.mutable_playlist()) {
     for (auto& next_item : *pair.second.mutable_next_item()) {
@@ -476,8 +462,7 @@ void CreatorFrame::VariableValueDeleted(const std::string& variable_name,
 }
 
 void CreatorFrame::VariableValueRenamed(const std::string& variable_name,
-                                        const std::string& old_name,
-                                        const std::string& new_name)
+                                        const std::string& old_name, const std::string& new_name)
 {
   for (auto& pair : *_session.mutable_playlist()) {
     for (auto& next_item : *pair.second.mutable_next_item()) {
@@ -496,9 +481,8 @@ bool CreatorFrame::ConfirmDiscardChanges()
   if (!_session_dirty) {
     return true;
   }
-  return wxMessageBox(
-      "Current session has unsaved changes! Proceed?", "",
-      wxICON_QUESTION | wxYES_NO, this) == wxYES;
+  return wxMessageBox("Current session has unsaved changes! Proceed?", "",
+                      wxICON_QUESTION | wxYES_NO, this) == wxYES;
 }
 
 bool CreatorFrame::OpenSession(const std::string& path)
@@ -572,20 +556,24 @@ std::string CreatorFrame::EncodeVariables()
   return result;
 }
 
-class CreatorApp : public wxApp {
+class CreatorApp : public wxApp
+{
 public:
-  CreatorApp() : _frame{nullptr} {}
+  CreatorApp() : _frame{nullptr}
+  {
+  }
 
-  bool OnInit() override {
+  bool OnInit() override
+  {
     wxApp::OnInit();
-    std::tr2::sys::path path{
-        std::string(wxStandardPaths::Get().GetExecutablePath())};
+    std::tr2::sys::path path{std::string(wxStandardPaths::Get().GetExecutablePath())};
     _frame = new CreatorFrame{path.parent_path().string(), _parameter};
     SetTopWindow(_frame);
     return true;
   };
 
-  int OnExit() override {
+  int OnExit() override
+  {
     // Deleting _frame causes a crash. Shrug.
     return 0;
   }
@@ -593,9 +581,9 @@ public:
   void OnInitCmdLine(wxCmdLineParser& parser) override
   {
     static const wxCmdLineEntryDesc desc[] = {
-      {wxCMD_LINE_PARAM, NULL, NULL, "session file",
-       wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL},
-      {wxCMD_LINE_NONE},
+        {wxCMD_LINE_PARAM, NULL, NULL, "session file", wxCMD_LINE_VAL_STRING,
+         wxCMD_LINE_PARAM_OPTIONAL},
+        {wxCMD_LINE_NONE},
     };
     parser.SetDesc(desc);
     parser.SetSwitchChars("-");

@@ -18,23 +18,22 @@
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)
 
-namespace trance_pb {
-  class Program;
-  class Session;
-  class System;
+namespace trance_pb
+{
+class Program;
+class Session;
+class System;
 }
 
 struct Font;
 class Image;
 class ThemeBank;
 class Visual;
-class Director {
+class Director
+{
 public:
-
-  Director(sf::RenderWindow& window,
-           const trance_pb::Session& session,
-           const trance_pb::System& system,
-           ThemeBank& themes, const trance_pb::Program& program,
+  Director(sf::RenderWindow& window, const trance_pb::Session& session,
+           const trance_pb::System& system, ThemeBank& themes, const trance_pb::Program& program,
            bool realtime, bool oculus_rift, bool convert_to_yuv);
   ~Director();
 
@@ -56,11 +55,10 @@ public:
     ANIM,
     ANIM_ALTERNATE,
   };
-  void render_animation_or_image(
-      Anim type, const Image& image,
-      float alpha, float multiplier = 8.f, float zoom = 0.f) const;
-  void render_image(const Image& image, float alpha,
-                    float multiplier = 8.f, float zoom = 0.f) const;
+  void render_animation_or_image(Anim type, const Image& image, float alpha, float multiplier = 8.f,
+                                 float zoom = 0.f) const;
+  void
+  render_image(const Image& image, float alpha, float multiplier = 8.f, float zoom = 0.f) const;
   void render_text(const std::string& text, float multiplier = 4.f) const;
   void render_subtext(float alpha, float multiplier = 6.f) const;
   void render_spiral() const;
@@ -73,20 +71,15 @@ public:
   bool change_visual(uint32_t chance);
 
 private:
-
-  bool init_framebuffer(uint32_t& fbo, uint32_t& fb_tex,
-                        uint32_t width, uint32_t height) const;
+  bool init_framebuffer(uint32_t& fbo, uint32_t& fb_tex, uint32_t width, uint32_t height) const;
   bool init_oculus_rift();
   sf::Vector2f off3d(float multiplier, bool text) const;
   uint32_t view_width() const;
 
-  void render_texture(float l, float t, float r, float b,
-                      bool flip_h, bool flip_v) const;
-  void render_raw_text(const std::string& text, const Font& font,
-                       const sf::Color& colour, const sf::Vector2f& offset = {},
-                       float scale = 1.f) const;
-  uint32_t get_cached_text_size(const FontCache& cache,
-                                const std::string& text,
+  void render_texture(float l, float t, float r, float b, bool flip_h, bool flip_v) const;
+  void render_raw_text(const std::string& text, const Font& font, const sf::Color& colour,
+                       const sf::Vector2f& offset = {}, float scale = 1.f) const;
+  uint32_t get_cached_text_size(const FontCache& cache, const std::string& text,
                                 const std::string& font) const;
   sf::Vector2f get_text_size(const std::string& text, const Font& font) const;
 
@@ -139,7 +132,6 @@ private:
   uint32_t _switch_themes;
   std::unique_ptr<Visual> _visual;
   std::unique_ptr<Visual> _old_visual;
-
 };
 
 #endif

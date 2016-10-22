@@ -1,8 +1,8 @@
 #include "playlist.h"
-#include "item_list.h"
-#include "main.h"
 #include "../common.h"
 #include "../session.h"
+#include "item_list.h"
+#include "main.h"
 
 #pragma warning(push, 0)
 #include <src/trance.pb.h>
@@ -15,95 +15,86 @@
 #include <wx/wrapsizer.h>
 #pragma warning(pop)
 
-namespace {
-  const std::string IS_FIRST_TOOLTIP =
-      "Whether this is the first playlist item used when the session starts.";
+namespace
+{
+const std::string IS_FIRST_TOOLTIP =
+    "Whether this is the first playlist item used when the session starts.";
 
-  const std::string PROGRAM_TOOLTIP =
-      "The program used for the duration of this playlist item.";
+const std::string PROGRAM_TOOLTIP = "The program used for the duration of this playlist item.";
 
-  const std::string PLAY_TIME_SECONDS_TOOLTIP =
-      "The duration (in seconds) that this playlist item lasts. "
-      "After the time is up, the next playlist item is chosen randomly based "
-      "on the weights assigned below.";
+const std::string PLAY_TIME_SECONDS_TOOLTIP =
+    "The duration (in seconds) that this playlist item lasts. "
+    "After the time is up, the next playlist item is chosen randomly based "
+    "on the weights assigned below.";
 
-  const std::string NEXT_ITEMS_TOOLTIP =
-      "After the time is up, the next playlist item is chosen randomly based "
-      "on the weights assigned below.";
+const std::string NEXT_ITEMS_TOOLTIP =
+    "After the time is up, the next playlist item is chosen randomly based "
+    "on the weights assigned below.";
 
-  const std::string NEXT_ITEM_CHOICE_TOOLTIP =
-      "Which playlist item might be chosen next.";
+const std::string NEXT_ITEM_CHOICE_TOOLTIP = "Which playlist item might be chosen next.";
 
-  const std::string NEXT_ITEM_WEIGHT_TOOLTIP =
-      "A higher weight makes this entry more likely to be chosen next.";
+const std::string NEXT_ITEM_WEIGHT_TOOLTIP =
+    "A higher weight makes this entry more likely to be chosen next.";
 
-  const std::string NEXT_ITEM_VARIABLE_TOOLTIP =
-      "A variable whose value controls whether this entry is available.";
+const std::string NEXT_ITEM_VARIABLE_TOOLTIP =
+    "A variable whose value controls whether this entry is available.";
 
-  const std::string NEXT_ITEM_VARIABLE_VALUE_TOOLTIP =
-      "The value that the chosen condition variable must have in order for "
-      "this entry to be available.";
+const std::string NEXT_ITEM_VARIABLE_VALUE_TOOLTIP =
+    "The value that the chosen condition variable must have in order for "
+    "this entry to be available.";
 
-  const std::string AUDIO_EVENT_TYPE_TOOLTIP =
-      "What kind of audio change to apply.";
+const std::string AUDIO_EVENT_TYPE_TOOLTIP = "What kind of audio change to apply.";
 
-  const std::string AUDIO_EVENT_CHANNEL_TOOLTIP =
-      "Which audio channel this audio event applies to.";
+const std::string AUDIO_EVENT_CHANNEL_TOOLTIP = "Which audio channel this audio event applies to.";
 
-  const std::string AUDIO_EVENT_PATH_TOOLTIP =
-      "Audio file to play.";
+const std::string AUDIO_EVENT_PATH_TOOLTIP = "Audio file to play.";
 
-  const std::string AUDIO_EVENT_LOOP_TOOLTIP =
-      "Whether to loop the file forever (or until another event interrupts it).";
+const std::string AUDIO_EVENT_LOOP_TOOLTIP =
+    "Whether to loop the file forever (or until another event interrupts it).";
 
-  const std::string AUDIO_EVENT_INITIAL_VOLUME_TOOLTIP =
-      "The initial volume of the audio channel used to play this file.";
+const std::string AUDIO_EVENT_INITIAL_VOLUME_TOOLTIP =
+    "The initial volume of the audio channel used to play this file.";
 
-  const std::string AUDIO_EVENT_FADE_VOLUME_TOOLTIP =
-      "Target volume of the audio channel after this volume fade.";
+const std::string AUDIO_EVENT_FADE_VOLUME_TOOLTIP =
+    "Target volume of the audio channel after this volume fade.";
 
-  const std::string AUDIO_EVENT_FADE_TIME_TOOLTIP =
-      "Time (in seconds) over which to apply the volume change.";
+const std::string AUDIO_EVENT_FADE_TIME_TOOLTIP =
+    "Time (in seconds) over which to apply the volume change.";
 }
 
-PlaylistPage::PlaylistPage(wxNotebook* parent,
-                           CreatorFrame& creator_frame,
+PlaylistPage::PlaylistPage(wxNotebook* parent, CreatorFrame& creator_frame,
                            trance_pb::Session& session)
-: wxNotebookPage{parent, wxID_ANY}
-, _creator_frame{creator_frame}
-, _session(session)
+: wxNotebookPage{parent, wxID_ANY}, _creator_frame{creator_frame}, _session(session)
 {
   auto sizer = new wxBoxSizer{wxVERTICAL};
-  auto splitter = new wxSplitterWindow{
-      this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-      wxSP_THIN_SASH | wxSP_LIVE_UPDATE};
+  auto splitter = new wxSplitterWindow{this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                                       wxSP_THIN_SASH | wxSP_LIVE_UPDATE};
   splitter->SetSashGravity(0);
   splitter->SetMinimumPaneSize(128);
 
   auto bottom_panel = new wxPanel{splitter, wxID_ANY};
   auto bottom = new wxBoxSizer{wxHORIZONTAL};
 
-  auto bottom_splitter = new wxSplitterWindow{
-      bottom_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-      wxSP_THIN_SASH | wxSP_LIVE_UPDATE};
+  auto bottom_splitter = new wxSplitterWindow{bottom_panel, wxID_ANY, wxDefaultPosition,
+                                              wxDefaultSize, wxSP_THIN_SASH | wxSP_LIVE_UPDATE};
   bottom_splitter->SetSashGravity(0.5);
   bottom_splitter->SetMinimumPaneSize(128);
 
   _left_panel = new wxPanel{bottom_splitter, wxID_ANY};
   auto left = new wxStaticBoxSizer{wxVERTICAL, _left_panel, "Playlist"};
   _right_panel = new wxPanel{bottom_splitter, wxID_ANY};
-  _audio_events_sizer =
-      new wxStaticBoxSizer{wxVERTICAL, _right_panel, "Audio events"};
+  _audio_events_sizer = new wxStaticBoxSizer{wxVERTICAL, _right_panel, "Audio events"};
 
   _item_list = new ItemList<trance_pb::PlaylistItem>{
       splitter, *session.mutable_playlist(), "playlist item",
-      [&](const std::string& s) { _item_selected = s; RefreshOurData(); },
-      std::bind(&CreatorFrame::PlaylistItemCreated, &_creator_frame,
-                std::placeholders::_1),
-      std::bind(&CreatorFrame::PlaylistItemDeleted, &_creator_frame,
-                std::placeholders::_1),
-      std::bind(&CreatorFrame::PlaylistItemRenamed, &_creator_frame,
-                std::placeholders::_1, std::placeholders::_2)};
+      [&](const std::string& s) {
+        _item_selected = s;
+        RefreshOurData();
+      },
+      std::bind(&CreatorFrame::PlaylistItemCreated, &_creator_frame, std::placeholders::_1),
+      std::bind(&CreatorFrame::PlaylistItemDeleted, &_creator_frame, std::placeholders::_1),
+      std::bind(&CreatorFrame::PlaylistItemRenamed, &_creator_frame, std::placeholders::_1,
+                std::placeholders::_2)};
 
   wxStaticText* label = nullptr;
   _is_first = new wxCheckBox{_left_panel, wxID_ANY, "First playlist item"};
@@ -115,8 +106,7 @@ PlaylistPage::PlaylistPage(wxNotebook* parent,
   _program = new wxChoice{_left_panel, wxID_ANY};
   _program->SetToolTip(PROGRAM_TOOLTIP);
   left->Add(_program, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
-  label = new wxStaticText{
-      _left_panel, wxID_ANY, "Play time (seconds):"};
+  label = new wxStaticText{_left_panel, wxID_ANY, "Play time (seconds):"};
   label->SetToolTip(PLAY_TIME_SECONDS_TOOLTIP);
   left->Add(label, 0, wxALL, DEFAULT_BORDER);
   _play_time_seconds = new wxSpinCtrl{_left_panel, wxID_ANY};
@@ -194,8 +184,7 @@ void PlaylistPage::RefreshOurData()
     }
     _play_time_seconds->SetValue(it->second.play_time_seconds());
     for (const auto& item : it->second.next_item()) {
-      AddNextItem(item.playlist_item_name(), item.random_weight(),
-                  item.condition_variable_name(),
+      AddNextItem(item.playlist_item_name(), item.random_weight(), item.condition_variable_name(),
                   item.condition_variable_value());
     }
     for (const auto& event : it->second.audio_event()) {
@@ -232,10 +221,8 @@ void PlaylistPage::RefreshDirectory(const std::string& directory)
   std::sort(_audio_files.begin(), _audio_files.end());
 }
 
-void PlaylistPage::AddNextItem(const std::string& name,
-                               std::uint32_t weight_value,
-                               const std::string& variable,
-                               const std::string& variable_value)
+void PlaylistPage::AddNextItem(const std::string& name, std::uint32_t weight_value,
+                               const std::string& variable, const std::string& variable_value)
 {
   std::vector<std::string> playlist_items;
   for (const auto& pair : _session.playlist()) {
@@ -336,56 +323,47 @@ void PlaylistPage::AddNextItem(const std::string& name,
       }
       it->second.mutable_next_item(int(index))->set_playlist_item_name(name);
     } else if (it->second.next_item_size() > int(index)) {
-      it->second.mutable_next_item()->erase(
-          index + it->second.mutable_next_item()->begin());
+      it->second.mutable_next_item()->erase(index + it->second.mutable_next_item()->begin());
     }
     _creator_frame.MakeDirty(true);
     RefreshOurData();
   });
 
-  weight->Bind(wxEVT_SPINCTRL, [&, index, weight](const wxCommandEvent&)
-  {
+  weight->Bind(wxEVT_SPINCTRL, [&, index, weight](const wxCommandEvent&) {
     auto it = _session.mutable_playlist()->find(_item_selected);
     if (it == _session.mutable_playlist()->end()) {
       return;
     }
-    it->second.mutable_next_item(int(index))->set_random_weight(
-        weight->GetValue());
+    it->second.mutable_next_item(int(index))->set_random_weight(weight->GetValue());
   });
 
-  variable_choice->Bind(
-      wxEVT_CHOICE,
-      [&, index, variable_choice](const wxCommandEvent&) {
-        auto it = _session.mutable_playlist()->find(_item_selected);
-        if (it == _session.mutable_playlist()->end()) {
-          return;
-        }
-        auto& item = *it->second.mutable_next_item(int(index));
-        if (!variable_choice->GetSelection()) {
-          item.clear_condition_variable_name();
-          item.clear_condition_variable_value();
-        } else {
-          std::string name =
-              variable_choice->GetString(variable_choice->GetSelection());
-          item.set_condition_variable_name(name);
-          auto variable_it = _session.variable_map().find(name);
-          item.set_condition_variable_value(
-              variable_it->second.default_value());
-        }
-        _creator_frame.MakeDirty(true);
-        RefreshOurData();
-      });
+  variable_choice->Bind(wxEVT_CHOICE, [&, index, variable_choice](const wxCommandEvent&) {
+    auto it = _session.mutable_playlist()->find(_item_selected);
+    if (it == _session.mutable_playlist()->end()) {
+      return;
+    }
+    auto& item = *it->second.mutable_next_item(int(index));
+    if (!variable_choice->GetSelection()) {
+      item.clear_condition_variable_name();
+      item.clear_condition_variable_value();
+    } else {
+      std::string name = variable_choice->GetString(variable_choice->GetSelection());
+      item.set_condition_variable_name(name);
+      auto variable_it = _session.variable_map().find(name);
+      item.set_condition_variable_value(variable_it->second.default_value());
+    }
+    _creator_frame.MakeDirty(true);
+    RefreshOurData();
+  });
 
   variable_value_choice->Bind(
-      wxEVT_CHOICE,
-      [&, index, variable_value_choice](const wxCommandEvent&) {
+      wxEVT_CHOICE, [&, index, variable_value_choice](const wxCommandEvent&) {
         auto it = _session.mutable_playlist()->find(_item_selected);
         if (it == _session.mutable_playlist()->end()) {
           return;
         }
         auto& item = *it->second.mutable_next_item(int(index));
-        std::string value = variable_value_choice->GetString(
-            variable_value_choice->GetSelection());
+        std::string value = variable_value_choice->GetString(variable_value_choice->GetSelection());
         item.set_condition_variable_value(value);
         _creator_frame.MakeDirty(true);
         RefreshOurData();
@@ -426,8 +404,7 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
       }
       e.set_type(trance_pb::AudioEvent::Type(type));
     } else if (it->second.audio_event_size() > int(index)) {
-      it->second.mutable_audio_event()->erase(
-          index + it->second.mutable_audio_event()->begin());
+      it->second.mutable_audio_event()->erase(index + it->second.mutable_audio_event()->begin());
     }
     _creator_frame.MakeDirty(true);
     RefreshOurData();
@@ -451,8 +428,7 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
       if (it == _session.mutable_playlist()->end()) {
         return;
       }
-      it->second.mutable_audio_event(int(index))->set_channel(
-          channel->GetValue());
+      it->second.mutable_audio_event(int(index))->set_channel(channel->GetValue());
       _creator_frame.MakeDirty(true);
     });
     wrap_sizer->Add(box_sizer, 0, wxEXPAND);
@@ -460,8 +436,9 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
   if (event.type() == trance_pb::AudioEvent::AUDIO_PLAY ||
       event.type() == trance_pb::AudioEvent::AUDIO_FADE) {
     box_sizer = new wxBoxSizer{wxHORIZONTAL};
-    auto tooltip = event.type() == trance_pb::AudioEvent::AUDIO_PLAY ?
-        AUDIO_EVENT_INITIAL_VOLUME_TOOLTIP : AUDIO_EVENT_FADE_VOLUME_TOOLTIP;
+    auto tooltip = event.type() == trance_pb::AudioEvent::AUDIO_PLAY
+        ? AUDIO_EVENT_INITIAL_VOLUME_TOOLTIP
+        : AUDIO_EVENT_FADE_VOLUME_TOOLTIP;
     auto label = new wxStaticText{_right_panel, wxID_ANY, "Volume:"};
     label->SetToolTip(tooltip);
     box_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
@@ -477,8 +454,7 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
       if (it == _session.mutable_playlist()->end()) {
         return;
       }
-      it->second.mutable_audio_event(int(index))->set_volume(
-          volume->GetValue());
+      it->second.mutable_audio_event(int(index))->set_volume(volume->GetValue());
       _creator_frame.MakeDirty(true);
     });
     wrap_sizer->Add(box_sizer, 0, wxEXPAND);
@@ -507,8 +483,7 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
     box_sizer->Add(loop, 0, wxALL, DEFAULT_BORDER);
     wrap_sizer->Add(box_sizer, 0, wxEXPAND);
 
-    path_choice->Bind(wxEVT_CHOICE, [&, index, path_choice]
-                                    (const wxCommandEvent&) {
+    path_choice->Bind(wxEVT_CHOICE, [&, index, path_choice](const wxCommandEvent&) {
       auto it = _session.mutable_playlist()->find(_item_selected);
       if (it == _session.mutable_playlist()->end()) {
         return;
@@ -518,8 +493,7 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
       _creator_frame.MakeDirty(true);
     });
 
-    loop->Bind(wxEVT_COMMAND_CHECKBOX_CLICKED, [&, index, loop]
-                                               (const wxCommandEvent&) {
+    loop->Bind(wxEVT_COMMAND_CHECKBOX_CLICKED, [&, index, loop](const wxCommandEvent&) {
       auto it = _session.mutable_playlist()->find(_item_selected);
       if (it == _session.mutable_playlist()->end()) {
         return;
@@ -546,8 +520,7 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
       if (it == _session.mutable_playlist()->end()) {
         return;
       }
-      it->second.mutable_audio_event(int(index))->set_time_seconds(
-          time->GetValue());
+      it->second.mutable_audio_event(int(index))->set_time_seconds(time->GetValue());
       _creator_frame.MakeDirty(true);
     });
   }

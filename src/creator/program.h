@@ -8,12 +8,13 @@
 #include <memory>
 #include <unordered_map>
 
-namespace trance_pb {
-  class Program;
-  class Session;
+namespace trance_pb
+{
+class Program;
+class Session;
 }
 class CreatorFrame;
-template<typename T>
+template <typename T>
 class ItemList;
 class wxBoxSizer;
 class wxCheckBox;
@@ -24,11 +25,10 @@ class wxSpinCtrl;
 class wxTreeListCtrl;
 class wxTreeListItem;
 
-class ProgramPage : public wxNotebookPage {
+class ProgramPage : public wxNotebookPage
+{
 public:
-  ProgramPage(wxNotebook* parent,
-              CreatorFrame& creator_frame,
-              trance_pb::Session& session);
+  ProgramPage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb::Session& session);
   ~ProgramPage();
   void RefreshOurData();
   void RefreshData();
@@ -43,8 +43,7 @@ private:
 
   ItemList<trance_pb::Program>* _item_list;
   std::unordered_map<unsigned int, wxSpinCtrl*> _visual_lookup;
-  std::unordered_map<std::string,
-                     std::pair<wxSpinCtrl*, wxCheckBox*>> _theme_lookup;
+  std::unordered_map<std::string, std::pair<wxSpinCtrl*, wxCheckBox*>> _theme_lookup;
 
   wxPanel* _leftleft_panel;
   wxBoxSizer* _themes_sizer;

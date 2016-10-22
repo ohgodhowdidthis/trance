@@ -5,14 +5,16 @@
 #include <mutex>
 #include <vector>
 
-namespace sf {
-  class Image;
+namespace sf
+{
+class Image;
 }
 struct vpx_image;
 
 // In-memory image with load-on-request OpenGL texture which is ref-counted
 // and automatically unloaded once no longer used.
-class Image {
+class Image
+{
 public:
   Image();
   Image(uint32_t width, uint32_t height, unsigned char* data);
@@ -36,8 +38,9 @@ private:
   static std::mutex textures_to_delete_mutex;
 
   struct texture_deleter {
-    texture_deleter(uint32_t texture)
-    : texture{texture} {}
+    texture_deleter(uint32_t texture) : texture{texture}
+    {
+    }
     ~texture_deleter();
     uint32_t texture;
   };

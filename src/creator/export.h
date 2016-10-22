@@ -5,21 +5,22 @@
 #include <wx/frame.h>
 #pragma warning(pop)
 
-namespace trance_pb {
-  class System;
+namespace trance_pb
+{
+class System;
 }
 class CreatorFrame;
 class wxSlider;
 class wxSpinCtrl;
 
-class ExportFrame : public wxFrame {
+class ExportFrame : public wxFrame
+{
 public:
   enum {
     ID_EXPORT = 11041,
     ID_CANCEL = 11040,
   };
-  ExportFrame(CreatorFrame* parent, trance_pb::System& system,
-              const std::string& default_path);
+  ExportFrame(CreatorFrame* parent, trance_pb::System& system, const std::string& default_path);
 
 private:
   void Export();

@@ -13,18 +13,20 @@
 #include <algorithm>
 #include <functional>
 
-template<typename T>
-class ItemList : public wxPanel {
+template <typename T>
+class ItemList : public wxPanel
+{
 public:
   using map_type = google::protobuf::Map<std::string, T>;
 
-  ~ItemList() override {}
+  ~ItemList() override
+  {
+  }
   ItemList(wxWindow* parent, map_type& data, const std::string& type_name,
            std::function<void(const std::string&)> on_change,
            std::function<void(const std::string&)> on_create,
            std::function<void(const std::string&)> on_delete,
-           std::function<void(const std::string&,
-                              const std::string&)> on_rename,
+           std::function<void(const std::string&, const std::string&)> on_rename,
            bool allow_empty = false)
   : wxPanel{parent, wxID_ANY}
   , _data{data}
@@ -39,11 +41,9 @@ public:
     auto sizer = new wxBoxSizer{wxHORIZONTAL};
     auto right = new wxBoxSizer{wxVERTICAL};
 
-    _list = new wxListCtrl{
-        this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-        wxLC_REPORT | wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_EDIT_LABELS};
-    _list->InsertColumn(0, "Name", wxLIST_FORMAT_LEFT,
-                        wxLIST_AUTOSIZE_USEHEADER);
+    _list = new wxListCtrl{this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                           wxLC_REPORT | wxLC_NO_HEADER | wxLC_SINGLE_SEL | wxLC_EDIT_LABELS};
+    _list->InsertColumn(0, "Name", wxLIST_FORMAT_LEFT, wxLIST_AUTOSIZE_USEHEADER);
     _list->SetToolTip("Available " + _type_name + "s.");
 
     _button_new = new wxButton{this, ID_NEW, "New"};
@@ -64,89 +64,93 @@ public:
     right->Add(_button_delete, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
     SetSizer(sizer);
 
-    _list->Bind(wxEVT_SIZE, [&](wxSizeEvent&)
-    {
-      _list->SetColumnWidth(0, wxLIST_AUTOSIZE_USEHEADER);
-    }, wxID_ANY);
+    _list->Bind(wxEVT_SIZE,
+                [&](wxSizeEvent&) { _list->SetColumnWidth(0, wxLIST_AUTOSIZE_USEHEADER); },
+                wxID_ANY);
 
-    Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
-    {
-      static const std::string new_name = "New " + _type_name;
-      auto name = new_name;
-      int number = 0;
-      while (_data.find(name) != _data.end()) {
-        name = new_name + " (" + std::to_string(number) + ")";
-        ++number;
-      }
-      _data[name] = {};
-      SetSelection(name);
-      RefreshData();
-      _on_create(name);
-    }, ID_NEW);
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED,
+         [&](wxCommandEvent&) {
+           static const std::string new_name = "New " + _type_name;
+           auto name = new_name;
+           int number = 0;
+           while (_data.find(name) != _data.end()) {
+             name = new_name + " (" + std::to_string(number) + ")";
+             ++number;
+           }
+           _data[name] = {};
+           SetSelection(name);
+           RefreshData();
+           _on_create(name);
+         },
+         ID_NEW);
 
-    Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
-    {
-      for (int i = 0; i < _list->GetItemCount(); ++i) {
-        if (_list->GetItemText(i) == _selection) {
-          _list->EditLabel(i);
-        }
-      }
-    }, ID_RENAME);
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED,
+         [&](wxCommandEvent&) {
+           for (int i = 0; i < _list->GetItemCount(); ++i) {
+             if (_list->GetItemText(i) == _selection) {
+               _list->EditLabel(i);
+             }
+           }
+         },
+         ID_RENAME);
 
-    Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
-    {
-      auto name = _selection + " copy";
-      int number = 0;
-      while (_data.find(name) != _data.end()) {
-        name = _selection + " copy (" + std::to_string(number) + ")";
-        ++number;
-      }
-      _data[name] = _data[_selection];
-      SetSelection(name);
-      RefreshData();
-      _on_create(name);
-    }, ID_DUPLICATE);
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED,
+         [&](wxCommandEvent&) {
+           auto name = _selection + " copy";
+           int number = 0;
+           while (_data.find(name) != _data.end()) {
+             name = _selection + " copy (" + std::to_string(number) + ")";
+             ++number;
+           }
+           _data[name] = _data[_selection];
+           SetSelection(name);
+           RefreshData();
+           _on_create(name);
+         },
+         ID_DUPLICATE);
 
-    Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&)
-    {
-      if (wxMessageBox(
-        "Really delete " + _type_name + " '" + _selection + "'?", "",
-        wxICON_QUESTION | wxYES_NO, this) == wxYES) {
-        auto name = _selection;
-        _data.erase(name);
-        RefreshData();
-        _on_delete(name);
-      }
-    }, ID_DELETE);
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED,
+         [&](wxCommandEvent&) {
+           if (wxMessageBox("Really delete " + _type_name + " '" + _selection + "'?", "",
+                            wxICON_QUESTION | wxYES_NO, this) == wxYES) {
+             auto name = _selection;
+             _data.erase(name);
+             RefreshData();
+             _on_delete(name);
+           }
+         },
+         ID_DELETE);
 
-    Bind(wxEVT_LIST_ITEM_SELECTED, [&](wxListEvent& e)
-    {
-      std::string text = _list->GetItemText(e.GetIndex());
-      SetSelection(text);
-    }, wxID_ANY);
+    Bind(wxEVT_LIST_ITEM_SELECTED,
+         [&](wxListEvent& e) {
+           std::string text = _list->GetItemText(e.GetIndex());
+           SetSelection(text);
+         },
+         wxID_ANY);
 
-    Bind(wxEVT_LIST_END_LABEL_EDIT, [&](wxListEvent& e)
-    {
-      if (e.IsEditCancelled()) {
-        return;
-      }
-      e.Veto();
-      std::string old_name = _selection;
-      std::string new_name = e.GetLabel();
-      if (new_name.empty()) {
-        return;
-      }
-      for (int i = 0; i < _list->GetItemCount(); ++i) {
-        if (_list->GetItemText(i) == new_name && i != e.GetIndex()) {
-          return;
-        }
-      }
-      _data[new_name] = _data[old_name];
-      _data.erase(old_name);
-      SetSelection(new_name);
-      RefreshData();
-      _on_rename(old_name, new_name);
-    }, wxID_ANY);
+    Bind(wxEVT_LIST_END_LABEL_EDIT,
+         [&](wxListEvent& e) {
+           if (e.IsEditCancelled()) {
+             return;
+           }
+           e.Veto();
+           std::string old_name = _selection;
+           std::string new_name = e.GetLabel();
+           if (new_name.empty()) {
+             return;
+           }
+           for (int i = 0; i < _list->GetItemCount(); ++i) {
+             if (_list->GetItemText(i) == new_name && i != e.GetIndex()) {
+               return;
+             }
+           }
+           _data[new_name] = _data[old_name];
+           _data.erase(old_name);
+           SetSelection(new_name);
+           RefreshData();
+           _on_rename(old_name, new_name);
+         },
+         wxID_ANY);
   }
 
   void RefreshData()
@@ -176,23 +180,23 @@ public:
     for (std::size_t i = 0; i < items.size(); ++i) {
       _list->SetItemText((long) i, items[i]);
       if (items[i] == _selection) {
-        _list->SetItemState(
-            (long) i, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
+        _list->SetItemState((long) i, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
       }
     }
     _button_rename->Enable(!items.empty());
     _button_duplicate->Enable(!items.empty());
-    _button_delete->Enable(
-        (_allow_empty && !items.empty()) || items.size() > 1);
+    _button_delete->Enable((_allow_empty && !items.empty()) || items.size() > 1);
   }
 
-  void ClearHighlights() {
+  void ClearHighlights()
+  {
     for (std::size_t i = 0; i < std::size_t(_list->GetItemCount()); ++i) {
       _list->SetItemBackgroundColour((long) i, *wxWHITE);
     }
   }
 
-  void AddHighlight(const std::string& item) {
+  void AddHighlight(const std::string& item)
+  {
     for (std::size_t i = 0; i < std::size_t(_list->GetItemCount()); ++i) {
       if (_list->GetItemText((long) i) == item) {
         _list->SetItemBackgroundColour((long) i, *wxLIGHT_GREY);
@@ -201,7 +205,8 @@ public:
   }
 
 private:
-  void SetSelection(const std::string& selection) {
+  void SetSelection(const std::string& selection)
+  {
     _selection = selection;
     _on_change(selection);
   }

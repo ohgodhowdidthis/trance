@@ -5,8 +5,9 @@
 #include <wx/frame.h>
 #pragma warning(pop)
 
-namespace trance_pb {
-  class System;
+namespace trance_pb
+{
+class System;
 }
 class CreatorFrame;
 class wxButton;
@@ -14,7 +15,8 @@ class wxCheckBox;
 class wxSlider;
 class wxSpinCtrl;
 
-class SettingsFrame : public wxFrame {
+class SettingsFrame : public wxFrame
+{
 public:
   enum {
     ID_OK = 10201,

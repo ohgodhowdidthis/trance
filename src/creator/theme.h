@@ -8,12 +8,13 @@
 #include <memory>
 #include <unordered_map>
 
-namespace trance_pb {
-  class Session;
-  class Theme;
+namespace trance_pb
+{
+class Session;
+class Theme;
 }
 class CreatorFrame;
-template<typename T>
+template <typename T>
 class ItemList;
 class ImagePanel;
 class wxButton;
@@ -21,11 +22,10 @@ class wxListCtrl;
 class wxTreeListCtrl;
 class wxTreeListItem;
 
-class ThemePage : public wxNotebookPage {
+class ThemePage : public wxNotebookPage
+{
 public:
-  ThemePage(wxNotebook* parent,
-            CreatorFrame& creator_frame,
-            trance_pb::Session& session,
+  ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb::Session& session,
             const std::string& session_path);
   ~ThemePage();
   void RefreshOurData();
