@@ -108,7 +108,6 @@ LaunchFrame::LaunchFrame(
   }
   auto top_bottom = new wxStaticBoxSizer{
       wxVERTICAL, panel, "Estimated running time"};
-  _text = new wxStaticText{panel, wxID_ANY, ""};
 
   std::unordered_map<std::string, std::string> last_variables;
   auto it = _system.last_session_map().find(_session_path);
@@ -125,12 +124,14 @@ LaunchFrame::LaunchFrame(
     bool has_last_value = jt != last_variables.end() &&
         std::find(pair.second.value().begin(), pair.second.value().end(),
                   jt->second) != pair.second.value().end();
-    for (const auto& value : pair.second.value()) {
+    std::vector<std::string> values{pair.second.value().begin(),
+                                    pair.second.value().end()};
+    std::sort(values.begin(), values.end());
+    for (const auto& value : values) {
       choice->Append(value);
       if ((has_last_value && value == jt->second) ||
           (!has_last_value && value == pair.second.default_value())) {
         choice->SetSelection(i);
-        RefreshTimeEstimate();
       }
       ++i;
     }
@@ -140,6 +141,9 @@ LaunchFrame::LaunchFrame(
     choice->SetToolTip(pair.second.description());
     top_inner->Add(label, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
     top_inner->Add(choice, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+
+    choice->Bind(wxEVT_CHOICE,
+                 [&](wxCommandEvent&) { RefreshTimeEstimate(); });
   }
 
   auto button_cancel = new wxButton{panel, ID_CANCEL, "Cancel"};
@@ -164,6 +168,7 @@ LaunchFrame::LaunchFrame(
           }
         }
       }
+      RefreshTimeEstimate();
     }, ID_DEFAULTS);
   }
 
@@ -176,6 +181,7 @@ LaunchFrame::LaunchFrame(
   if (!_session.variable_map().empty()) {
     top->Add(top_inner, 1, wxALL | wxEXPAND, DEFAULT_BORDER);
   }
+  _text = new wxStaticText{panel, wxID_ANY, ""};
   top_bottom->Add(_text, 1, wxALL | wxEXPAND, DEFAULT_BORDER);
   top->Add(top_bottom, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
   RefreshTimeEstimate();
@@ -220,7 +226,7 @@ void LaunchFrame::RefreshTimeEstimate()
   auto format = [](const TimeBounds& bounds) {
     if (bounds.min_seconds == bounds.max_seconds) {
       if (!bounds.min_seconds) {
-        return std::string{};
+        return std::string{"none"};
       }
       return format_time(bounds.min_seconds);
     }
@@ -230,17 +236,6 @@ void LaunchFrame::RefreshTimeEstimate()
 
   auto initial_sequence = format(play_time.initial_sequence);
   auto after_looping = format(play_time.after_looping);
-  std::string estimate;
-  if (initial_sequence.empty() && after_looping.empty()) {
-    estimate = "Loops forever.";
-  } else if (!initial_sequence.empty() && after_looping.empty()) {
-    estimate = "Main sequence of " +
-        initial_sequence + " followed by looping forever.";
-  } else if (initial_sequence.empty() && !after_looping.empty()) {
-    estimate = "Looping sequence of " + after_looping + ".";
-  } else  {
-    estimate = "Main sequence of " + initial_sequence +
-      " followed by looping sequence of " + after_looping + ".";
-  }
-  _text->SetLabel(estimate);
+  _text->SetLabel("Main sequence: " + initial_sequence +
+      ".\nLooping sequence: " + after_looping + ".");
 }
