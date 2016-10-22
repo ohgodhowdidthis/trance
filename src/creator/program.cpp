@@ -16,64 +16,64 @@
 
 namespace
 {
-int f2v(float f)
-{
-  return int(f * 10);
-}
+  int f2v(float f)
+  {
+    return int(f * 10);
+  }
 
-float v2f(int v)
-{
-  return float(v) / 10;
-}
+  float v2f(int v)
+  {
+    return float(v) / 10;
+  }
 
-void c2v(const trance_pb::Colour& c, wxColourPickerCtrl* colour, wxSpinCtrl* alpha)
-{
-  colour->SetColour(wxColour{unsigned char(255 * c.r()), unsigned char(255 * c.g()),
-                             unsigned char(255 * c.b()), unsigned char(alpha->GetValue())});
-  alpha->SetValue(unsigned char(255 * c.a()));
-}
+  void c2v(const trance_pb::Colour& c, wxColourPickerCtrl* colour, wxSpinCtrl* alpha)
+  {
+    colour->SetColour(wxColour{unsigned char(255 * c.r()), unsigned char(255 * c.g()),
+                               unsigned char(255 * c.b()), unsigned char(alpha->GetValue())});
+    alpha->SetValue(unsigned char(255 * c.a()));
+  }
 
-trance_pb::Colour v2c(wxColourPickerCtrl* colour, wxSpinCtrl* alpha)
-{
-  auto v = colour->GetColour();
-  trance_pb::Colour c;
-  c.set_r(v.Red() / 255.f);
-  c.set_g(v.Green() / 255.f);
-  c.set_b(v.Blue() / 255.f);
-  c.set_a(alpha->GetValue() / 255.f);
-  c2v(c, colour, alpha);
-  return c;
-}
+  trance_pb::Colour v2c(wxColourPickerCtrl* colour, wxSpinCtrl* alpha)
+  {
+    auto v = colour->GetColour();
+    trance_pb::Colour c;
+    c.set_r(v.Red() / 255.f);
+    c.set_g(v.Green() / 255.f);
+    c.set_b(v.Blue() / 255.f);
+    c.set_a(alpha->GetValue() / 255.f);
+    c2v(c, colour, alpha);
+    return c;
+  }
 
-const std::string ACCELERATE_TOOLTIP =
-    "Accelerates and decelerates changing images with overlaid text.";
-const std::string SLOW_FLASH_TOOLTIP =
-    "Alternates between slowly-changing images and animations, and "
-    "rapidly-changing images, with overlaid text.";
-const std::string SUB_TEXT_TOOLTIP = "Overlays subtle text on changing images.";
-const std::string FLASH_TEXT_TOOLTIP = "Smoothly fades between images, animations and text.";
-const std::string PARALLEL_TOOLTIP =
-    "Displays two images or animations at once with overlaid text.";
-const std::string SUPER_PARALLEL_TOOLTIP =
-    "Displays three images or animations at once with overlaid text.";
-const std::string ANIMATION_TOOLTIP = "Displays an animation with overlaid text.";
-const std::string SUPER_FAST_TOOLTIP =
-    "Splices rapidly-changing images and overlaid text with "
-    "brief clips of animation.";
+  const std::string ACCELERATE_TOOLTIP =
+      "Accelerates and decelerates changing images with overlaid text.";
+  const std::string SLOW_FLASH_TOOLTIP =
+      "Alternates between slowly-changing images and animations, and "
+      "rapidly-changing images, with overlaid text.";
+  const std::string SUB_TEXT_TOOLTIP = "Overlays subtle text on changing images.";
+  const std::string FLASH_TEXT_TOOLTIP = "Smoothly fades between images, animations and text.";
+  const std::string PARALLEL_TOOLTIP =
+      "Displays two images or animations at once with overlaid text.";
+  const std::string SUPER_PARALLEL_TOOLTIP =
+      "Displays three images or animations at once with overlaid text.";
+  const std::string ANIMATION_TOOLTIP = "Displays an animation with overlaid text.";
+  const std::string SUPER_FAST_TOOLTIP =
+      "Splices rapidly-changing images and overlaid text with "
+      "brief clips of animation.";
 
-const std::string GLOBAL_FPS_TOOLTIP =
-    "Global speed (in ticks per second) while this program is active. "
-    "Higher is faster. The default is 120.";
-const std::string ZOOM_INTENSITY_TOOLTIP =
-    "Intensity of the zoom effect on static images "
-    "(zero to disable entirely).";
-const std::string REVERSE_SPIRAL_TOOLTIP = "Reverse the spin direction of the spiral.";
-const std::string SPIRAL_COLOUR_TOOLTIP = "Two colours for the spiral.";
-const std::string TEXT_COLOUR_TOOLTIP = "Main colour and shadow effect colour for text messages.";
-const std::string PINNED_TOOLTIP =
-    "A pinned theme is always one of the two active themes while the "
-    "program is running. If a theme is pinned, the random weights are "
-    "used only for selecting the second theme.";
+  const std::string GLOBAL_FPS_TOOLTIP =
+      "Global speed (in ticks per second) while this program is active. "
+      "Higher is faster. The default is 120.";
+  const std::string ZOOM_INTENSITY_TOOLTIP =
+      "Intensity of the zoom effect on static images "
+      "(zero to disable entirely).";
+  const std::string REVERSE_SPIRAL_TOOLTIP = "Reverse the spin direction of the spiral.";
+  const std::string SPIRAL_COLOUR_TOOLTIP = "Two colours for the spiral.";
+  const std::string TEXT_COLOUR_TOOLTIP = "Main colour and shadow effect colour for text messages.";
+  const std::string PINNED_TOOLTIP =
+      "A pinned theme is always one of the two active themes while the "
+      "program is running. If a theme is pinned, the random weights are "
+      "used only for selecting the second theme.";
 }
 
 ProgramPage::ProgramPage(wxNotebook* parent, CreatorFrame& creator_frame,

@@ -13,74 +13,74 @@
 
 namespace
 {
-struct TimeBounds {
-  uint64_t min_seconds = -1;
-  uint64_t max_seconds = 0;
-};
-struct PlayTime {
-  TimeBounds initial_sequence;
-  TimeBounds after_looping;
-};
-
-PlayTime calculate_play_time(const trance_pb::Session& session,
-                             const std::unordered_map<std::string, std::string>& variables)
-{
-  PlayTime result;
-  struct LoopSearchEntry {
-    std::string playlist_item;
-    uint64_t seconds;
+  struct TimeBounds {
+    uint64_t min_seconds = -1;
+    uint64_t max_seconds = 0;
+  };
+  struct PlayTime {
+    TimeBounds initial_sequence;
+    TimeBounds after_looping;
   };
 
-  std::vector<std::vector<LoopSearchEntry>> queue;
-  std::unordered_map<std::string, TimeBounds> loop_times;
+  PlayTime calculate_play_time(const trance_pb::Session& session,
+                               const std::unordered_map<std::string, std::string>& variables)
+  {
+    PlayTime result;
+    struct LoopSearchEntry {
+      std::string playlist_item;
+      uint64_t seconds;
+    };
 
-  queue.push_back({{session.first_playlist_item(), 0}});
-  while (!queue.empty()) {
-    auto entry = queue.front();
-    queue.erase(queue.begin());
+    std::vector<std::vector<LoopSearchEntry>> queue;
+    std::unordered_map<std::string, TimeBounds> loop_times;
 
-    bool looped = false;
-    for (auto it = entry.begin(); it != std::prev(entry.end()); ++it) {
-      if (it->playlist_item == entry.back().playlist_item) {
-        looped = true;
-        auto initial_sequence = it->seconds;
-        auto after_looping = entry.back().seconds - it->seconds;
-        result.initial_sequence.max_seconds =
-            std::max(result.initial_sequence.max_seconds, initial_sequence);
-        result.initial_sequence.min_seconds =
-            std::min(result.initial_sequence.min_seconds, initial_sequence);
-        result.after_looping.max_seconds =
-            std::max(result.after_looping.max_seconds, after_looping);
-        result.after_looping.min_seconds =
-            std::min(result.after_looping.min_seconds, after_looping);
-        break;
+    queue.push_back({{session.first_playlist_item(), 0}});
+    while (!queue.empty()) {
+      auto entry = queue.front();
+      queue.erase(queue.begin());
+
+      bool looped = false;
+      for (auto it = entry.begin(); it != std::prev(entry.end()); ++it) {
+        if (it->playlist_item == entry.back().playlist_item) {
+          looped = true;
+          auto initial_sequence = it->seconds;
+          auto after_looping = entry.back().seconds - it->seconds;
+          result.initial_sequence.max_seconds =
+              std::max(result.initial_sequence.max_seconds, initial_sequence);
+          result.initial_sequence.min_seconds =
+              std::min(result.initial_sequence.min_seconds, initial_sequence);
+          result.after_looping.max_seconds =
+              std::max(result.after_looping.max_seconds, after_looping);
+          result.after_looping.min_seconds =
+              std::min(result.after_looping.min_seconds, after_looping);
+          break;
+        }
       }
-    }
-    if (looped) {
-      continue;
-    }
-
-    auto it = session.playlist().find(entry.back().playlist_item);
-    if (it == session.playlist().end()) {
-      continue;
-    }
-    bool any_next = false;
-    for (const auto& next : it->second.next_item()) {
-      if (!is_enabled(next, variables)) {
+      if (looped) {
         continue;
       }
-      queue.emplace_back(entry);
-      queue.back().push_back(
-          {next.playlist_item_name(), entry.back().seconds + it->second.play_time_seconds()});
-      any_next = true;
+
+      auto it = session.playlist().find(entry.back().playlist_item);
+      if (it == session.playlist().end()) {
+        continue;
+      }
+      bool any_next = false;
+      for (const auto& next : it->second.next_item()) {
+        if (!is_enabled(next, variables)) {
+          continue;
+        }
+        queue.emplace_back(entry);
+        queue.back().push_back(
+            {next.playlist_item_name(), entry.back().seconds + it->second.play_time_seconds()});
+        any_next = true;
+      }
+      if (!any_next) {
+        queue.emplace_back(entry);
+        queue.back().emplace_back(entry.back());
+      }
     }
-    if (!any_next) {
-      queue.emplace_back(entry);
-      queue.back().emplace_back(entry.back());
-    }
+    return result;
   }
-  return result;
-}
 }
 
 LaunchFrame::LaunchFrame(CreatorFrame* parent, trance_pb::System& system,

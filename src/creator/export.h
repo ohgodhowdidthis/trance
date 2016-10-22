@@ -7,7 +7,7 @@
 
 namespace trance_pb
 {
-class System;
+  class System;
 }
 class CreatorFrame;
 class wxSlider;

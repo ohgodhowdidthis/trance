@@ -11,8 +11,8 @@
 
 namespace trance_pb
 {
-class Session;
-class System;
+  class Session;
+  class System;
 }
 class CreatorFrame;
 class wxChoice;

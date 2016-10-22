@@ -17,10 +17,10 @@
 
 namespace trance_pb
 {
-class Program;
-class Session;
-class System;
-class Theme;
+  class Program;
+  class Session;
+  class System;
+  class Theme;
 }
 
 // ThemeBank keeps two Themes active at all times with a number of images

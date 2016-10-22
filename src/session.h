@@ -8,11 +8,11 @@ std::string make_relative(const std::string& from, const std::string& to);
 
 namespace trance_pb
 {
-class Colour;
-class PlaylistItem_NextItem;
-class Session;
-class System;
-class Theme;
+  class Colour;
+  class PlaylistItem_NextItem;
+  class Session;
+  class System;
+  class Theme;
 }
 
 bool is_image(const std::string& path);

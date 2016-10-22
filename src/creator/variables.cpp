@@ -18,10 +18,10 @@
 
 namespace
 {
-const std::string DEFAULT_VALUE_TOOLTIP = "The value to use by default.";
-const std::string DESCRIPTION_TOOLTIP =
-    "Description of what this variable controls. Displayed when choosing "
-    "a value for this variable on session launch.";
+  const std::string DEFAULT_VALUE_TOOLTIP = "The value to use by default.";
+  const std::string DESCRIPTION_TOOLTIP =
+      "Description of what this variable controls. Displayed when choosing "
+      "a value for this variable on session launch.";
 }
 
 VariablePage::VariablePage(wxNotebook* parent, CreatorFrame& creator_frame,
