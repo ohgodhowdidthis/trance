@@ -12,232 +12,233 @@
 
 namespace
 {
-trance_pb::Colour make_colour(float r, float g, float b, float a)
-{
-  trance_pb::Colour colour;
-  colour.set_r(r / 255);
-  colour.set_g(g / 255);
-  colour.set_b(b / 255);
-  colour.set_a(a / 255);
-  return colour;
-}
-
-std::string split_text_line(const std::string& text)
-{
-  // Split strings into two lines at the space closest to the middle. This is
-  // sort of ad-hoc. There should probably be a better way that can judge length
-  // and split over more than two lines.
-  auto l = text.length() / 2;
-  auto r = l;
-  while (true) {
-    if (text[r] == ' ') {
-      return text.substr(0, r) + '\n' + text.substr(r + 1);
-    }
-
-    if (text[l] == ' ') {
-      return text.substr(0, l) + '\n' + text.substr(l + 1);
-    }
-
-    if (l == 0 || r == text.length() - 1) {
-      break;
-    }
-    --l;
-    ++r;
+  trance_pb::Colour make_colour(float r, float g, float b, float a)
+  {
+    trance_pb::Colour colour;
+    colour.set_r(r / 255);
+    colour.set_g(g / 255);
+    colour.set_b(b / 255);
+    colour.set_a(a / 255);
+    return colour;
   }
-  return text;
-}
 
-void set_default_visual_types(trance_pb::Program& program)
-{
-  program.clear_visual_type();
-  auto add = [&](trance_pb::Program::VisualType type_enum) {
-    auto type = program.add_visual_type();
-    type->set_type(type_enum);
-    type->set_random_weight(1);
-  };
-
-  add(trance_pb::Program_VisualType_ACCELERATE);
-  add(trance_pb::Program_VisualType_SLOW_FLASH);
-  add(trance_pb::Program_VisualType_SUB_TEXT);
-  add(trance_pb::Program_VisualType_FLASH_TEXT);
-  add(trance_pb::Program_VisualType_PARALLEL);
-  add(trance_pb::Program_VisualType_SUPER_PARALLEL);
-  add(trance_pb::Program_VisualType_ANIMATION);
-  add(trance_pb::Program_VisualType_SUPER_FAST);
-}
-
-void set_default_program(trance_pb::Session& session, const std::string& name)
-{
-  auto& program = (*session.mutable_program_map())[name];
-  set_default_visual_types(program);
-  program.set_global_fps(120);
-  program.set_zoom_intensity(.5f);
-  *program.mutable_spiral_colour_a() = make_colour(255, 150, 200, 50);
-  *program.mutable_spiral_colour_b() = make_colour(0, 0, 0, 50);
-  program.set_reverse_spiral_direction(false);
-
-  *program.mutable_main_text_colour() = make_colour(255, 150, 200, 224);
-  *program.mutable_shadow_text_colour() = make_colour(0, 0, 0, 192);
-}
-
-void set_default_playlist(trance_pb::Session& session, const std::string& program)
-{
-  (*session.mutable_playlist())["default"].set_program(program);
-}
-
-void validate_colour(trance_pb::Colour& colour)
-{
-  colour.set_r(std::max(0.f, std::min(1.f, colour.r())));
-  colour.set_g(std::max(0.f, std::min(1.f, colour.g())));
-  colour.set_b(std::max(0.f, std::min(1.f, colour.b())));
-  colour.set_a(std::max(0.f, std::min(1.f, colour.a())));
-}
-
-void validate_program(trance_pb::Program& program, const trance_pb::Session& session)
-{
-  for (const auto& deprecated_theme : program.enabled_theme_name()) {
-    auto t = program.add_enabled_theme();
-    t->set_theme_name(deprecated_theme);
-    t->set_random_weight(1);
-  }
-  program.clear_enabled_theme_name();
-
-  uint32_t count = 0;
-  std::string pinned;
-  for (auto& theme : *program.mutable_enabled_theme()) {
-    if (session.theme_map().find(theme.theme_name()) != session.theme_map().end()) {
-      count += theme.random_weight();
-      if (theme.pinned()) {
-        if (pinned.empty()) {
-          pinned = theme.theme_name();
-        } else {
-          theme.set_pinned(false);
-        }
+  std::string split_text_line(const std::string& text)
+  {
+    // Split strings into two lines at the space closest to the middle. This is
+    // sort of ad-hoc. There should probably be a better way that can judge length
+    // and split over more than two lines.
+    auto l = text.length() / 2;
+    auto r = l;
+    while (true) {
+      if (text[r] == ' ') {
+        return text.substr(0, r) + '\n' + text.substr(r + 1);
       }
-    } else {
-      theme.set_random_weight(0);
-      theme.set_pinned(false);
-    }
-  }
-  if (!count) {
-    program.clear_enabled_theme();
-    if (!pinned.empty()) {
-      auto t = program.add_enabled_theme();
-      t->set_theme_name(pinned);
-      t->set_random_weight(1);
-    } else
-      for (const auto& pair : session.theme_map()) {
-        auto t = program.add_enabled_theme();
-        t->set_theme_name(pair.first);
-        t->set_random_weight(1);
+
+      if (text[l] == ' ') {
+        return text.substr(0, l) + '\n' + text.substr(l + 1);
       }
+
+      if (l == 0 || r == text.length() - 1) {
+        break;
+      }
+      --l;
+      ++r;
+    }
+    return text;
   }
-  count = 0;
-  for (const auto& type : program.visual_type()) {
-    count += type.random_weight();
+
+  void set_default_visual_types(trance_pb::Program& program)
+  {
+    program.clear_visual_type();
+    auto add = [&](trance_pb::Program::VisualType type_enum) {
+      auto type = program.add_visual_type();
+      type->set_type(type_enum);
+      type->set_random_weight(1);
+    };
+
+    add(trance_pb::Program_VisualType_ACCELERATE);
+    add(trance_pb::Program_VisualType_SLOW_FLASH);
+    add(trance_pb::Program_VisualType_SUB_TEXT);
+    add(trance_pb::Program_VisualType_FLASH_TEXT);
+    add(trance_pb::Program_VisualType_PARALLEL);
+    add(trance_pb::Program_VisualType_SUPER_PARALLEL);
+    add(trance_pb::Program_VisualType_ANIMATION);
+    add(trance_pb::Program_VisualType_SUPER_FAST);
   }
-  if (!count) {
+
+  void set_default_program(trance_pb::Session& session, const std::string& name)
+  {
+    auto& program = (*session.mutable_program_map())[name];
     set_default_visual_types(program);
-  }
-  program.set_global_fps(std::max(1u, std::min(240u, program.global_fps())));
-  program.set_zoom_intensity(std::max(0.f, std::min(1.f, program.zoom_intensity())));
-  validate_colour(*program.mutable_spiral_colour_a());
-  validate_colour(*program.mutable_spiral_colour_b());
-  validate_colour(*program.mutable_main_text_colour());
-  validate_colour(*program.mutable_shadow_text_colour());
-}
+    program.set_global_fps(120);
+    program.set_zoom_intensity(.5f);
+    *program.mutable_spiral_colour_a() = make_colour(255, 150, 200, 50);
+    *program.mutable_spiral_colour_b() = make_colour(0, 0, 0, 50);
+    program.set_reverse_spiral_direction(false);
 
-void validate_playlist_item(trance_pb::PlaylistItem& playlist_item, trance_pb::Session& session)
-{
-  auto it = session.program_map().find(playlist_item.program());
-  if (it == session.program_map().end()) {
-    set_default_program(session, playlist_item.program());
+    *program.mutable_main_text_colour() = make_colour(255, 150, 200, 224);
+    *program.mutable_shadow_text_colour() = make_colour(0, 0, 0, 192);
   }
 
-  bool has_next_item = false;
-  for (auto& next_item : *playlist_item.mutable_next_item()) {
-    auto it = session.playlist().find(next_item.playlist_item_name());
-    if (next_item.random_weight() > 0 && it != session.playlist().end()) {
-      has_next_item = true;
-      break;
+  void set_default_playlist(trance_pb::Session& session, const std::string& program)
+  {
+    (*session.mutable_playlist())["default"].set_program(program);
+  }
+
+  void validate_colour(trance_pb::Colour& colour)
+  {
+    colour.set_r(std::max(0.f, std::min(1.f, colour.r())));
+    colour.set_g(std::max(0.f, std::min(1.f, colour.g())));
+    colour.set_b(std::max(0.f, std::min(1.f, colour.b())));
+    colour.set_a(std::max(0.f, std::min(1.f, colour.a())));
+  }
+
+  void validate_program(trance_pb::Program& program, const trance_pb::Session& session)
+  {
+    for (const auto& deprecated_theme : program.enabled_theme_name()) {
+      auto t = program.add_enabled_theme();
+      t->set_theme_name(deprecated_theme);
+      t->set_random_weight(1);
+    }
+    program.clear_enabled_theme_name();
+
+    uint32_t count = 0;
+    std::string pinned;
+    for (auto& theme : *program.mutable_enabled_theme()) {
+      if (session.theme_map().find(theme.theme_name()) != session.theme_map().end()) {
+        count += theme.random_weight();
+        if (theme.pinned()) {
+          if (pinned.empty()) {
+            pinned = theme.theme_name();
+          } else {
+            theme.set_pinned(false);
+          }
+        }
+      } else {
+        theme.set_random_weight(0);
+        theme.set_pinned(false);
+      }
+    }
+    if (!count) {
+      program.clear_enabled_theme();
+      if (!pinned.empty()) {
+        auto t = program.add_enabled_theme();
+        t->set_theme_name(pinned);
+        t->set_random_weight(1);
+      } else
+        for (const auto& pair : session.theme_map()) {
+          auto t = program.add_enabled_theme();
+          t->set_theme_name(pair.first);
+          t->set_random_weight(1);
+        }
+    }
+    count = 0;
+    for (const auto& type : program.visual_type()) {
+      count += type.random_weight();
+    }
+    if (!count) {
+      set_default_visual_types(program);
+    }
+    program.set_global_fps(std::max(1u, std::min(240u, program.global_fps())));
+    program.set_zoom_intensity(std::max(0.f, std::min(1.f, program.zoom_intensity())));
+    validate_colour(*program.mutable_spiral_colour_a());
+    validate_colour(*program.mutable_spiral_colour_b());
+    validate_colour(*program.mutable_main_text_colour());
+    validate_colour(*program.mutable_shadow_text_colour());
+  }
+
+  void validate_playlist_item(trance_pb::PlaylistItem& playlist_item, trance_pb::Session& session)
+  {
+    auto it = session.program_map().find(playlist_item.program());
+    if (it == session.program_map().end()) {
+      set_default_program(session, playlist_item.program());
     }
 
-    auto variable_it = session.variable_map().find(next_item.condition_variable_name());
-    if (variable_it == session.variable_map().end()) {
-      next_item.clear_condition_variable_name();
-      next_item.clear_condition_variable_value();
-    } else {
-      auto& data = variable_it->second.value();
-      if (std::find(data.begin(), data.end(), next_item.condition_variable_value()) == data.end()) {
+    bool has_next_item = false;
+    for (auto& next_item : *playlist_item.mutable_next_item()) {
+      auto it = session.playlist().find(next_item.playlist_item_name());
+      if (next_item.random_weight() > 0 && it != session.playlist().end()) {
+        has_next_item = true;
+        break;
+      }
+
+      auto variable_it = session.variable_map().find(next_item.condition_variable_name());
+      if (variable_it == session.variable_map().end()) {
         next_item.clear_condition_variable_name();
         next_item.clear_condition_variable_value();
+      } else {
+        auto& data = variable_it->second.value();
+        if (std::find(data.begin(), data.end(), next_item.condition_variable_value()) ==
+            data.end()) {
+          next_item.clear_condition_variable_name();
+          next_item.clear_condition_variable_value();
+        }
       }
     }
-  }
-  if (!has_next_item) {
-    playlist_item.set_play_time_seconds(0);
-  }
-}
-
-void validate_variable(trance_pb::Variable& variable)
-{
-  if (!variable.value_size()) {
-    variable.add_value("Default");
-  }
-  bool found_default = false;
-  for (const auto& value : variable.value()) {
-    if (value == variable.default_value()) {
-      found_default = true;
+    if (!has_next_item) {
+      playlist_item.set_play_time_seconds(0);
     }
   }
-  if (!found_default) {
-    variable.set_default_value(variable.value(0));
-  }
-}
 
-template <typename T>
-T load_proto(const std::string& path)
-{
-  T proto;
-  std::ifstream f{path};
-  if (f) {
-    std::string str{std::istreambuf_iterator<char>{f}, std::istreambuf_iterator<char>{}};
-    if (google::protobuf::TextFormat::ParseFromString(str, &proto)) {
-      return proto;
+  void validate_variable(trance_pb::Variable& variable)
+  {
+    if (!variable.value_size()) {
+      variable.add_value("Default");
+    }
+    bool found_default = false;
+    for (const auto& value : variable.value()) {
+      if (value == variable.default_value()) {
+        found_default = true;
+      }
+    }
+    if (!found_default) {
+      variable.set_default_value(variable.value(0));
     }
   }
-  throw std::runtime_error("couldn't load " + path);
-}
 
-void save_proto(const google::protobuf::Message& proto, const std::string& path)
-{
-  std::string str;
-  google::protobuf::TextFormat::PrintToString(proto, &str);
-  std::ofstream f{path};
-  f << str;
-}
+  template <typename T>
+  T load_proto(const std::string& path)
+  {
+    T proto;
+    std::ifstream f{path};
+    if (f) {
+      std::string str{std::istreambuf_iterator<char>{f}, std::istreambuf_iterator<char>{}};
+      if (google::protobuf::TextFormat::ParseFromString(str, &proto)) {
+        return proto;
+      }
+    }
+    throw std::runtime_error("couldn't load " + path);
+  }
 
-std::tr2::sys::path make_relative(const std::tr2::sys::path& from, const std::tr2::sys::path& to)
-{
-  auto cfrom = std::tr2::sys::canonical(from);
-  auto cto = std::tr2::sys::canonical(to);
+  void save_proto(const google::protobuf::Message& proto, const std::string& path)
+  {
+    std::string str;
+    google::protobuf::TextFormat::PrintToString(proto, &str);
+    std::ofstream f{path};
+    f << str;
+  }
 
-  auto from_it = cfrom.begin();
-  auto to_it = cto.begin();
-  while (from_it != cfrom.end() && to_it != cto.end() && *from_it == *to_it) {
-    ++from_it;
-    ++to_it;
+  std::tr2::sys::path make_relative(const std::tr2::sys::path& from, const std::tr2::sys::path& to)
+  {
+    auto cfrom = std::tr2::sys::canonical(from);
+    auto cto = std::tr2::sys::canonical(to);
+
+    auto from_it = cfrom.begin();
+    auto to_it = cto.begin();
+    while (from_it != cfrom.end() && to_it != cto.end() && *from_it == *to_it) {
+      ++from_it;
+      ++to_it;
+    }
+    if (from_it != cfrom.end()) {
+      return to;
+    }
+    std::tr2::sys::path result = ".";
+    while (to_it != cto.end()) {
+      result.append(*to_it);
+      ++to_it;
+    }
+    return result;
   }
-  if (from_it != cfrom.end()) {
-    return to;
-  }
-  std::tr2::sys::path result = ".";
-  while (to_it != cto.end()) {
-    result.append(*to_it);
-    ++to_it;
-  }
-  return result;
-}
 
 } // anonymous namespace
 

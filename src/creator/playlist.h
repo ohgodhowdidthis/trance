@@ -10,9 +10,9 @@
 
 namespace trance_pb
 {
-class AudioEvent;
-class PlaylistItem;
-class Session;
+  class AudioEvent;
+  class PlaylistItem;
+  class Session;
 }
 class CreatorFrame;
 template <typename T>

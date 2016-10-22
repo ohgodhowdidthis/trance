@@ -7,12 +7,12 @@
 
 namespace trance_pb
 {
-class AudioEvent;
-class PlaylistItem;
+  class AudioEvent;
+  class PlaylistItem;
 }
 namespace sf
 {
-class Music;
+  class Music;
 }
 
 class Audio

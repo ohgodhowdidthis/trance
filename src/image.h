@@ -7,7 +7,7 @@
 
 namespace sf
 {
-class Image;
+  class Image;
 }
 struct vpx_image;
 

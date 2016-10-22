@@ -43,13 +43,13 @@ struct Font {
 
 namespace std
 {
-template <>
-struct hash<Font::key_t> {
-  std::size_t operator()(const Font::key_t& key) const
-  {
-    return std::hash<std::string>()(key.path) + key.char_size;
-  }
-};
+  template <>
+  struct hash<Font::key_t> {
+    std::size_t operator()(const Font::key_t& key) const
+    {
+      return std::hash<std::string>()(key.path) + key.char_size;
+    }
+  };
 }
 
 // SFML's Font object works like this: it has a texture for each character size,

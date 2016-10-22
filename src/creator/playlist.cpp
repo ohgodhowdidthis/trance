@@ -17,49 +17,50 @@
 
 namespace
 {
-const std::string IS_FIRST_TOOLTIP =
-    "Whether this is the first playlist item used when the session starts.";
+  const std::string IS_FIRST_TOOLTIP =
+      "Whether this is the first playlist item used when the session starts.";
 
-const std::string PROGRAM_TOOLTIP = "The program used for the duration of this playlist item.";
+  const std::string PROGRAM_TOOLTIP = "The program used for the duration of this playlist item.";
 
-const std::string PLAY_TIME_SECONDS_TOOLTIP =
-    "The duration (in seconds) that this playlist item lasts. "
-    "After the time is up, the next playlist item is chosen randomly based "
-    "on the weights assigned below.";
+  const std::string PLAY_TIME_SECONDS_TOOLTIP =
+      "The duration (in seconds) that this playlist item lasts. "
+      "After the time is up, the next playlist item is chosen randomly based "
+      "on the weights assigned below.";
 
-const std::string NEXT_ITEMS_TOOLTIP =
-    "After the time is up, the next playlist item is chosen randomly based "
-    "on the weights assigned below.";
+  const std::string NEXT_ITEMS_TOOLTIP =
+      "After the time is up, the next playlist item is chosen randomly based "
+      "on the weights assigned below.";
 
-const std::string NEXT_ITEM_CHOICE_TOOLTIP = "Which playlist item might be chosen next.";
+  const std::string NEXT_ITEM_CHOICE_TOOLTIP = "Which playlist item might be chosen next.";
 
-const std::string NEXT_ITEM_WEIGHT_TOOLTIP =
-    "A higher weight makes this entry more likely to be chosen next.";
+  const std::string NEXT_ITEM_WEIGHT_TOOLTIP =
+      "A higher weight makes this entry more likely to be chosen next.";
 
-const std::string NEXT_ITEM_VARIABLE_TOOLTIP =
-    "A variable whose value controls whether this entry is available.";
+  const std::string NEXT_ITEM_VARIABLE_TOOLTIP =
+      "A variable whose value controls whether this entry is available.";
 
-const std::string NEXT_ITEM_VARIABLE_VALUE_TOOLTIP =
-    "The value that the chosen condition variable must have in order for "
-    "this entry to be available.";
+  const std::string NEXT_ITEM_VARIABLE_VALUE_TOOLTIP =
+      "The value that the chosen condition variable must have in order for "
+      "this entry to be available.";
 
-const std::string AUDIO_EVENT_TYPE_TOOLTIP = "What kind of audio change to apply.";
+  const std::string AUDIO_EVENT_TYPE_TOOLTIP = "What kind of audio change to apply.";
 
-const std::string AUDIO_EVENT_CHANNEL_TOOLTIP = "Which audio channel this audio event applies to.";
+  const std::string AUDIO_EVENT_CHANNEL_TOOLTIP =
+      "Which audio channel this audio event applies to.";
 
-const std::string AUDIO_EVENT_PATH_TOOLTIP = "Audio file to play.";
+  const std::string AUDIO_EVENT_PATH_TOOLTIP = "Audio file to play.";
 
-const std::string AUDIO_EVENT_LOOP_TOOLTIP =
-    "Whether to loop the file forever (or until another event interrupts it).";
+  const std::string AUDIO_EVENT_LOOP_TOOLTIP =
+      "Whether to loop the file forever (or until another event interrupts it).";
 
-const std::string AUDIO_EVENT_INITIAL_VOLUME_TOOLTIP =
-    "The initial volume of the audio channel used to play this file.";
+  const std::string AUDIO_EVENT_INITIAL_VOLUME_TOOLTIP =
+      "The initial volume of the audio channel used to play this file.";
 
-const std::string AUDIO_EVENT_FADE_VOLUME_TOOLTIP =
-    "Target volume of the audio channel after this volume fade.";
+  const std::string AUDIO_EVENT_FADE_VOLUME_TOOLTIP =
+      "Target volume of the audio channel after this volume fade.";
 
-const std::string AUDIO_EVENT_FADE_TIME_TOOLTIP =
-    "Time (in seconds) over which to apply the volume change.";
+  const std::string AUDIO_EVENT_FADE_TIME_TOOLTIP =
+      "Time (in seconds) over which to apply the volume change.";
 }
 
 PlaylistPage::PlaylistPage(wxNotebook* parent, CreatorFrame& creator_frame,

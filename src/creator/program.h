@@ -10,8 +10,8 @@
 
 namespace trance_pb
 {
-class Program;
-class Session;
+  class Program;
+  class Session;
 }
 class CreatorFrame;
 template <typename T>

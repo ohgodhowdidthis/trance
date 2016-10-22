@@ -16,26 +16,26 @@
 
 namespace
 {
-const std::string WIDTH_TOOLTIP = "Width, in pixels, of the exported video.";
-const std::string HEIGHT_TOOLTIP = "Height, in pixels, of the exported video.";
-const std::string FPS_TOOLTIP = "Number of frames per second in the exported video.";
-const std::string LENGTH_TOOLTIP = "Length, in seconds, of the exported video.";
-const std::string THREADS_TOOLTIP =
-    "Number of threads to use for rendering the video. "
-    "Increase to make use of all CPU cores.";
-const std::string QUALITY_TOOLTIP =
-    "Quality of the exported video. 0 is best, 4 is worst. "
-    "Better-quality videos take longer to export.";
+  const std::string WIDTH_TOOLTIP = "Width, in pixels, of the exported video.";
+  const std::string HEIGHT_TOOLTIP = "Height, in pixels, of the exported video.";
+  const std::string FPS_TOOLTIP = "Number of frames per second in the exported video.";
+  const std::string LENGTH_TOOLTIP = "Length, in seconds, of the exported video.";
+  const std::string THREADS_TOOLTIP =
+      "Number of threads to use for rendering the video. "
+      "Increase to make use of all CPU cores.";
+  const std::string QUALITY_TOOLTIP =
+      "Quality of the exported video. 0 is best, 4 is worst. "
+      "Better-quality videos take longer to export.";
 
-const std::vector<std::string> EXPORT_FILE_PATTERNS = {
-    "H.264 video (*.h264)|*.h264",       "WebM video (*.webm)|*.webm",
-    "JPEG frame-by-frame (*.jpg)|*.jpg", "PNG frame-by-frame (*.png)|*.png",
-    "BMP frame-by-frame (*.bmp)|*.bmp",
-};
+  const std::vector<std::string> EXPORT_FILE_PATTERNS = {
+      "H.264 video (*.h264)|*.h264",       "WebM video (*.webm)|*.webm",
+      "JPEG frame-by-frame (*.jpg)|*.jpg", "PNG frame-by-frame (*.png)|*.png",
+      "BMP frame-by-frame (*.bmp)|*.bmp",
+  };
 
-const std::vector<std::string> EXPORT_FILE_EXTENSIONS = {
-    "h264", "webm", "jpg", "png", "bmp",
-};
+  const std::vector<std::string> EXPORT_FILE_EXTENSIONS = {
+      "h264", "webm", "jpg", "png", "bmp",
+  };
 }
 
 ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,

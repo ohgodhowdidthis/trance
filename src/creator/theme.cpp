@@ -24,60 +24,60 @@
 
 namespace
 {
-std::string NlToUser(const std::string& nl)
-{
-  std::string s = nl;
-  std::string r;
-  bool first = true;
-  while (!s.empty()) {
-    auto p = s.find_first_of('\n');
-    auto q = s.substr(0, p != std::string::npos ? p : s.size());
-    r += (first ? "" : "  /  ") + q;
-    first = false;
-    s = s.substr(p != std::string::npos ? 1 + p : s.size());
-  }
-  return r;
-}
-
-std::string StripUserNls(const std::string& nl)
-{
-  std::string s = nl;
-  std::string r;
-  bool first = true;
-  while (!s.empty()) {
-    auto p = s.find("\\n");
-    auto q = s.substr(0, p != std::string::npos ? p : s.size());
-    r += (first ? "" : "/") + q;
-    first = false;
-    s = s.substr(p != std::string::npos ? 2 + p : s.size());
-  }
-  return r;
-}
-
-std::string UserToNl(const std::string& user)
-{
-  std::string s = StripUserNls(user);
-  std::string r;
-  bool first = true;
-  std::replace(s.begin(), s.end(), '\\', '/');
-  while (!s.empty()) {
-    auto p = s.find_first_of('/');
-    auto q = s.substr(0, p != std::string::npos ? p : s.size());
-    while (!q.empty() && q[0] == ' ') {
-      q = q.substr(1);
-    }
-    while (!q.empty() && q[q.size() - 1] == ' ') {
-      q = q.substr(0, q.size() - 1);
-    }
-    if (!q.empty()) {
-      r += (first ? "" : "\n") + q;
+  std::string NlToUser(const std::string& nl)
+  {
+    std::string s = nl;
+    std::string r;
+    bool first = true;
+    while (!s.empty()) {
+      auto p = s.find_first_of('\n');
+      auto q = s.substr(0, p != std::string::npos ? p : s.size());
+      r += (first ? "" : "  /  ") + q;
       first = false;
+      s = s.substr(p != std::string::npos ? 1 + p : s.size());
     }
-    s = s.substr(p != std::string::npos ? 1 + p : s.size());
-    p = s.find_first_of('/');
+    return r;
   }
-  return r;
-}
+
+  std::string StripUserNls(const std::string& nl)
+  {
+    std::string s = nl;
+    std::string r;
+    bool first = true;
+    while (!s.empty()) {
+      auto p = s.find("\\n");
+      auto q = s.substr(0, p != std::string::npos ? p : s.size());
+      r += (first ? "" : "/") + q;
+      first = false;
+      s = s.substr(p != std::string::npos ? 2 + p : s.size());
+    }
+    return r;
+  }
+
+  std::string UserToNl(const std::string& user)
+  {
+    std::string s = StripUserNls(user);
+    std::string r;
+    bool first = true;
+    std::replace(s.begin(), s.end(), '\\', '/');
+    while (!s.empty()) {
+      auto p = s.find_first_of('/');
+      auto q = s.substr(0, p != std::string::npos ? p : s.size());
+      while (!q.empty() && q[0] == ' ') {
+        q = q.substr(1);
+      }
+      while (!q.empty() && q[q.size() - 1] == ' ') {
+        q = q.substr(0, q.size() - 1);
+      }
+      if (!q.empty()) {
+        r += (first ? "" : "\n") + q;
+        first = false;
+      }
+      s = s.substr(p != std::string::npos ? 1 + p : s.size());
+      p = s.find_first_of('/');
+    }
+    return r;
+  }
 }
 
 class ImagePanel : public wxPanel

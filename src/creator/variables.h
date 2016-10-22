@@ -7,8 +7,8 @@
 
 namespace trance_pb
 {
-class Session;
-class Variable;
+  class Session;
+  class Variable;
 }
 class CreatorFrame;
 template <typename T>

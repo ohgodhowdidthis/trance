@@ -20,9 +20,9 @@
 
 namespace trance_pb
 {
-class Program;
-class Session;
-class System;
+  class Program;
+  class Session;
+  class System;
 }
 
 struct Font;
