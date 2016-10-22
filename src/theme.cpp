@@ -184,10 +184,10 @@ const std::string& ThemeBank::get_text(bool alternate, bool exclusive)
     const static std::string none;
     return none;
   }
-  auto text = theme.text_lines[theme.text_shuffler.next()];
   if (!exclusive) {
-    return text;
+    return theme.text_lines[theme.text_shuffler.next()];
   }
+  auto text = theme.text_lines[theme.text_shuffler.next()];
   for (auto& other_theme : _themes) {
     auto it = other_theme->text_lookup.find(text);
     if (it != other_theme->text_lookup.end()) {

@@ -1,13 +1,14 @@
 #ifndef TRANCE_SESSION_H
 #define TRANCE_SESSION_H
-
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 std::string make_relative(const std::string& from, const std::string& to);
 
 namespace trance_pb {
   class Colour;
+  class PlaylistItem_NextItem;
   class Session;
   class System;
   class Theme;
@@ -18,6 +19,9 @@ bool is_animation(const std::string& path);
 bool is_font(const std::string& path);
 bool is_text_file(const std::string& path);
 bool is_audio_file(const std::string& path);
+
+bool is_enabled(const trance_pb::PlaylistItem_NextItem& next_item,
+                const std::unordered_map<std::string, std::string>& variables);
 
 void search_resources(trance_pb::Session& session, const std::string& root);
 void search_resources(trance_pb::Theme& theme, const std::string& root);
