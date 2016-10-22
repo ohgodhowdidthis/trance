@@ -8,13 +8,13 @@
 #pragma warning(push, 0)
 #include <gflags/gflags.h>
 #include <libovr/OVR_CAPI.h>
-#include <SFML/Window.hpp>
 #include <src/trance.pb.h>
+#include <SFML/Window.hpp>
 #pragma warning(pop)
 
 #include <chrono>
-#include <iostream>
 #include <filesystem>
+#include <iostream>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -32,13 +32,11 @@ std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
   if (ext_is(settings.path, "h264")) {
     exporter = std::make_unique<H264Exporter>(settings);
   }
-  return exporter && exporter->success() ?
-      std::move(exporter) : std::unique_ptr<Exporter>{};
+  return exporter && exporter->success() ? std::move(exporter) : std::unique_ptr<Exporter>{};
 }
 
-std::unique_ptr<sf::RenderWindow> create_window(
-    const trance_pb::System& system,
-    uint32_t width, uint32_t height, bool visible, bool oculus_rift)
+std::unique_ptr<sf::RenderWindow> create_window(const trance_pb::System& system, uint32_t width,
+                                                uint32_t height, bool visible, bool oculus_rift)
 {
   auto window = std::make_unique<sf::RenderWindow>();
   glClearColor(0.f, 0.f, 0.f, 0.f);
@@ -49,9 +47,9 @@ std::unique_ptr<sf::RenderWindow> create_window(
     video_mode.width = width;
     video_mode.height = height;
   }
-  auto style =
-      !visible || oculus_rift ? sf::Style::None :
-      system.windowed() ? sf::Style::Default : sf::Style::Fullscreen;
+  auto style = !visible || oculus_rift
+      ? sf::Style::None
+      : system.windowed() ? sf::Style::Default : sf::Style::Fullscreen;
   window->create(video_mode, "trance", style);
 
   window->setVerticalSyncEnabled(system.enable_vsync());
@@ -61,9 +59,8 @@ std::unique_ptr<sf::RenderWindow> create_window(
   return window;
 }
 
-std::string next_playlist_item(
-    const std::unordered_map<std::string, std::string>& variables,
-    const trance_pb::PlaylistItem* item)
+std::string next_playlist_item(const std::unordered_map<std::string, std::string>& variables,
+                               const trance_pb::PlaylistItem* item)
 {
   uint32_t total = 0;
   for (const auto& next : item->next_item()) {
@@ -83,19 +80,17 @@ std::string next_playlist_item(
   return {};
 }
 
-static const std::string bad_alloc =
-    "OUT OF MEMORY! TRY REDUCING USAGE IN SETTINGS...";
+static const std::string bad_alloc = "OUT OF MEMORY! TRY REDUCING USAGE IN SETTINGS...";
 static const uint32_t async_millis = 10;
 
 std::thread run_async_thread(std::atomic<bool>& running, ThemeBank& bank)
 {
   // Run the asynchronous load/unload thread.
-  return std::thread{[&]{
+  return std::thread{[&] {
     while (running) {
       try {
         bank.async_update();
-      }
-      catch (std::bad_alloc&) {
+      } catch (std::bad_alloc&) {
         std::cerr << bad_alloc << std::endl;
         running = false;
         throw;
@@ -110,8 +105,7 @@ void handle_events(std::atomic<bool>& running, sf::RenderWindow* window)
   sf::Event event;
   while (window && window->pollEvent(event)) {
     if (event.type == event.Closed ||
-        (event.type == event.KeyPressed &&
-          event.key.code == sf::Keyboard::Escape)) {
+        (event.type == event.KeyPressed && event.key.code == sf::Keyboard::Escape)) {
       running = false;
     }
     if (event.type == sf::Event::Resized) {
@@ -120,26 +114,23 @@ void handle_events(std::atomic<bool>& running, sf::RenderWindow* window)
   }
 }
 
-void print_info(double elapsed_seconds,
-                uint64_t frames, uint64_t total_frames)
+void print_info(double elapsed_seconds, uint64_t frames, uint64_t total_frames)
 {
   float completion = float(frames) / total_frames;
   auto elapsed = uint64_t(elapsed_seconds + .5);
-  auto eta = uint64_t(
-      .5 + (completion ? elapsed_seconds * (1. / completion - 1.) : 0.));
+  auto eta = uint64_t(.5 + (completion ? elapsed_seconds * (1. / completion - 1.) : 0.));
   auto percentage = uint64_t(100 * completion);
 
-  std::cout << std::endl <<
-      "frame: " << frames << " / " << total_frames << " [" << percentage <<
-      "%]; elapsed: " << format_time(elapsed) << "; eta: " <<
-      format_time(eta) << std::endl;
+  std::cout << std::endl
+            << "frame: " << frames << " / " << total_frames << " [" << percentage
+            << "%]; elapsed: " << format_time(elapsed) << "; eta: " << format_time(eta)
+            << std::endl;
 }
 
-void play_session(
-    const std::string& root_path, const trance_pb::Session& session,
-    const trance_pb::System& system,
-    const std::unordered_map<std::string, std::string> variables,
-    const exporter_settings& settings)
+void play_session(const std::string& root_path, const trance_pb::Session& session,
+                  const trance_pb::System& system,
+                  const std::unordered_map<std::string, std::string> variables,
+                  const exporter_settings& settings)
 {
   bool realtime = settings.path.empty();
   auto exporter = create_exporter(settings);
@@ -158,22 +149,19 @@ void play_session(
 
   const trance_pb::PlaylistItem* item =
       &session.playlist().find(session.first_playlist_item())->second;
-  auto program = [&]() -> const trance_pb::Program&
-  {
+  auto program = [&]() -> const trance_pb::Program& {
     return session.program_map().find(item->program())->second;
   };
 
   std::cout << "loading themes" << std::endl;
-  auto theme_bank =
-      std::make_unique<ThemeBank>(root_path, session, system, program());
+  auto theme_bank = std::make_unique<ThemeBank>(root_path, session, system, program());
   std::cout << "\nloaded themes" << std::endl;
-  auto window = create_window(
-      system, realtime ? 0 : settings.width, realtime ? 0 : settings.height,
-      realtime, oculus_rift);
+  auto window = create_window(system, realtime ? 0 : settings.width, realtime ? 0 : settings.height,
+                              realtime, oculus_rift);
   std::cout << "\nloading session" << std::endl;
-  auto director = std::make_unique<Director>(
-      *window, session, system, *theme_bank, program(),
-      realtime, oculus_rift, exporter && exporter->requires_yuv_input());
+  auto director =
+      std::make_unique<Director>(*window, session, system, *theme_bank, program(), realtime,
+                                 oculus_rift, exporter && exporter->requires_yuv_input());
   std::cout << "\nloaded session" << std::endl;
 
   std::thread async_thread;
@@ -194,10 +182,9 @@ void play_session(
     uint64_t async_update_residual = 0;
     double elapsed_frames_residual = 0;
     std::chrono::high_resolution_clock clock;
-    auto clock_time = [&]
-    {
-      return std::chrono::duration_cast<std::chrono::milliseconds>(
-          clock.now().time_since_epoch()).count();
+    auto clock_time = [&] {
+      return std::chrono::duration_cast<std::chrono::milliseconds>(clock.now().time_since_epoch())
+          .count();
     };
     const auto clock_start = clock_time();
     auto last_clock_time = clock_start;
@@ -211,8 +198,7 @@ void play_session(
         auto t = clock_time();
         auto elapsed_ms = t - last_clock_time;
         last_clock_time = t;
-        elapsed_frames_residual +=
-            double(program().global_fps()) * double(elapsed_ms) / 1000.;
+        elapsed_frames_residual += double(program().global_fps()) * double(elapsed_ms) / 1000.;
         while (elapsed_frames_residual >= 1.) {
           --elapsed_frames_residual;
           ++frames_this_loop;
@@ -234,8 +220,7 @@ void play_session(
         }
       }
 
-      async_update_residual +=
-          uint64_t(1000. * frames_this_loop / double(program().global_fps()));
+      async_update_residual += uint64_t(1000. * frames_this_loop / double(program().global_fps()));
       while (!realtime && async_update_residual >= async_millis) {
         async_update_residual -= async_millis;
         theme_bank->async_update();
@@ -278,8 +263,7 @@ void play_session(
         exporter->encode_frame(director->get_screen_data());
       }
     }
-  }
-  catch (std::bad_alloc&) {
+  } catch (std::bad_alloc&) {
     std::cerr << bad_alloc << std::endl;
     throw;
   }
@@ -295,8 +279,7 @@ void play_session(
   }
 }
 
-std::unordered_map<std::string, std::string>
-parse_variables(const std::string& variables)
+std::unordered_map<std::string, std::string> parse_variables(const std::string& variables)
 {
   std::unordered_map<std::string, std::string> result;
   std::vector<std::string> current;
@@ -350,8 +333,7 @@ parse_variables(const std::string& variables)
   return {};
 }
 
-DEFINE_string(variables, "",
-              "semicolon-separated list of key=value variable assignments");
+DEFINE_string(variables, "", "semicolon-separated list of key=value variable assignments");
 DEFINE_string(export_path, "", "export video to this path");
 DEFINE_uint64(export_width, 1280, "export video resolution width");
 DEFINE_uint64(export_height, 720, "export video resolution height");
@@ -372,19 +354,19 @@ int main(int argc, char** argv)
     std::cout << "variable " << pair.first << " = " << pair.second << std::endl;
   }
 
-  exporter_settings settings{
-      FLAGS_export_path,
-      uint32_t(FLAGS_export_width), uint32_t(FLAGS_export_height),
-      uint32_t(FLAGS_export_fps), uint32_t(FLAGS_export_length),
-      std::min(uint32_t(4), uint32_t(FLAGS_export_quality)),
-      uint32_t(FLAGS_export_threads)};
+  exporter_settings settings{FLAGS_export_path,
+                             uint32_t(FLAGS_export_width),
+                             uint32_t(FLAGS_export_height),
+                             uint32_t(FLAGS_export_fps),
+                             uint32_t(FLAGS_export_length),
+                             std::min(uint32_t(4), uint32_t(FLAGS_export_quality)),
+                             uint32_t(FLAGS_export_threads)};
 
   std::string session_path{argc >= 2 ? argv[1] : "./" + DEFAULT_SESSION_PATH};
   trance_pb::Session session;
   try {
     session = load_session(session_path);
-  }
-  catch (std::runtime_error& e) {
+  } catch (std::runtime_error& e) {
     std::cerr << e.what() << std::endl;
     session = get_default_session();
     search_resources(session, ".");
@@ -395,8 +377,7 @@ int main(int argc, char** argv)
   trance_pb::System system;
   try {
     system = load_system(system_path);
-  }
-  catch (std::runtime_error& e) {
+  } catch (std::runtime_error& e) {
     std::cerr << e.what() << std::endl;
     system = get_default_system();
     save_system(system, system_path);

@@ -1,17 +1,17 @@
 ﻿#include "director.h"
+#include <algorithm>
+#include <iostream>
 #include "session.h"
 #include "theme.h"
 #include "util.h"
 #include "visual.h"
-#include <algorithm>
-#include <iostream>
 
 #pragma warning(push, 0)
 extern "C" {
 #include <GL/glew.h>
 }
-#include <SFML/OpenGL.hpp>
 #include <src/trance.pb.h>
+#include <SFML/OpenGL.hpp>
 #pragma warning(pop)
 
 static const uint32_t spiral_type_max = 7;
@@ -260,18 +260,14 @@ void main(void)
 
 static sf::Color colour2sf(const trance_pb::Colour& colour)
 {
-  return sf::Color(
-    sf::Uint8(colour.r() * 255),
-    sf::Uint8(colour.g() * 255),
-    sf::Uint8(colour.b() * 255),
-    sf::Uint8(colour.a() * 255));
+  return sf::Color(sf::Uint8(colour.r() * 255), sf::Uint8(colour.g() * 255),
+                   sf::Uint8(colour.b() * 255), sf::Uint8(colour.a() * 255));
 }
 
-Director::Director(sf::RenderWindow& window,
-                   const trance_pb::Session& session,
-                   const trance_pb::System& system,
-                   ThemeBank& themes, const trance_pb::Program& program,
-                   bool realtime, bool oculus_rift, bool convert_to_yuv)
+Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
+                   const trance_pb::System& system, ThemeBank& themes,
+                   const trance_pb::Program& program, bool realtime, bool oculus_rift,
+                   bool convert_to_yuv)
 : _window{window}
 , _session{session}
 , _system{system}
@@ -300,8 +296,7 @@ Director::Director(sf::RenderWindow& window,
 
   GLenum ok = glewInit();
   if (ok != GLEW_OK) {
-    std::cerr << "couldn't initialise GLEW: " <<
-        glewGetErrorString(ok) << std::endl;
+    std::cerr << "couldn't initialise GLEW: " << glewGetErrorString(ok) << std::endl;
   }
 
   if (!GLEW_VERSION_2_1) {
@@ -312,8 +307,8 @@ Director::Director(sf::RenderWindow& window,
     std::cerr << "OpenGL non-power-of-two textures not available" << std::endl;
   }
 
-  if (!GLEW_ARB_shading_language_100 || !GLEW_ARB_shader_objects ||
-      !GLEW_ARB_vertex_shader || !GLEW_ARB_fragment_shader) {
+  if (!GLEW_ARB_shading_language_100 || !GLEW_ARB_shader_objects || !GLEW_ARB_vertex_shader ||
+      !GLEW_ARB_fragment_shader) {
     std::cerr << "OpenGL shaders not available" << std::endl;
   }
 
@@ -324,8 +319,7 @@ Director::Director(sf::RenderWindow& window,
   if (oculus_rift) {
     if (_realtime) {
       _oculus.enabled = init_oculus_rift();
-    }
-    else {
+    } else {
       _oculus.enabled = true;
     }
   }
@@ -342,8 +336,7 @@ Director::Director(sf::RenderWindow& window,
     themes.get_image(true);
   }
 
-  auto compile_shader = [&](GLuint shader)
-  {
+  auto compile_shader = [&](GLuint shader) {
     glCompileShader(shader);
     GLint success = 0;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
@@ -359,8 +352,7 @@ Director::Director(sf::RenderWindow& window,
     }
   };
 
-  auto link = [&](GLuint program)
-  {
+  auto link = [&](GLuint program) {
     glLinkProgram(program);
     GLint success = 0;
     glGetProgramiv(program, GL_LINK_STATUS, &success);
@@ -368,7 +360,7 @@ Director::Director(sf::RenderWindow& window,
     if (!success) {
       GLint log_size = 0;
       glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_size);
- 
+
       char* error_log = new char[log_size];
       glGetProgramInfoLog(program, log_size, &log_size, error_log);
       std::cerr << error_log;
@@ -376,9 +368,7 @@ Director::Director(sf::RenderWindow& window,
     }
   };
 
-  auto compile = [&](const std::string& vertex_text,
-                     const std::string& fragment_text)
-  {
+  auto compile = [&](const std::string& vertex_text, const std::string& fragment_text) {
     GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
     GLuint fragment = glCreateShader(GL_FRAGMENT_SHADER);
 
@@ -403,25 +393,14 @@ Director::Director(sf::RenderWindow& window,
   _text_program = compile(text_vertex, text_fragment);
   _yuv_program = compile(yuv_vertex, yuv_fragment);
 
-  static const float quad_data[] = {
-    -1.f, -1.f,
-    1.f, -1.f,
-    -1.f, 1.f,
-    1.f, -1.f,
-    1.f, 1.f,
-    -1.f, 1.f};
+  static const float quad_data[] = {-1.f, -1.f, 1.f, -1.f, -1.f, 1.f,
+                                    1.f,  -1.f, 1.f, 1.f,  -1.f, 1.f};
   glGenBuffers(1, &_quad_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, _quad_buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, quad_data, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  static const float tex_data[] = {
-    0.f, 1.f,
-    1.f, 1.f,
-    0.f, 0.f,
-    1.f, 1.f,
-    1.f, 0.f,
-    0.f, 0.f};
+  static const float tex_data[] = {0.f, 1.f, 1.f, 1.f, 0.f, 0.f, 1.f, 1.f, 1.f, 0.f, 0.f, 0.f};
   glGenBuffers(1, &_tex_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, _tex_buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, tex_data, GL_STATIC_DRAW);
@@ -446,8 +425,7 @@ Director::Director(sf::RenderWindow& window,
     };
 
     for (const auto& pair : session.theme_map()) {
-      if (!std::count(pair.second.font_path().begin(),
-                      pair.second.font_path().end(), font)) {
+      if (!std::count(pair.second.font_path().begin(), pair.second.font_path().end(), font)) {
         continue;
       }
       for (const auto& text : pair.second.text_line()) {
@@ -529,18 +507,17 @@ void Director::render() const
     glClear(GL_COLOR_BUFFER_BIT);
     _oculus.rendering_right = false;
     _visual->render();
-  }
-  else if (to_oculus) {
+  } else if (to_oculus) {
     if (_oculus.started) {
       auto timing = ovr_GetPredictedDisplayTime(_oculus.session, 0);
       auto sensorTime = ovr_GetTimeInSeconds();
       auto tracking = ovr_GetTrackingState(_oculus.session, timing, true);
-      ovr_CalcEyePoses(tracking.HeadPose.ThePose,
-                        _oculus.eye_view_offset, _oculus.layer.RenderPose);
+      ovr_CalcEyePoses(tracking.HeadPose.ThePose, _oculus.eye_view_offset,
+                       _oculus.layer.RenderPose);
 
       int index = 0;
-      auto result = ovr_GetTextureSwapChainCurrentIndex(
-          _oculus.session, _oculus.texture_chain, &index);
+      auto result =
+          ovr_GetTextureSwapChainCurrentIndex(_oculus.session, _oculus.texture_chain, &index);
       if (result != ovrSuccess) {
         std::cerr << "Oculus texture swap chain index failed" << std::endl;
       }
@@ -555,8 +532,7 @@ void Director::render() const
         _visual->render();
       }
 
-      result =
-          ovr_CommitTextureSwapChain(_oculus.session, _oculus.texture_chain);
+      result = ovr_CommitTextureSwapChain(_oculus.session, _oculus.texture_chain);
       if (result != ovrSuccess) {
         std::cerr << "Oculus commit texture swap chain failed" << std::endl;
       }
@@ -568,14 +544,12 @@ void Director::render() const
         std::cerr << "Oculus submit frame failed" << std::endl;
       }
     }
-  }
-  else {
+  } else {
     glBindFramebuffer(GL_FRAMEBUFFER, to_window ? 0 : _render_fbo);
     glClear(GL_COLOR_BUFFER_BIT);
     for (int eye = 0; eye < 2; ++eye) {
       _oculus.rendering_right = eye == ovrEye_Right;
-      glViewport(_oculus.rendering_right * view_width(), 0,
-                 view_width(), _height);
+      glViewport(_oculus.rendering_right * view_width(), 0, view_width(), _height);
       _visual->render();
     }
   }
@@ -594,10 +568,8 @@ void Director::render() const
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _render_fb_tex);
 
-    glUniform1f(glGetUniformLocation(_yuv_program, "yuv_mix"),
-                _convert_to_yuv ? 1.f : 0.f);
-    glUniform2f(glGetUniformLocation(_yuv_program, "resolution"),
-                float(_width), float(_height));
+    glUniform1f(glGetUniformLocation(_yuv_program, "yuv_mix"), _convert_to_yuv ? 1.f : 0.f);
+    glUniform2f(glGetUniformLocation(_yuv_program, "resolution"), float(_width), float(_height));
     auto loc = glGetAttribLocation(_yuv_program, "position");
     glEnableVertexAttribArray(loc);
     glBindBuffer(GL_ARRAY_BUFFER, _quad_buffer);
@@ -610,8 +582,7 @@ void Director::render() const
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   if (!_realtime) {
     glBindTexture(GL_TEXTURE_2D, _yuv_fb_tex);
-    glGetTexImage(
-        GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, _screen_data.get());
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, _screen_data.get());
   }
   if (to_window) {
     _window.display();
@@ -665,24 +636,21 @@ void Director::maybe_upload_next() const
   _themes.maybe_upload_next();
 }
 
-void Director::render_animation_or_image(
-    Anim type, const Image& image,
-    float alpha, float multiplier, float zoom) const
+void Director::render_animation_or_image(Anim type, const Image& image, float alpha,
+                                         float multiplier, float zoom) const
 {
-  Image anim = _themes.get_animation(
-      type == Anim::ANIM_ALTERNATE,
-      std::size_t((120.f / _program->global_fps()) * _switch_themes / 8));
+  Image anim =
+      _themes.get_animation(type == Anim::ANIM_ALTERNATE,
+                            std::size_t((120.f / _program->global_fps()) * _switch_themes / 8));
 
   if (type != Anim::NONE && anim) {
     render_image(anim, alpha, multiplier, zoom);
-  }
-  else {
+  } else {
     render_image(image, alpha, multiplier, zoom);
   }
 }
 
-void Director::render_image(const Image& image, float alpha,
-                            float multiplier, float zoom) const
+void Director::render_image(const Image& image, float alpha, float multiplier, float zoom) const
 {
   glEnable(GL_BLEND);
   glDisable(GL_TEXTURE_2D);
@@ -694,8 +662,7 @@ void Director::render_image(const Image& image, float alpha,
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, image.texture());
   glUniform1f(glGetUniformLocation(_image_program, "alpha"), alpha);
-  glUniform1f(glGetUniformLocation(_image_program, "zoom"),
-              _program->zoom_intensity() * zoom);
+  glUniform1f(glGetUniformLocation(_image_program, "zoom"), _program->zoom_intensity() * zoom);
 
   GLuint ploc = glGetAttribLocation(_image_program, "position");
   glEnableVertexAttribArray(ploc);
@@ -724,23 +691,15 @@ void Director::render_image(const Image& image, float alpha,
       auto x2 = offx3d + _width / 2 + x / 2;
       auto y1 = _height / 2 - y / 2;
       auto y2 = _height / 2 + y / 2;
-      render_texture(x1 - i * x, y1 - j * y,
-                     x2 - i * x, y2 - j * y,
-                     i % 2 != 0, j % 2 != 0);
+      render_texture(x1 - i * x, y1 - j * y, x2 - i * x, y2 - j * y, i % 2 != 0, j % 2 != 0);
       if (i != 0) {
-        render_texture(x1 + i * x, y1 - j * y,
-                       x2 + i * x, y2 - j * y,
-                       i % 2 != 0, j % 2 != 0);
+        render_texture(x1 + i * x, y1 - j * y, x2 + i * x, y2 - j * y, i % 2 != 0, j % 2 != 0);
       }
       if (j != 0) {
-        render_texture(x1 - i * x, y1 + j * y,
-                       x2 - i * x, y2 + j * y,
-                       i % 2 != 0, j % 2 != 0);
+        render_texture(x1 - i * x, y1 + j * y, x2 - i * x, y2 + j * y, i % 2 != 0, j % 2 != 0);
       }
       if (i != 0 && j != 0) {
-        render_texture(x1 + i * x, y1 + j * y,
-                       x2 + i * x, y2 + j * y,
-                       i % 2 != 0, j % 2 != 0);
+        render_texture(x1 + i * x, y1 + j * y, x2 + i * x, y2 + j * y, i % 2 != 0, j % 2 != 0);
       }
     }
   }
@@ -762,14 +721,12 @@ void Director::render_text(const std::string& text, float multiplier) const
   }
   auto main_size = it->second;
   auto shadow_size = main_size + FontCache::char_size_lock;
-  render_raw_text(
-      text, _fonts.get_font(_current_font, shadow_size),
-      colour2sf(_program->shadow_text_colour()), off3d(1.f + multiplier, true),
-      std::exp((4.f - multiplier) / 16.f));
-  render_raw_text(
-      text, _fonts.get_font(_current_font, main_size),
-      colour2sf(_program->main_text_colour()), off3d(multiplier, true),
-      std::exp((4.f - multiplier) / 16.f));
+  render_raw_text(text, _fonts.get_font(_current_font, shadow_size),
+                  colour2sf(_program->shadow_text_colour()), off3d(1.f + multiplier, true),
+                  std::exp((4.f - multiplier) / 16.f));
+  render_raw_text(text, _fonts.get_font(_current_font, main_size),
+                  colour2sf(_program->main_text_colour()), off3d(multiplier, true),
+                  std::exp((4.f - multiplier) / 16.f));
 }
 
 void Director::render_subtext(float alpha, float multiplier) const
@@ -782,14 +739,12 @@ void Director::render_subtext(float alpha, float multiplier) const
   std::size_t n = 0;
   const auto& font = _fonts.get_font(_current_subfont, char_size);
 
-  auto make_text = [&]
-  {
+  auto make_text = [&] {
     std::string t;
     do {
       t += " " + _subtext[n];
       n = (n + 1) % _subtext.size();
-    }
-    while (get_text_size(t, font).x < _width);
+    } while (get_text_size(t, font).x < _width);
     return t;
   };
 
@@ -821,23 +776,19 @@ void Director::render_spiral() const
 
   glUseProgram(_spiral_program);
   glUniform1f(glGetUniformLocation(_spiral_program, "time"), _spiral);
-  glUniform2f(glGetUniformLocation(_spiral_program, "resolution"),
-              float(view_width()), float(_height));
+  glUniform2f(glGetUniformLocation(_spiral_program, "resolution"), float(view_width()),
+              float(_height));
 
-  float offset = off3d(0.f, false).x +
-      (_oculus.rendering_right ? float(view_width()) : 0.f);
-  glUniform1f(glGetUniformLocation(_spiral_program, "offset"),
-              _oculus.enabled ? offset : 0.f);
-  glUniform1f(glGetUniformLocation(_spiral_program, "width"),
-              float(_spiral_width));
-  glUniform1f(glGetUniformLocation(_spiral_program, "spiral_type"),
-              float(_spiral_type));
-  glUniform4f(glGetUniformLocation(_spiral_program, "acolour"),
-              _program->spiral_colour_a().r(), _program->spiral_colour_a().g(),
-              _program->spiral_colour_a().b(), _program->spiral_colour_a().a());
-  glUniform4f(glGetUniformLocation(_spiral_program, "bcolour"),
-              _program->spiral_colour_b().r(), _program->spiral_colour_b().g(),
-              _program->spiral_colour_b().b(), _program->spiral_colour_b().a());
+  float offset = off3d(0.f, false).x + (_oculus.rendering_right ? float(view_width()) : 0.f);
+  glUniform1f(glGetUniformLocation(_spiral_program, "offset"), _oculus.enabled ? offset : 0.f);
+  glUniform1f(glGetUniformLocation(_spiral_program, "width"), float(_spiral_width));
+  glUniform1f(glGetUniformLocation(_spiral_program, "spiral_type"), float(_spiral_type));
+  glUniform4f(glGetUniformLocation(_spiral_program, "acolour"), _program->spiral_colour_a().r(),
+              _program->spiral_colour_a().g(), _program->spiral_colour_a().b(),
+              _program->spiral_colour_a().a());
+  glUniform4f(glGetUniformLocation(_spiral_program, "bcolour"), _program->spiral_colour_b().r(),
+              _program->spiral_colour_b().g(), _program->spiral_colour_b().b(),
+              _program->spiral_colour_b().a());
 
   auto loc = glGetAttribLocation(_spiral_program, "position");
   glEnableVertexAttribArray(loc);
@@ -913,8 +864,7 @@ bool Director::change_themes()
 bool Director::change_visual(uint32_t chance)
 {
   // Like !random_chance(chance), but scaled to speed.
-  if (_old_visual ||
-      (chance && random(chance * _program->global_fps()) >= 120)) {
+  if (_old_visual || (chance && random(chance * _program->global_fps()) >= 120)) {
     return false;
   }
   _current_subfont = _themes.get_font(false);
@@ -961,8 +911,8 @@ bool Director::change_visual(uint32_t chance)
   return true;
 }
 
-bool Director::init_framebuffer(uint32_t& fbo, uint32_t& fb_tex,
-                                uint32_t width, uint32_t height) const
+bool Director::init_framebuffer(uint32_t& fbo, uint32_t& fb_tex, uint32_t width,
+                                uint32_t height) const
 {
   glGenFramebuffers(1, &fbo);
   glGenTextures(1, &fb_tex);
@@ -973,10 +923,8 @@ bool Director::init_framebuffer(uint32_t& fbo, uint32_t& fb_tex,
   glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
   glBindTexture(GL_TEXTURE_2D, fb_tex);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0,
-               GL_RGBA, GL_UNSIGNED_BYTE, 0);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                         GL_TEXTURE_2D, fb_tex, 0);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb_tex, 0);
 
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
     std::cerr << "framebuffer failed" << std::endl;
@@ -996,10 +944,10 @@ bool Director::init_oculus_rift()
   auto desc = ovr_GetHmdDesc(_oculus.session);
   ovr_SetBool(_oculus.session, "QueueAheadEnabled", ovrFalse);
 
-  ovrSizei eye_left = ovr_GetFovTextureSize(
-      _oculus.session, ovrEyeType(0), desc.DefaultEyeFov[0], 1.0);
-  ovrSizei eye_right = ovr_GetFovTextureSize(
-      _oculus.session, ovrEyeType(1), desc.DefaultEyeFov[0], 1.0);
+  ovrSizei eye_left =
+      ovr_GetFovTextureSize(_oculus.session, ovrEyeType(0), desc.DefaultEyeFov[0], 1.0);
+  ovrSizei eye_right =
+      ovr_GetFovTextureSize(_oculus.session, ovrEyeType(1), desc.DefaultEyeFov[0], 1.0);
   int fw = eye_left.w + eye_right.w;
   int fh = std::max(eye_left.h, eye_right.h);
 
@@ -1015,25 +963,23 @@ bool Director::init_oculus_rift()
   texture_chain_desc.MiscFlags = ovrTextureMisc_None;
   texture_chain_desc.BindFlags = 0;
 
-  auto result = ovr_CreateTextureSwapChainGL(
-      _oculus.session, &texture_chain_desc, &_oculus.texture_chain);
+  auto result =
+      ovr_CreateTextureSwapChainGL(_oculus.session, &texture_chain_desc, &_oculus.texture_chain);
   if (result != ovrSuccess) {
     std::cerr << "Oculus texture swap chain failed" << std::endl;
-      ovrErrorInfo info;
-  ovr_GetLastErrorInfo(&info);
-  std::cerr << info.ErrorString << std::endl;
+    ovrErrorInfo info;
+    ovr_GetLastErrorInfo(&info);
+    std::cerr << info.ErrorString << std::endl;
   }
   int texture_count = 0;
-  result = ovr_GetTextureSwapChainLength(
-      _oculus.session, _oculus.texture_chain, &texture_count);
+  result = ovr_GetTextureSwapChainLength(_oculus.session, _oculus.texture_chain, &texture_count);
   if (result != ovrSuccess) {
     std::cerr << "Oculus texture swap chain length failed" << std::endl;
   }
   for (int i = 0; i < texture_count; ++i) {
     GLuint fbo;
     GLuint fb_tex = 0;
-    result = ovr_GetTextureSwapChainBufferGL(
-        _oculus.session, _oculus.texture_chain, i, &fb_tex);
+    result = ovr_GetTextureSwapChainBufferGL(_oculus.session, _oculus.texture_chain, i, &fb_tex);
     if (result != ovrSuccess) {
       std::cerr << "Oculus texture swap chain buffer failed" << std::endl;
     }
@@ -1043,18 +989,15 @@ bool Director::init_oculus_rift()
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glBindTexture(GL_TEXTURE_2D, fb_tex);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                           GL_TEXTURE_2D, fb_tex, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb_tex, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
       std::cerr << "framebuffer failed" << std::endl;
       return false;
     }
   }
 
-  auto erd_left = ovr_GetRenderDesc(
-      _oculus.session, ovrEye_Left, desc.DefaultEyeFov[0]);
-  auto erd_right = ovr_GetRenderDesc(
-      _oculus.session, ovrEye_Right, desc.DefaultEyeFov[1]);
+  auto erd_left = ovr_GetRenderDesc(_oculus.session, ovrEye_Left, desc.DefaultEyeFov[0]);
+  auto erd_right = ovr_GetRenderDesc(_oculus.session, ovrEye_Right, desc.DefaultEyeFov[1]);
   _oculus.eye_view_offset[0] = erd_left.HmdToEyeOffset;
   _oculus.eye_view_offset[1] = erd_right.HmdToEyeOffset;
 
@@ -1081,11 +1024,10 @@ bool Director::init_oculus_rift()
 
 sf::Vector2f Director::off3d(float multiplier, bool text) const
 {
-  float x = !_oculus.enabled || !multiplier ? 0.f :
-      !_oculus.rendering_right ? _width / (8.f * multiplier) :
-                                 _width / -(8.f * multiplier);
-  x *= (text ? _system.oculus_text_depth() :
-               _system.oculus_image_depth());
+  float x = !_oculus.enabled || !multiplier
+      ? 0.f
+      : !_oculus.rendering_right ? _width / (8.f * multiplier) : _width / -(8.f * multiplier);
+  x *= (text ? _system.oculus_text_depth() : _system.oculus_image_depth());
   return {x, 0};
 }
 
@@ -1094,20 +1036,15 @@ uint32_t Director::view_width() const
   return _oculus.enabled ? _width / 2 : _width;
 }
 
-void Director::render_texture(float l, float t, float r, float b,
-                              bool flip_h, bool flip_v) const
+void Director::render_texture(float l, float t, float r, float b, bool flip_h, bool flip_v) const
 {
-  glUniform2f(glGetUniformLocation(_image_program, "min_coord"),
-              l / _width, t / _height);
-  glUniform2f(glGetUniformLocation(_image_program, "max_coord"),
-              r / _width, b / _height);
-  glUniform2f(glGetUniformLocation(_image_program, "flip"),
-              flip_h ? 1.f : 0.f, flip_v ? 1.f : 0.f);
+  glUniform2f(glGetUniformLocation(_image_program, "min_coord"), l / _width, t / _height);
+  glUniform2f(glGetUniformLocation(_image_program, "max_coord"), r / _width, b / _height);
+  glUniform2f(glGetUniformLocation(_image_program, "flip"), flip_h ? 1.f : 0.f, flip_v ? 1.f : 0.f);
   glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
-void Director::render_raw_text(const std::string& text, const Font& font,
-                               const sf::Color& colour,
+void Director::render_raw_text(const std::string& text, const Font& font, const sf::Color& colour,
                                const sf::Vector2f& offset, float scale) const
 {
   if (text.empty()) {
@@ -1141,19 +1078,19 @@ void Director::render_raw_text(const std::string& text, const Font& font,
     prev = current;
 
     switch (current) {
-      case L' ':
-        x += hspace;
-        continue;
-      case L'\t':
-        x += hspace * 4;
-        continue;
-      case L'\n':
-        y += vspace;
-        x = 0;
-        continue;
-      case L'\v':
-        y += vspace * 4;
-        continue;
+    case L' ':
+      x += hspace;
+      continue;
+    case L'\t':
+      x += hspace * 4;
+      continue;
+    case L'\n':
+      y += vspace;
+      x = 0;
+      continue;
+    case L'\v':
+      y += vspace * 4;
+      continue;
     }
 
     const auto& g = font.font->getGlyph(current, font.key.char_size, false);
@@ -1163,10 +1100,8 @@ void Director::render_raw_text(const std::string& text, const Font& font,
     float y2 = (y + g.bounds.top + g.bounds.height) / _height;
     float u1 = float(g.textureRect.left) / texture.getSize().x;
     float v1 = float(g.textureRect.top) / texture.getSize().y;
-    float u2 =
-        float(g.textureRect.left + g.textureRect.width) / texture.getSize().x;
-    float v2 =
-        float(g.textureRect.top + g.textureRect.height) / texture.getSize().y;
+    float u2 = float(g.textureRect.left + g.textureRect.width) / texture.getSize().x;
+    float v2 = float(g.textureRect.top + g.textureRect.height) / texture.getSize().y;
 
     vertices.push_back({x1, y1, u1, v1});
     vertices.push_back({x2, y1, u2, v1});
@@ -1196,8 +1131,7 @@ void Director::render_raw_text(const std::string& text, const Font& font,
 
   glActiveTexture(GL_TEXTURE0);
   sf::Texture::bind(&texture);
-  glUniform4f(glGetUniformLocation(_text_program, "colour"),
-              colour.r / 255.f, colour.g / 255.f,
+  glUniform4f(glGetUniformLocation(_text_program, "colour"), colour.r / 255.f, colour.g / 255.f,
               colour.b / 255.f, colour.a / 255.f);
   const char* data = reinterpret_cast<const char*>(vertices.data());
 
@@ -1211,8 +1145,7 @@ void Director::render_raw_text(const std::string& text, const Font& font,
   glDrawArrays(GL_QUADS, 0, (GLsizei) vertices.size());
 }
 
-uint32_t Director::get_cached_text_size(const FontCache& cache,
-                                        const std::string& text,
+uint32_t Director::get_cached_text_size(const FontCache& cache, const std::string& text,
                                         const std::string& font) const
 {
   static const uint32_t minimum_size = 2 * FontCache::char_size_lock;
@@ -1248,8 +1181,7 @@ uint32_t Director::get_cached_text_size(const FontCache& cache,
   return size;
 };
 
-sf::Vector2f Director::get_text_size(
-    const std::string& text, const Font& font) const
+sf::Vector2f Director::get_text_size(const std::string& text, const Font& font) const
 {
   auto hspace = font.font->getGlyph(' ', font.key.char_size, false).advance;
   auto vspace = font.font->getLineSpacing(font.key.char_size);
@@ -1267,19 +1199,19 @@ sf::Vector2f Director::get_text_size(
     prev = current;
 
     switch (current) {
-      case L' ':
-        x += hspace;
-        continue;
-      case L'\t':
-        x += hspace * 4;
-        continue;
-      case L'\n':
-        y += vspace;
-        x = 0;
-        continue;
-      case L'\v':
-        y += vspace * 4;
-        continue;
+    case L' ':
+      x += hspace;
+      continue;
+    case L'\t':
+      x += hspace * 4;
+      continue;
+    case L'\n':
+      y += vspace;
+      x = 0;
+      continue;
+    case L'\v':
+      y += vspace * 4;
+      continue;
     }
 
     const auto& g = font.font->getGlyph(current, font.key.char_size, false);

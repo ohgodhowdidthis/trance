@@ -18,7 +18,8 @@ class VariablePage;
 class wxNotebook;
 class wxPanel;
 
-class CreatorFrame : public wxFrame {
+class CreatorFrame : public wxFrame
+{
 public:
   CreatorFrame(const std::string& executable_path, const std::string& parameter);
   void MakeDirty(bool dirty);
@@ -43,20 +44,15 @@ public:
 
   void PlaylistItemCreated(const std::string& playlist_item_name);
   void PlaylistItemDeleted(const std::string& playlist_item_name);
-  void PlaylistItemRenamed(const std::string& old_name,
-                           const std::string& new_name);
+  void PlaylistItemRenamed(const std::string& old_name, const std::string& new_name);
 
   void VariableCreated(const std::string& variable_name);
   void VariableDeleted(const std::string& variable_name);
-  void VariableRenamed(const std::string& old_name,
-                       const std::string& new_name);
+  void VariableRenamed(const std::string& old_name, const std::string& new_name);
 
-  void VariableValueCreated(const std::string& variable_name,
-                            const std::string& value_name);
-  void VariableValueDeleted(const std::string& variable_name,
-                            const std::string& value_name);
-  void VariableValueRenamed(const std::string& variable_name,
-                            const std::string& old_name,
+  void VariableValueCreated(const std::string& variable_name, const std::string& value_name);
+  void VariableValueDeleted(const std::string& variable_name, const std::string& value_name);
+  void VariableValueRenamed(const std::string& variable_name, const std::string& old_name,
                             const std::string& new_name);
 
 private:

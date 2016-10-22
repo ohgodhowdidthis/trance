@@ -24,7 +24,7 @@ inline std::mt19937& get_mersenne_twister()
   return mt;
 }
 
-template<typename T>
+template <typename T>
 T random(const T& max)
 {
   static_assert(std::is_integral<T>::value, "random<T> needs integral type T");
@@ -32,7 +32,7 @@ T random(const T& max)
   return dist(get_mersenne_twister());
 }
 
-template<typename T>
+template <typename T>
 bool random_chance(const T& divisor)
 {
   return random(divisor) == 0;
@@ -46,10 +46,10 @@ inline bool random_chance()
 // Chooses randomly from elements. Elements start with 0 priority, which can
 // be increased or decreased; calling next() gets a random element among all
 // those with the highest priority.
-class Shuffler {
+class Shuffler
+{
 public:
-  Shuffler(std::size_t size)
-  : _size{size}
+  Shuffler(std::size_t size) : _size{size}
   {
     _enabled_count[-1] = size;
     for (std::size_t i = 0; i < size; ++i) {

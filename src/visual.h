@@ -17,10 +17,13 @@ std::vector<std::string> SplitWords(const std::string& text, SplitType type);
 // Interface to an object which can render and control the visual state.
 // These visuals are swapped out by the Director every so often for different
 // styles.
-class Visual {
+class Visual
+{
 public:
   Visual(Director& director);
-  virtual ~Visual() {}
+  virtual ~Visual()
+  {
+  }
 
   virtual void update() = 0;
   virtual void render() const = 0;
@@ -33,7 +36,8 @@ private:
   Director& _director;
 };
 
-class AccelerateVisual : public Visual {
+class AccelerateVisual : public Visual
+{
 public:
   AccelerateVisual(Director& director);
   void update() override;
@@ -54,7 +58,8 @@ private:
   uint32_t _text_timer;
 };
 
-class SubTextVisual : public Visual {
+class SubTextVisual : public Visual
+{
 public:
   SubTextVisual(Director& director);
   void update() override;
@@ -74,7 +79,8 @@ private:
   uint32_t _sub_speed_multiplier;
 };
 
-class SlowFlashVisual : public Visual {
+class SlowFlashVisual : public Visual
+{
 public:
   SlowFlashVisual(Director& director);
   void update() override;
@@ -97,7 +103,8 @@ private:
   uint32_t _cycle_count;
 };
 
-class FlashTextVisual : public Visual {
+class FlashTextVisual : public Visual
+{
 public:
   FlashTextVisual(Director& director);
   void update() override;
@@ -117,7 +124,8 @@ private:
   uint32_t _font_timer;
 };
 
-class ParallelVisual : public Visual {
+class ParallelVisual : public Visual
+{
 public:
   ParallelVisual(Director& director);
   void update() override;
@@ -140,7 +148,8 @@ private:
   uint32_t _cycle;
 };
 
-class SuperParallelVisual : public Visual {
+class SuperParallelVisual : public Visual
+{
 public:
   SuperParallelVisual(Director& director);
   void update() override;
@@ -159,7 +168,8 @@ private:
   uint32_t _cycle;
 };
 
-class AnimationVisual : public Visual {
+class AnimationVisual : public Visual
+{
 public:
   AnimationVisual(Director& director);
   void update() override;
@@ -179,7 +189,8 @@ private:
   uint32_t _cycle;
 };
 
-class SuperFastVisual : public Visual {
+class SuperFastVisual : public Visual
+{
 public:
   SuperFastVisual(Director& director);
   void update() override;

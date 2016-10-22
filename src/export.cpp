@@ -3,15 +3,13 @@
 
 #pragma warning(push, 0)
 #define VPX_CODEC_DISABLE_COMPAT 1
+#include <libvpx/vp8cx.h>
 #include <libvpx/vpx_encoder.h>
 #include <libvpx/vpx_image.h>
-#include <libvpx/vp8cx.h>
 #include <SFML/Graphics.hpp>
 #pragma warning(pop)
 
-FrameExporter::FrameExporter(const exporter_settings& settings)
-: _settings(settings)
-, _frame{0}
+FrameExporter::FrameExporter(const exporter_settings& settings) : _settings(settings), _frame{0}
 {
 }
 
@@ -29,12 +27,11 @@ void FrameExporter::encode_frame(const uint8_t* data)
 {
   auto counter_str = std::to_string(_frame);
   std::size_t padding =
-      std::to_string(_settings.fps * _settings.length).length() -
-      counter_str.length();
+      std::to_string(_settings.fps * _settings.length).length() - counter_str.length();
 
   std::size_t index = _settings.path.find_last_of('.');
-  auto frame_path = _settings.path.substr(0, index) + '_' +
-      std::string(padding, '0') + counter_str + _settings.path.substr(index);
+  auto frame_path = _settings.path.substr(0, index) + '_' + std::string(padding, '0') +
+      counter_str + _settings.path.substr(index);
 
   sf::Image image;
   image.create(_settings.width, _settings.height, data);
@@ -43,15 +40,10 @@ void FrameExporter::encode_frame(const uint8_t* data)
 }
 
 WebmExporter::WebmExporter(const exporter_settings& settings)
-: _success{false}
-, _settings(settings)
-, _video_track{0}
-, _img{nullptr}
-, _frame_index{0}
+: _success{false}, _settings(settings), _video_track{0}, _img{nullptr}, _frame_index{0}
 {
   if (!_writer.Open(settings.path.c_str())) {
-    std::cerr << "couldn't open " <<
-        settings.path << " for writing" << std::endl;
+    std::cerr << "couldn't open " << settings.path << " for writing" << std::endl;
     return;
   }
 
@@ -102,8 +94,7 @@ WebmExporter::WebmExporter(const exporter_settings& settings)
     return;
   }
 
-  _img = vpx_img_alloc(
-      nullptr, VPX_IMG_FMT_I420, _settings.width, _settings.height, 16);
+  _img = vpx_img_alloc(nullptr, VPX_IMG_FMT_I420, _settings.width, _settings.height, 16);
   if (!_img) {
     std::cerr << "couldn't allocate image for encoding" << std::endl;
     return;
@@ -117,7 +108,8 @@ WebmExporter::~WebmExporter()
     vpx_img_free(_img);
   }
   // Flush encoder.
-  while (add_frame(nullptr));
+  while (add_frame(nullptr))
+    ;
 
   if (vpx_codec_destroy(&_codec)) {
     codec_error("failed to destroy codec");
@@ -177,9 +169,9 @@ void WebmExporter::codec_error(const std::string& s)
 
 bool WebmExporter::add_frame(const vpx_image* data)
 {
-  auto result = vpx_codec_encode(
-      &_codec, data, _frame_index++, 1, 0,
-      _settings.quality <= 1 ? VPX_DL_BEST_QUALITY : VPX_DL_GOOD_QUALITY);
+  auto result =
+      vpx_codec_encode(&_codec, data, _frame_index++, 1, 0,
+                       _settings.quality <= 1 ? VPX_DL_BEST_QUALITY : VPX_DL_GOOD_QUALITY);
   if (result != VPX_CODEC_OK) {
     codec_error("couldn't encode frame");
     return false;
@@ -194,9 +186,9 @@ bool WebmExporter::add_frame(const vpx_image* data)
       continue;
     }
     auto timestamp_ns = 1000000000 * packet->data.frame.pts / _settings.fps;
-    bool result = _segment.AddFrame(
-        (uint8_t*) packet->data.frame.buf, packet->data.frame.sz, _video_track,
-        timestamp_ns, packet->data.frame.flags & VPX_FRAME_IS_KEY);
+    bool result =
+        _segment.AddFrame((uint8_t*) packet->data.frame.buf, packet->data.frame.sz, _video_track,
+                          timestamp_ns, packet->data.frame.flags & VPX_FRAME_IS_KEY);
     if (!result) {
       std::cerr << "couldn't add frame" << std::endl;
       return false;
@@ -240,8 +232,7 @@ H264Exporter::H264Exporter(const exporter_settings& settings)
     std::cerr << "couldn't create encoder" << std::endl;
     return;
   }
-  if (x264_picture_alloc(&_pic, X264_CSP_I420,
-                         _settings.width, _settings.height) < 0) {
+  if (x264_picture_alloc(&_pic, X264_CSP_I420, _settings.width, _settings.height) < 0) {
     std::cerr << "couldn't allocate picture" << std::endl;
     return;
   }
@@ -263,8 +254,7 @@ bool H264Exporter::add_frame(x264_picture_t* pic)
 {
   x264_nal_t* nal;
   int nal_size;
-  int frame_size =
-      x264_encoder_encode(_encoder, &nal, &nal_size, pic, &_pic_out);
+  int frame_size = x264_encoder_encode(_encoder, &nal, &nal_size, pic, &_pic_out);
   if (frame_size < 0) {
     std::cerr << "couldn't encode frame" << std::endl;
     return false;
@@ -290,8 +280,7 @@ void H264Exporter::encode_frame(const uint8_t* data)
   // Convert YUV to YUV420.
   for (uint32_t y = 0; y < _settings.height; ++y) {
     for (uint32_t x = 0; x < _settings.width; ++x) {
-      _pic.img.plane[0][x + y * _settings.width] =
-          data[4 * (x + y * _settings.width)];
+      _pic.img.plane[0][x + y * _settings.width] = data[4 * (x + y * _settings.width)];
     }
   }
   for (uint32_t y = 0; y < _settings.height / 2; ++y) {

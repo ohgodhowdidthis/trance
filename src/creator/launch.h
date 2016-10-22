@@ -9,25 +9,25 @@
 #include <wx/frame.h>
 #pragma warning(pop)
 
-namespace trance_pb {
-  class Session;
-  class System;
+namespace trance_pb
+{
+class Session;
+class System;
 }
 class CreatorFrame;
 class wxChoice;
 class wxStaticText;
 
-class LaunchFrame : public wxFrame {
+class LaunchFrame : public wxFrame
+{
 public:
   enum {
     ID_LAUNCH = 10301,
     ID_DEFAULTS = 10302,
     ID_CANCEL = 10303,
   };
-  LaunchFrame(CreatorFrame* parent, trance_pb::System& system,
-              const trance_pb::Session& session,
-              const std::string& session_path,
-              const std::function<void()>& callback);
+  LaunchFrame(CreatorFrame* parent, trance_pb::System& system, const trance_pb::Session& session,
+              const std::string& session_path, const std::function<void()>& callback);
 
 private:
   void Launch();

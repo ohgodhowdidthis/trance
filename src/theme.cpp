@@ -1,7 +1,7 @@
 #include "theme.h"
+#include <iostream>
 #include "director.h"
 #include "util.h"
-#include <iostream>
 
 #pragma warning(push, 0)
 #include <src/trance.pb.h>
@@ -9,9 +9,8 @@
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)
 
-ThemeBank::ThemeBank(
-    const std::string& root_path, const trance_pb::Session& session,
-    const trance_pb::System& system, const trance_pb::Program& program)
+ThemeBank::ThemeBank(const std::string& root_path, const trance_pb::Session& session,
+                     const trance_pb::System& system, const trance_pb::Program& program)
 : _root_path{root_path}
 , _animation_index{0}
 , _image_cache_size{system.image_cache_size()}
@@ -24,16 +23,13 @@ ThemeBank::ThemeBank(
   std::unordered_set<std::string> all_animation_paths;
   for (const auto& pair : session.theme_map()) {
     const auto& theme = pair.second;
-    all_image_paths.insert(theme.image_path().begin(),
-                           theme.image_path().end());
-    all_animation_paths.insert(theme.animation_path().begin(),
-                               theme.animation_path().end());
+    all_image_paths.insert(theme.image_path().begin(), theme.image_path().end());
+    all_animation_paths.insert(theme.animation_path().begin(), theme.animation_path().end());
   }
   for (const auto& path : all_image_paths) {
     _all_images.push_back({path, 0, {}});
   }
-  _all_animations.insert(_all_animations.begin(),
-                         all_animation_paths.begin(),
+  _all_animations.insert(_all_animations.begin(), all_animation_paths.begin(),
                          all_animation_paths.end());
 
   // Set up data for each theme.
@@ -42,16 +38,21 @@ ThemeBank::ThemeBank(
     _theme_map[pair.first] = _themes.size();
     const auto& theme = pair.second;
 
-    std::unordered_set<std::string> images{theme.image_path().begin(),
-                                           theme.image_path().end()};
+    std::unordered_set<std::string> images{theme.image_path().begin(), theme.image_path().end()};
     std::unordered_set<std::string> animations{theme.animation_path().begin(),
                                                theme.animation_path().end()};
-    _themes.emplace_back(new ThemeInfo{
-        images.size(), false, {}, 0, {},
-        {_all_images.size()}, {_all_images.size()}, {_all_animations.size()},
-        {theme.font_path().begin(), theme.font_path().end()},
-        {theme.text_line().begin(), theme.text_line().end()}, {},
-        {static_cast<std::size_t>(theme.text_line().size())}});
+    _themes.emplace_back(new ThemeInfo{images.size(),
+                                       false,
+                                       {},
+                                       0,
+                                       {},
+                                       {_all_images.size()},
+                                       {_all_images.size()},
+                                       {_all_animations.size()},
+                                       {theme.font_path().begin(), theme.font_path().end()},
+                                       {theme.text_line().begin(), theme.text_line().end()},
+                                       {},
+                                       {static_cast<std::size_t>(theme.text_line().size())}});
 
     // Disable images not in this theme in both shufflers so that they can
     // never be chosen.
@@ -63,8 +64,7 @@ ThemeBank::ThemeBank(
     }
     for (std::size_t i = 0; i < _all_animations.size(); ++i) {
       if (animations.count(_all_animations[i])) {
-        _themes.back()->animation_shuffler
-            .modify(i, 1 + (int32_t) _loaded_animations.size());
+        _themes.back()->animation_shuffler.modify(i, 1 + (int32_t) _loaded_animations.size());
       }
     }
     for (std::size_t i = 0; i < _themes.back()->text_lines.size(); ++i) {
@@ -235,8 +235,7 @@ void ThemeBank::maybe_upload_next()
 
 bool ThemeBank::change_themes()
 {
-  if (!all_loaded() || !all_unloaded() ||
-      animation(0).loaded || !animation(3).loaded) {
+  if (!all_loaded() || !all_unloaded() || animation(0).loaded || !animation(3).loaded) {
     return false;
   }
   _cooldown = switch_cooldown;
@@ -260,8 +259,9 @@ uint32_t ThemeBank::cache_per_theme() const
       ++enabled_themes;
     }
   }
-  return enabled_themes == 0 ? 0 : _image_cache_size /
-      uint32_t(std::min<std::size_t>(3, enabled_themes));
+  return enabled_themes == 0
+      ? 0
+      : _image_cache_size / uint32_t(std::min<std::size_t>(3, enabled_themes));
 }
 
 void ThemeBank::async_update()
@@ -331,8 +331,7 @@ void ThemeBank::advance_theme()
 bool ThemeBank::all_loaded() const
 {
   const auto& next_theme = *_active_themes.back().load();
-  return next_theme.loaded_size >= next_theme.size ||
-      next_theme.loaded_size >= cache_per_theme();
+  return next_theme.loaded_size >= next_theme.size || next_theme.loaded_size >= cache_per_theme();
 }
 
 bool ThemeBank::all_unloaded() const
@@ -347,11 +346,9 @@ bool ThemeBank::all_unloaded() const
   return !prev_theme.loaded_size || count > 1;
 }
 
-ThemeBank::AnimationInfo&
-ThemeBank::animation(std::size_t active_theme_index)
+ThemeBank::AnimationInfo& ThemeBank::animation(std::size_t active_theme_index)
 {
-  return _loaded_animations[
-      (_animation_index + active_theme_index) % _loaded_animations.size()];
+  return _loaded_animations[(_animation_index + active_theme_index) % _loaded_animations.size()];
 }
 
 void ThemeBank::do_swap(std::size_t active_theme_index)
@@ -397,8 +394,7 @@ void ThemeBank::do_load(ThemeInfo& theme)
   // Don't try to load again if it failed.
   if (!*image.image) {
     for (auto& other_theme : _themes) {
-      other_theme->load_shuffler.modify(
-          index, -static_cast<int32_t>(last_image_count));
+      other_theme->load_shuffler.modify(index, -static_cast<int32_t>(last_image_count));
     }
   }
   {
@@ -431,8 +427,7 @@ void ThemeBank::do_unload(ThemeInfo& theme)
   --theme.loaded_size;
 }
 
-void ThemeBank::do_load_animation(ThemeInfo& theme,
-                                  AnimationInfo& animation, bool only_unload)
+void ThemeBank::do_load_animation(ThemeInfo& theme, AnimationInfo& animation, bool only_unload)
 {
   if (animation.loaded) {
     _purge_mutex.lock();
@@ -460,9 +455,7 @@ void ThemeBank::do_load_animation(ThemeInfo& theme,
     return;
   }
 
-
-  auto new_frames =
-      load_animation(_root_path + "/" + _all_animations[animation.index]);
+  auto new_frames = load_animation(_root_path + "/" + _all_animations[animation.index]);
   int32_t amount = -1;
   if (new_frames.empty()) {
     // Don't try to load again if it failed.

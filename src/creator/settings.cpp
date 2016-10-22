@@ -1,6 +1,6 @@
 #include "settings.h"
-#include "main.h"
 #include "../common.h"
+#include "main.h"
 
 #pragma warning(push, 0)
 #include <src/trance.pb.h>
@@ -13,45 +13,51 @@
 #include <wx/stattext.h>
 #pragma warning(pop)
 
-namespace {
-  int f2v(float f) {
-    return int(f * 4);
-  }
+namespace
+{
+int f2v(float f)
+{
+  return int(f * 4);
+}
 
-  float v2f(int v) {
-    return float(v) / 4;
-  }
+float v2f(int v)
+{
+  return float(v) / 4;
+}
 
-  const std::string VSYNC_TOOLTIP =
-      "Turn on VSync to eliminate tearing. This can cause frame rate to "
-      "stutter if the video card can't keep up.";
+const std::string VSYNC_TOOLTIP =
+    "Turn on VSync to eliminate tearing. This can cause frame rate to "
+    "stutter if the video card can't keep up.";
 
-  const std::string IMAGE_CACHE_SIZE_TOOLTIP =
-      "Number of images to load into memory at once. Increases variation, but "
-      "uses up both RAM and video memory. Images will be swapped in and out "
-      "of the cache periodically.";
+const std::string IMAGE_CACHE_SIZE_TOOLTIP =
+    "Number of images to load into memory at once. Increases variation, but "
+    "uses up both RAM and video memory. Images will be swapped in and out "
+    "of the cache periodically.";
 
-  const std::string FONT_CACHE_SIZE_TOOLTIP =
-      "Number of fonts to load into memory at once. Increasing the font cache "
-      "size prevents pauses when loading fonts, but uses up both RAM and video "
-      "memory. Each size of each font counts as a separate entry in the cache.";
+const std::string FONT_CACHE_SIZE_TOOLTIP =
+    "Number of fonts to load into memory at once. Increasing the font cache "
+    "size prevents pauses when loading fonts, but uses up both RAM and video "
+    "memory. Each size of each font counts as a separate entry in the cache.";
 
-  const std::string OCULUS_RIFT_TOOLTIP =
-      "Attempt to enable the Oculus Rift support. Requires the Oculus Runtime "
-      "0.8.0.0-beta or compatible version.";
+const std::string OCULUS_RIFT_TOOLTIP =
+    "Attempt to enable the Oculus Rift support. Requires the Oculus Runtime "
+    "0.8.0.0-beta or compatible version.";
 
-  const std::string IMAGE_DEPTH_TOOLTIP =
-      "How intense depth-based effects are on images in the Oculus Rift. The "
-      "default value is 4.";
+const std::string IMAGE_DEPTH_TOOLTIP =
+    "How intense depth-based effects are on images in the Oculus Rift. The "
+    "default value is 4.";
 
-  const std::string TEXT_DEPTH_TOOLTIP =
-      "How intense depth-based effects are on text in the Oculus Rift. The "
-      "default value is 4.";
+const std::string TEXT_DEPTH_TOOLTIP =
+    "How intense depth-based effects are on text in the Oculus Rift. The "
+    "default value is 4.";
 }
 
 SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
-: wxFrame{parent, wxID_ANY, "System settings",
-          wxDefaultPosition, wxDefaultSize,
+: wxFrame{parent,
+          wxID_ANY,
+          "System settings",
+          wxDefaultPosition,
+          wxDefaultSize,
           wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN}
 , _system{system}
 , _parent{parent}
@@ -67,14 +73,22 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   _image_cache_size = new wxSpinCtrl{panel, wxID_ANY};
   _font_cache_size = new wxSpinCtrl{panel, wxID_ANY};
   _enable_oculus_rift = new wxCheckBox{panel, wxID_ANY, "Enable Oculus Rift"};
-  _image_depth = new wxSlider{
-      panel, wxID_ANY, f2v(_system.oculus_image_depth()), 0, 8,
-      wxDefaultPosition, wxDefaultSize,
-      wxSL_HORIZONTAL | wxSL_AUTOTICKS | wxSL_VALUE_LABEL};
-  _text_depth = new wxSlider{
-      panel, wxID_ANY, f2v(_system.oculus_text_depth()), 0, 8,
-      wxDefaultPosition, wxDefaultSize,
-      wxSL_HORIZONTAL | wxSL_AUTOTICKS | wxSL_VALUE_LABEL};
+  _image_depth = new wxSlider{panel,
+                              wxID_ANY,
+                              f2v(_system.oculus_image_depth()),
+                              0,
+                              8,
+                              wxDefaultPosition,
+                              wxDefaultSize,
+                              wxSL_HORIZONTAL | wxSL_AUTOTICKS | wxSL_VALUE_LABEL};
+  _text_depth = new wxSlider{panel,
+                             wxID_ANY,
+                             f2v(_system.oculus_text_depth()),
+                             0,
+                             8,
+                             wxDefaultPosition,
+                             wxDefaultSize,
+                             wxSL_HORIZONTAL | wxSL_AUTOTICKS | wxSL_VALUE_LABEL};
   auto button_ok = new wxButton{panel, ID_OK, "OK"};
   auto button_cancel = new wxButton{panel, ID_CANCEL, "Cancel"};
   _button_apply = new wxButton{panel, ID_APPLY, "Apply"};
@@ -134,14 +148,15 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   Bind(wxEVT_SPINCTRL, changed);
 
   Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-       [&](wxCommandEvent&) { Apply(); Close(); }, ID_OK);
-  Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-       [&](wxCommandEvent&) { Close(); }, ID_CANCEL);
-  Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-       [&](wxCommandEvent&) { Apply(); }, ID_APPLY);
+       [&](wxCommandEvent&) {
+         Apply();
+         Close();
+       },
+       ID_OK);
+  Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { Close(); }, ID_CANCEL);
+  Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { Apply(); }, ID_APPLY);
 
-  Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event)
-  {
+  Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event) {
     _parent->SettingsClosed();
     Destroy();
   });

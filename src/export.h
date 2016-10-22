@@ -6,8 +6,8 @@
 #include <string>
 
 #pragma warning(push, 0)
-#include <libwebm/mkvwriter.hpp>
 #include <libvpx/vpx_codec.h>
+#include <libwebm/mkvwriter.hpp>
 extern "C" {
 #include <x264/x264.h>
 }
@@ -23,19 +23,20 @@ struct exporter_settings {
   uint32_t threads;
 };
 
-class Exporter {
+class Exporter
+{
 public:
-
-  virtual ~Exporter() {}
+  virtual ~Exporter()
+  {
+  }
   virtual bool success() const = 0;
   virtual bool requires_yuv_input() const = 0;
   virtual void encode_frame(const uint8_t* data) = 0;
-
 };
 
-class FrameExporter : public Exporter {
+class FrameExporter : public Exporter
+{
 public:
-
   FrameExporter(const exporter_settings& settings);
 
   bool success() const override;
@@ -43,15 +44,13 @@ public:
   void encode_frame(const uint8_t* data) override;
 
 private:
-
-  exporter_settings _settings;  
+  exporter_settings _settings;
   uint32_t _frame;
-
 };
 
-class WebmExporter : public Exporter {
+class WebmExporter : public Exporter
+{
 public:
-
   WebmExporter(const exporter_settings& settings);
   ~WebmExporter();
 
@@ -60,7 +59,6 @@ public:
   void encode_frame(const uint8_t* data) override;
 
 private:
-
   void codec_error(const std::string& error);
   bool add_frame(const vpx_image* data);
 
@@ -74,12 +72,11 @@ private:
   vpx_codec_ctx_t _codec;
   vpx_image* _img;
   uint32_t _frame_index;
-
 };
 
-class H264Exporter : public Exporter {
+class H264Exporter : public Exporter
+{
 public:
-
   H264Exporter(const exporter_settings& settings);
   ~H264Exporter();
 
@@ -88,7 +85,6 @@ public:
   void encode_frame(const uint8_t* data) override;
 
 private:
-
   bool add_frame(x264_picture_t* pic);
 
   bool _success;
@@ -99,8 +95,6 @@ private:
   x264_t* _encoder;
   x264_picture_t _pic;
   x264_picture_t _pic_out;
-
 };
-
 
 #endif

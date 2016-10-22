@@ -1,32 +1,34 @@
 #ifndef TRANCE_THEME_H
 #define TRANCE_THEME_H
 
-#include "image.h"
-#include "util.h"
-#include <atomic>
 #include <array>
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "image.h"
+#include "util.h"
 
 #pragma warning(push, 0)
 #include <google/protobuf/repeated_field.h>
 #pragma warning(pop)
 
-namespace trance_pb {
-  class Program;
-  class Session;
-  class System;
-  class Theme;
+namespace trance_pb
+{
+class Program;
+class Session;
+class System;
+class Theme;
 }
 
 // ThemeBank keeps two Themes active at all times with a number of images
 // in memory each so that a variety of these images can be displayed with no
 // load delay. It also asynchronously loads a third theme into memory so that
 // the active themes can be swapped out.
-class ThemeBank {
+class ThemeBank
+{
 public:
   ThemeBank(const std::string& root_path, const trance_pb::Session& session,
             const trance_pb::System& system, const trance_pb::Program& program);
@@ -119,8 +121,7 @@ private:
   void do_reconcile(ThemeInfo& theme);
   void do_load(ThemeInfo& theme);
   void do_unload(ThemeInfo& theme);
-  void do_load_animation(ThemeInfo& theme,
-                         AnimationInfo& animation, bool only_unload);
+  void do_load_animation(ThemeInfo& theme, AnimationInfo& animation, bool only_unload);
   void do_video_upload(const Image& image) const;
   void do_purge();
 
