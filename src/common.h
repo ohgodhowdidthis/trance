@@ -19,4 +19,19 @@ inline std::string get_trance_exe_path(const std::string& directory)
   return (std::tr2::sys::path{directory} / TRANCE_EXE_PATH).string();
 }
 
+inline std::string format_time(uint64_t seconds) {
+  auto minutes = seconds / 60;
+  seconds = seconds % 60;
+  auto hours = minutes / 60;
+  minutes = minutes % 60;
+
+  std::string result;
+  if (hours) {
+    result += std::to_string(hours) + ":";
+  }
+  result += (minutes < 10 ? "0" : "") + std::to_string(minutes) + ":" +
+      (seconds < 10 ? "0" : "") + std::to_string(seconds);
+  return result;
+};
+
 #endif

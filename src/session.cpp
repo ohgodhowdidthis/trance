@@ -282,6 +282,20 @@ bool is_audio_file(const std::string& path)
          ext_is(path, "flac") || ext_is(path, "aiff");
 }
 
+bool is_enabled(const trance_pb::PlaylistItem::NextItem& next,
+                const std::unordered_map<std::string, std::string>& variables)
+{
+  if (next.condition_variable_name().empty()) {
+    return true;
+  }
+  std::string value;
+  auto it = variables.find(next.condition_variable_name());
+  if (it != variables.end()) {
+    value = it->second;
+  }
+  return value == next.condition_variable_value();
+};
+
 void search_resources(trance_pb::Session& session, const std::string& root)
 {
   static const std::string wildcards = "/wildcards/";

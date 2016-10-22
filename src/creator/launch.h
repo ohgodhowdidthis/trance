@@ -15,6 +15,7 @@ namespace trance_pb {
 }
 class CreatorFrame;
 class wxChoice;
+class wxStaticText;
 
 class LaunchFrame : public wxFrame {
 public:
@@ -30,6 +31,7 @@ public:
 
 private:
   void Launch();
+  void RefreshTimeEstimate();
 
   CreatorFrame* _parent;
   trance_pb::System& _system;
@@ -37,6 +39,7 @@ private:
   std::string _session_path;
   std::function<void()> _callback;
   std::unordered_map<std::string, wxChoice*> _variables;
+  wxStaticText* _text;
 };
 
 #endif

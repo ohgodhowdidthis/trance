@@ -1,6 +1,7 @@
 #include "launch.h"
 #include "main.h"
 #include "../common.h"
+#include "../session.h"
 
 #pragma warning(push, 0)
 #include <wx/button.h>
@@ -9,6 +10,79 @@
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #pragma warning(pop)
+
+namespace {
+  struct TimeBounds {
+    uint64_t min_seconds = -1;
+    uint64_t max_seconds = 0;
+  };
+  struct PlayTime {
+    TimeBounds initial_sequence;
+    TimeBounds after_looping;
+  };
+
+  PlayTime calculate_play_time(
+      const trance_pb::Session& session,
+      const std::unordered_map<std::string, std::string>& variables)
+  {
+    PlayTime result;
+    struct LoopSearchEntry {
+      std::string playlist_item;
+      uint64_t seconds;
+    };
+
+    std::vector<std::vector<LoopSearchEntry>> queue;
+    std::unordered_map<std::string, TimeBounds> loop_times;
+
+    queue.push_back({{session.first_playlist_item(), 0}});
+    while (!queue.empty()) {
+      auto entry = queue.front();
+      queue.erase(queue.begin());
+
+      bool looped = false;
+      for (auto it = entry.begin(); it != std::prev(entry.end()); ++it) {
+        if (it->playlist_item == entry.back().playlist_item) {
+          looped = true;
+          auto initial_sequence = it->seconds;
+          auto after_looping = entry.back().seconds - it->seconds;
+          result.initial_sequence.max_seconds =
+              std::max(result.initial_sequence.max_seconds, initial_sequence);
+          result.initial_sequence.min_seconds =
+              std::min(result.initial_sequence.min_seconds, initial_sequence);
+          result.after_looping.max_seconds =
+              std::max(result.after_looping.max_seconds, after_looping);
+          result.after_looping.min_seconds =
+              std::min(result.after_looping.min_seconds, after_looping);
+          break;
+        }
+      }
+      if (looped) {
+        continue;
+      }
+
+      auto it = session.playlist().find(entry.back().playlist_item);
+      if (it == session.playlist().end()) {
+        continue;
+      }
+      bool any_next = false;
+      for (const auto& next : it->second.next_item()) {
+        if (!is_enabled(next, variables)) {
+          continue;
+        }
+        queue.emplace_back(entry);
+        queue.back().push_back({
+            next.playlist_item_name(),
+            entry.back().seconds + it->second.play_time_seconds()});
+        any_next = true;
+      }
+      if (!any_next) {
+        queue.emplace_back(entry);
+        queue.back().emplace_back(entry.back());
+      }
+    }
+    return result;
+  }
+}
 
 LaunchFrame::LaunchFrame(
     CreatorFrame* parent, trance_pb::System& system,
@@ -27,8 +101,14 @@ LaunchFrame::LaunchFrame(
   auto sizer = new wxBoxSizer{wxVERTICAL};
   auto top = new wxBoxSizer{wxVERTICAL};
   auto bottom = new wxBoxSizer{wxHORIZONTAL};
-  auto top_inner = new wxStaticBoxSizer{
-      wxVERTICAL, panel, "Variable configuration"};
+  wxStaticBoxSizer* top_inner;
+  if (!_session.variable_map().empty()) {
+    top_inner = new wxStaticBoxSizer{
+        wxVERTICAL, panel, "Variable configuration"};
+  }
+  auto top_bottom = new wxStaticBoxSizer{
+      wxVERTICAL, panel, "Estimated running time"};
+  _text = new wxStaticText{panel, wxID_ANY, ""};
 
   std::unordered_map<std::string, std::string> last_variables;
   auto it = _system.last_session_map().find(_session_path);
@@ -50,6 +130,7 @@ LaunchFrame::LaunchFrame(
       if ((has_last_value && value == jt->second) ||
           (!has_last_value && value == pair.second.default_value())) {
         choice->SetSelection(i);
+        RefreshTimeEstimate();
       }
       ++i;
     }
@@ -62,11 +143,29 @@ LaunchFrame::LaunchFrame(
   }
 
   auto button_cancel = new wxButton{panel, ID_CANCEL, "Cancel"};
-  auto button_defaults = new wxButton{panel, ID_DEFAULTS, "Defaults"};
   auto button_launch = new wxButton{panel, ID_LAUNCH, "Launch"};
   bottom->Add(button_cancel, 1, wxALL, DEFAULT_BORDER);
-  bottom->Add(button_defaults, 1, wxALL, DEFAULT_BORDER);
   bottom->Add(button_launch, 1, wxALL, DEFAULT_BORDER);
+
+  if (!_session.variable_map().empty()) {
+    auto button_defaults = new wxButton{panel, ID_DEFAULTS, "Defaults"};
+    bottom->Add(button_defaults, 1, wxALL, DEFAULT_BORDER);
+
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+      for (const auto& pair : _variables) {
+        auto it = _session.variable_map().find(pair.first);
+        if (it == _session.variable_map().end()) {
+          continue;
+        }
+        for (unsigned int i = 0; i < pair.second->GetCount(); ++i) {
+          if (pair.second->GetString(i) == it->second.default_value()) {
+            pair.second->SetSelection(i);
+            break;
+          }
+        }
+      }
+    }, ID_DEFAULTS);
+  }
 
   Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event)
   {
@@ -74,7 +173,13 @@ LaunchFrame::LaunchFrame(
     Destroy();
   });
 
-  top->Add(top_inner, 1, wxALL | wxEXPAND, DEFAULT_BORDER);
+  if (!_session.variable_map().empty()) {
+    top->Add(top_inner, 1, wxALL | wxEXPAND, DEFAULT_BORDER);
+  }
+  top_bottom->Add(_text, 1, wxALL | wxEXPAND, DEFAULT_BORDER);
+  top->Add(top_bottom, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+  RefreshTimeEstimate();
+
   sizer->Add(top, 1, wxEXPAND, 0);
   sizer->Add(bottom, 0, wxEXPAND, 0);
 
@@ -85,29 +190,11 @@ LaunchFrame::LaunchFrame(
     Launch();
     Close();
   }, ID_LAUNCH);
-  Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
-    for (const auto& pair : _variables) {
-      auto it = _session.variable_map().find(pair.first);
-      if (it == _session.variable_map().end()) {
-        continue;
-      }
-      for (unsigned int i = 0; i < pair.second->GetCount(); ++i) {
-        if (pair.second->GetString(i) == it->second.default_value()) {
-          pair.second->SetSelection(i);
-          break;
-        }
-      }
-    }
-  }, ID_DEFAULTS);
+
   Bind(wxEVT_COMMAND_BUTTON_CLICKED,
        [&](wxCommandEvent&) { Close(); }, ID_CANCEL);
 
-  if (session.variable_map().empty()) {
-    Launch();
-    Close();
-  } else {
-    Show(true);
-  }
+  Show(true);
 }
 
 void LaunchFrame::Launch()
@@ -120,4 +207,40 @@ void LaunchFrame::Launch()
   }
   _parent->SaveSystem(false);
   _callback();
+}
+
+void LaunchFrame::RefreshTimeEstimate()
+{
+  std::unordered_map<std::string, std::string> variables;
+  for (const auto& pair : _variables) {
+    variables[pair.first] = pair.second->GetString(pair.second->GetSelection());
+  }
+  auto play_time = calculate_play_time(_session, variables);
+
+  auto format = [](const TimeBounds& bounds) {
+    if (bounds.min_seconds == bounds.max_seconds) {
+      if (!bounds.min_seconds) {
+        return std::string{};
+      }
+      return format_time(bounds.min_seconds);
+    }
+    return format_time(bounds.min_seconds) +
+        " to " + format_time(bounds.max_seconds);
+  };
+
+  auto initial_sequence = format(play_time.initial_sequence);
+  auto after_looping = format(play_time.after_looping);
+  std::string estimate;
+  if (initial_sequence.empty() && after_looping.empty()) {
+    estimate = "Loops forever.";
+  } else if (!initial_sequence.empty() && after_looping.empty()) {
+    estimate = "Main sequence of " +
+        initial_sequence + " followed by looping forever.";
+  } else if (initial_sequence.empty() && !after_looping.empty()) {
+    estimate = "Looping sequence of " + after_looping + ".";
+  } else  {
+    estimate = "Main sequence of " + initial_sequence +
+      " followed by looping sequence of " + after_looping + ".";
+  }
+  _text->SetLabel(estimate);
 }

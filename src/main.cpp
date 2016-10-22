@@ -65,21 +65,9 @@ std::string next_playlist_item(
     const std::unordered_map<std::string, std::string>& variables,
     const trance_pb::PlaylistItem* item)
 {
-  auto is_enabled = [&](const trance_pb::PlaylistItem::NextItem next) {
-    if (next.condition_variable_name().empty()) {
-      return true;
-    }
-    std::string value;
-    auto it = variables.find(next.condition_variable_name());
-    if (it != variables.end()) {
-      value = it->second;
-    }
-    return value == next.condition_variable_value();
-  };
-
   uint32_t total = 0;
   for (const auto& next : item->next_item()) {
-    total += (is_enabled(next) ? next.random_weight() : 0);
+    total += (is_enabled(next, variables) ? next.random_weight() : 0);
   }
   if (!total) {
     return {};
@@ -87,7 +75,8 @@ std::string next_playlist_item(
   auto r = random(total);
   total = 0;
   for (const auto& next : item->next_item()) {
-    if (r < (total += (is_enabled(next) ? next.random_weight() : 0))) {
+    total += (is_enabled(next, variables) ? next.random_weight() : 0);
+    if (r < total) {
       return next.playlist_item_name();
     }
   }
@@ -134,21 +123,6 @@ void handle_events(std::atomic<bool>& running, sf::RenderWindow* window)
 void print_info(double elapsed_seconds,
                 uint64_t frames, uint64_t total_frames)
 {
-  auto format_time = [](uint64_t seconds) {
-    auto minutes = seconds / 60;
-    seconds = seconds % 60;
-    auto hours = minutes / 60;
-    minutes = minutes % 60;
-
-    std::string result;
-    if (hours) {
-      result += std::to_string(hours) + ":";
-    }
-    result += (minutes < 10 ? "0" : "") + std::to_string(minutes) + ":" +
-        (seconds < 10 ? "0" : "") + std::to_string(seconds);
-    return result;
-  };
-
   float completion = float(frames) / total_frames;
   auto elapsed = uint64_t(elapsed_seconds + .5);
   auto eta = uint64_t(
