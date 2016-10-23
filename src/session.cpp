@@ -152,6 +152,8 @@ namespace
     if (!playlist_item.program().empty() || playlist_item.play_time_seconds()) {
       playlist_item.mutable_standard()->set_program(playlist_item.program());
       playlist_item.mutable_standard()->set_play_time_seconds(playlist_item.play_time_seconds());
+      playlist_item.clear_program();
+      playlist_item.clear_play_time_seconds();
     }
     if (playlist_item.has_standard()) {
       auto it = session.program_map().find(playlist_item.standard().program());
@@ -172,14 +174,17 @@ namespace
       }
     }
 
-    bool has_next_item = false;
-    for (auto& next_item : *playlist_item.mutable_next_item()) {
-      auto it = session.playlist().find(next_item.playlist_item_name());
-      if (next_item.random_weight() > 0 && it != session.playlist().end()) {
-        has_next_item = true;
-        break;
+    for (auto it = playlist_item.mutable_next_item()->begin();
+         it != playlist_item.mutable_next_item()->end();) {
+      if (it->random_weight() == 0 ||
+          session.playlist().find(it->playlist_item_name()) == session.playlist().end()) {
+        it = playlist_item.mutable_next_item()->erase(it);
+      } else {
+        ++it;
       }
+    }
 
+    for (auto& next_item : *playlist_item.mutable_next_item()) {
       auto variable_it = session.variable_map().find(next_item.condition_variable_name());
       if (variable_it == session.variable_map().end()) {
         next_item.clear_condition_variable_name();
@@ -192,9 +197,6 @@ namespace
           next_item.clear_condition_variable_value();
         }
       }
-    }
-    if (!has_next_item && playlist_item.has_standard()) {
-      playlist_item.mutable_standard()->set_play_time_seconds(0);
     }
   }
 
