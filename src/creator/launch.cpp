@@ -172,9 +172,7 @@ LaunchFrame::LaunchFrame(CreatorFrame* parent, trance_pb::System& system,
   }
 
   auto button_cancel = new wxButton{panel, ID_CANCEL, "Cancel"};
-  auto button_launch = new wxButton{panel, ID_LAUNCH, "Launch"};
   bottom->Add(button_cancel, 1, wxALL, DEFAULT_BORDER);
-  bottom->Add(button_launch, 1, wxALL, DEFAULT_BORDER);
 
   if (!_session.variable_map().empty()) {
     auto button_defaults = new wxButton{panel, ID_DEFAULTS, "Defaults"};
@@ -198,6 +196,9 @@ LaunchFrame::LaunchFrame(CreatorFrame* parent, trance_pb::System& system,
          },
          ID_DEFAULTS);
   }
+
+  auto button_launch = new wxButton{panel, ID_LAUNCH, "Launch"};
+  bottom->Add(button_launch, 1, wxALL, DEFAULT_BORDER);
 
   Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event) {
     _parent->LaunchClosed();
@@ -255,9 +256,9 @@ void LaunchFrame::RefreshTimeEstimate()
       if (!bounds.min_seconds) {
         return std::string{"none"};
       }
-      return format_time(bounds.min_seconds);
+      return format_time(bounds.min_seconds, false);
     }
-    return format_time(bounds.min_seconds) + " to " + format_time(bounds.max_seconds);
+    return format_time(bounds.min_seconds, false) + " to " + format_time(bounds.max_seconds, false);
   };
 
   auto initial_sequence = format(play_time.initial_sequence);
