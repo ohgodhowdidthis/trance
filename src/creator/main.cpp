@@ -323,11 +323,11 @@ void CreatorFrame::ProgramCreated(const std::string& program_name)
 void CreatorFrame::ProgramDeleted(const std::string& program_name)
 {
   for (auto& pair : *_session.mutable_playlist()) {
-    if (pair.second.program() == program_name) {
+    if (pair.second.has_standard() && pair.second.standard().program() == program_name) {
       if (_session.program_map().empty()) {
-        pair.second.set_program("");
+        pair.second.mutable_standard()->set_program("");
       } else {
-        pair.second.set_program(_session.program_map().begin()->first);
+        pair.second.mutable_standard()->set_program(_session.program_map().begin()->first);
       }
     }
   }
@@ -340,8 +340,8 @@ void CreatorFrame::ProgramDeleted(const std::string& program_name)
 void CreatorFrame::ProgramRenamed(const std::string& old_name, const std::string& new_name)
 {
   for (auto& pair : *_session.mutable_playlist()) {
-    if (pair.second.program() == old_name) {
-      pair.second.set_program(new_name);
+    if (pair.second.has_standard() && pair.second.standard().program() == old_name) {
+      pair.second.mutable_standard()->set_program(new_name);
     }
   }
   _playlist_page->RefreshProgramsAndPlaylists();
@@ -354,7 +354,7 @@ void CreatorFrame::PlaylistItemCreated(const std::string& playlist_item_name)
 {
   auto& playlist_item = (*_session.mutable_playlist())[playlist_item_name];
   if (!_session.program_map().empty()) {
-    playlist_item.set_program(_session.program_map().begin()->first);
+    playlist_item.mutable_standard()->set_program(_session.program_map().begin()->first);
   }
   _playlist_page->RefreshProgramsAndPlaylists();
   _playlist_page->RefreshOurData();

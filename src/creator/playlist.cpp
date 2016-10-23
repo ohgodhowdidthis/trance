@@ -141,7 +141,7 @@ PlaylistPage::PlaylistPage(wxNotebook* parent, CreatorFrame& creator_frame,
     if (it == _session.mutable_playlist()->end()) {
       return;
     }
-    it->second.set_program(_program->GetString(_program->GetSelection()));
+    it->second.mutable_standard()->set_program(_program->GetString(_program->GetSelection()));
     _creator_frame.MakeDirty(true);
   });
 
@@ -150,7 +150,7 @@ PlaylistPage::PlaylistPage(wxNotebook* parent, CreatorFrame& creator_frame,
     if (it == _session.mutable_playlist()->end()) {
       return;
     }
-    it->second.set_play_time_seconds(_play_time_seconds->GetValue());
+    it->second.mutable_standard()->set_play_time_seconds(_play_time_seconds->GetValue());
     _creator_frame.MakeDirty(true);
   });
 }
@@ -178,12 +178,12 @@ void PlaylistPage::RefreshOurData()
   auto it = _session.playlist().find(_item_selected);
   if (it != _session.playlist().end()) {
     for (unsigned int i = 0; i < _program->GetCount(); ++i) {
-      if (_program->GetString(i) == it->second.program()) {
+      if (_program->GetString(i) == it->second.standard().program()) {
         _program->SetSelection(i);
         break;
       }
     }
-    _play_time_seconds->SetValue(it->second.play_time_seconds());
+    _play_time_seconds->SetValue(it->second.standard().play_time_seconds());
     for (const auto& item : it->second.next_item()) {
       AddNextItem(item.playlist_item_name(), item.random_weight(), item.condition_variable_name(),
                   item.condition_variable_value());
