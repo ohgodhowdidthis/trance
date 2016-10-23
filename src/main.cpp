@@ -123,7 +123,7 @@ void print_info(double elapsed_seconds, uint64_t frames, uint64_t total_frames)
 
   std::cout << std::endl
             << "frame: " << frames << " / " << total_frames << " [" << percentage
-            << "%]; elapsed: " << format_time(elapsed) << "; eta: " << format_time(eta)
+            << "%]; elapsed: " << format_time(elapsed, true) << "; eta: " << format_time(eta, true)
             << std::endl;
 }
 
@@ -192,49 +192,51 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
     float update_time = 0.f;
     float playlist_item_time = 0.f;
 
-    uint64_t elapsed_frames = 0;
+    uint64_t elapsed_export_frames = 0;
     uint64_t async_update_residual = 0;
     double elapsed_frames_residual = 0;
     std::chrono::high_resolution_clock clock;
-    auto clock_time = [&] {
+    auto true_clock_time = [&] {
       return std::chrono::duration_cast<std::chrono::milliseconds>(clock.now().time_since_epoch())
           .count();
     };
-    const auto clock_start = clock_time();
-    auto last_clock_time = clock_start;
-    auto last_playlist_switch = clock_start;
+    auto clock_time = [&] {
+      if (realtime) {
+        return true_clock_time();
+      }
+      return long long(1000. * elapsed_export_frames / double(settings.fps));
+    };
+    const auto true_clock_start = true_clock_time();
+    auto last_clock_time = clock_time();
+    auto last_playlist_switch = clock_time();
 
     while (running) {
       handle_events(running, window.get());
 
       uint32_t frames_this_loop = 0;
-      if (realtime) {
-        auto t = clock_time();
-        auto elapsed_ms = t - last_clock_time;
-        last_clock_time = t;
-        elapsed_frames_residual += double(program().global_fps()) * double(elapsed_ms) / 1000.;
-        while (elapsed_frames_residual >= 1.) {
-          --elapsed_frames_residual;
-          ++frames_this_loop;
-        }
-      } else {
-        frames_this_loop = 1;
+      auto t = clock_time();
+      auto elapsed_ms = t - last_clock_time;
+      last_clock_time = t;
+      elapsed_frames_residual += double(program().global_fps()) * double(elapsed_ms) / 1000.;
+      while (elapsed_frames_residual >= 1.) {
+        --elapsed_frames_residual;
+        ++frames_this_loop;
       }
+      ++elapsed_export_frames;
 
-      elapsed_frames += frames_this_loop;
       if (!realtime) {
-        auto total_frames = uint64_t(settings.length) * uint64_t(settings.fps);
-        if (elapsed_frames % 8 == 0) {
-          auto elapsed_seconds = double(clock_time() - clock_start) / 1000.;
-          print_info(elapsed_seconds, elapsed_frames, total_frames);
+        auto total_export_frames = uint64_t(settings.length) * uint64_t(settings.fps);
+        if (elapsed_export_frames % 8 == 0) {
+          auto elapsed_seconds = double(true_clock_time() - true_clock_start) / 1000.;
+          print_info(elapsed_seconds, elapsed_export_frames, total_export_frames);
         }
-        if (elapsed_frames >= total_frames) {
+        if (elapsed_export_frames >= total_export_frames) {
           running = false;
           break;
         }
       }
 
-      async_update_residual += uint64_t(1000. * frames_this_loop / double(program().global_fps()));
+      async_update_residual += uint64_t(1000. * frames_this_loop / double(settings.fps));
       while (!realtime && async_update_residual >= async_millis) {
         async_update_residual -= async_millis;
         theme_bank->async_update();
