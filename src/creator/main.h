@@ -27,7 +27,6 @@ public:
 
   void Launch();
   void ExportVideo(const std::string& path);
-  void ExportVideoLaunch(const std::string& path);
 
   void RefreshDirectory();
   void SettingsClosed();

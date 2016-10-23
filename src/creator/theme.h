@@ -33,15 +33,6 @@ public:
   void RefreshDirectory(const std::string& directory);
 
 private:
-  enum {
-    ID_NEW = 10320,
-    ID_EDIT = 10321,
-    ID_DELETE = 10322,
-    ID_OPEN = 10323,
-    ID_RENAME = 10324,
-    ID_REFRESH = 10325,
-  };
-
   void RefreshHighlights();
   void GenerateFontPreview();
 

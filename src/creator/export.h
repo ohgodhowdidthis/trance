@@ -1,5 +1,7 @@
 #ifndef TRANCE_CREATOR_EXPORT_H
 #define TRANCE_CREATOR_EXPORT_H
+#include <memory>
+#include "launch.h"
 
 #pragma warning(push, 0)
 #include <wx/frame.h>
@@ -16,17 +18,14 @@ class wxSpinCtrl;
 class ExportFrame : public wxFrame
 {
 public:
-  enum {
-    ID_EXPORT = 11041,
-    ID_CANCEL = 11040,
-  };
-  ExportFrame(CreatorFrame* parent, trance_pb::System& system, const std::string& default_path);
+  ExportFrame(CreatorFrame* parent, trance_pb::System& system, const trance_pb::Session& session,
+              const std::string& session_path, const std::string& executable_path);
 
 private:
+  void ResetDefaults();
   void Export();
 
   trance_pb::System& _system;
-  std::string _executable_path;
   std::string _path;
 
   CreatorFrame* _parent;
@@ -36,6 +35,7 @@ private:
   wxSpinCtrl* _length;
   wxSpinCtrl* _threads;
   wxSlider* _quality;
+  std::unique_ptr<VariableConfiguration> _configuration;
 };
 
 #endif

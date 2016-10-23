@@ -67,18 +67,18 @@ VariablePage::VariablePage(wxNotebook* parent, CreatorFrame& creator_frame,
       "Potential values that this variable can be set to "
       "when the session is launched.");
 
-  _button_new = new wxButton{left_panel, ID_NEW, "New"};
-  _button_edit = new wxButton{left_panel, ID_EDIT, "Edit"};
-  _button_delete = new wxButton{left_panel, ID_DELETE, "Delete"};
+  _button_new = new wxButton{left_panel, wxID_ANY, "New"};
+  _button_rename = new wxButton{left_panel, wxID_ANY, "Rename"};
+  _button_delete = new wxButton{left_panel, wxID_ANY, "Delete"};
 
   _button_new->SetToolTip("Create a new variable value.");
-  _button_edit->SetToolTip("Edit the selected variable value.");
+  _button_rename->SetToolTip("Rename the selected variable value.");
   _button_delete->SetToolTip("Delete the selected variable value.");
 
   left->Add(_value_list, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   left->Add(left_buttons, 0, wxEXPAND, 0);
   left_buttons->Add(_button_new, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
-  left_buttons->Add(_button_edit, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  left_buttons->Add(_button_rename, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
   left_buttons->Add(_button_delete, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
   left_panel->SetSizer(left);
 
@@ -145,70 +145,62 @@ VariablePage::VariablePage(wxNotebook* parent, CreatorFrame& creator_frame,
                     },
                     wxID_ANY);
 
-  left_panel->Bind(
-      wxEVT_COMMAND_BUTTON_CLICKED,
-      [&](wxCommandEvent&) {
-        static const std::string new_name = "New value";
-        auto name = new_name;
-        int number = 0;
-        auto& data = (*_session.mutable_variable_map())[_item_selected];
-        while (std::find(data.value().begin(), data.value().end(), name) != data.value().end()) {
-          name = new_name + " (" + std::to_string(number) + ")";
-          ++number;
-        }
-        data.add_value(name);
-        _current_value = name;
-        RefreshOurData();
-        _creator_frame.VariableValueCreated(_item_selected, name);
-        _creator_frame.MakeDirty(true);
-      },
-      ID_NEW);
+  _button_new->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    static const std::string new_name = "New value";
+    auto name = new_name;
+    int number = 0;
+    auto& data = (*_session.mutable_variable_map())[_item_selected];
+    while (std::find(data.value().begin(), data.value().end(), name) != data.value().end()) {
+      name = new_name + " (" + std::to_string(number) + ")";
+      ++number;
+    }
+    data.add_value(name);
+    _current_value = name;
+    RefreshOurData();
+    _creator_frame.VariableValueCreated(_item_selected, name);
+    _creator_frame.MakeDirty(true);
+  });
 
-  left_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-                   [&](wxCommandEvent&) {
-                     for (int i = 0; i < _value_list->GetItemCount(); ++i) {
-                       if (_value_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
-                         _value_list->EditLabel(i);
-                         return;
-                       }
-                     }
-                   },
-                   ID_EDIT);
+  _button_rename->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    for (int i = 0; i < _value_list->GetItemCount(); ++i) {
+      if (_value_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
+        _value_list->EditLabel(i);
+        return;
+      }
+    }
+  });
 
-  left_panel->Bind(
-      wxEVT_COMMAND_BUTTON_CLICKED,
-      [&](wxCommandEvent&) {
-        auto& data = (*_session.mutable_variable_map())[_item_selected];
-        int removed = -1;
-        for (int i = 0; i < _value_list->GetItemCount(); ++i) {
-          if (_value_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
-            removed = i;
-            break;
-          }
+  _button_delete->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    auto& data = (*_session.mutable_variable_map())[_item_selected];
+    int removed = -1;
+    for (int i = 0; i < _value_list->GetItemCount(); ++i) {
+      if (_value_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
+        removed = i;
+        break;
+      }
+    }
+    if (removed >= 0) {
+      for (auto it = data.mutable_value()->begin(); it != data.mutable_value()->end();) {
+        if (*it == _current_value) {
+          it = data.mutable_value()->erase(it);
+        } else {
+          ++it;
         }
-        if (removed >= 0) {
-          for (auto it = data.mutable_value()->begin(); it != data.mutable_value()->end();) {
-            if (*it == _current_value) {
-              it = data.mutable_value()->erase(it);
-            } else {
-              ++it;
-            }
-          }
-          if (data.default_value() == _current_value) {
-            data.set_default_value(data.value(0));
-          }
-          _creator_frame.VariableValueDeleted(_item_selected, _current_value);
-          _current_value.clear();
-        }
-        RefreshOurData();
-        if (removed >= 0) {
-          auto index = std::min(_value_list->GetItemCount() - 1, removed);
-          _current_value = _value_list->GetItemText(index);
-          _value_list->SetItemState(index, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
-        }
-        _creator_frame.MakeDirty(true);
-      },
-      ID_DELETE);
+      }
+      if (data.default_value() == _current_value) {
+        data.set_default_value(data.value(0));
+      }
+      _creator_frame.VariableValueDeleted(_item_selected, _current_value);
+      _current_value.clear();
+    }
+    RefreshOurData();
+    if (removed >= 0) {
+      auto index = std::min(_value_list->GetItemCount() - 1, removed);
+      _current_value = _value_list->GetItemText(index);
+      _value_list->SetItemState(index, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
+    }
+    _creator_frame.MakeDirty(true);
+  });
 
   _default_value->Bind(wxEVT_CHOICE, [&](wxCommandEvent&) {
     auto it = _session.mutable_variable_map()->find(_item_selected);
@@ -268,14 +260,14 @@ void VariablePage::RefreshOurData()
     _description->ChangeValue(it->second.description());
 
     _button_new->Enable(true);
-    _button_edit->Enable(!values.empty());
+    _button_rename->Enable(!values.empty());
     _button_delete->Enable(values.size() > 1);
     _default_value->Enable(!values.empty());
     _description->Enable(true);
   } else {
     _value_list->DeleteAllItems();
     _button_new->Enable(false);
-    _button_edit->Enable(false);
+    _button_rename->Enable(false);
     _button_delete->Enable(false);
     _default_value->Enable(false);
     _description->Enable(false);

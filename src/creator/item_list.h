@@ -46,10 +46,10 @@ public:
     _list->InsertColumn(0, "Name", wxLIST_FORMAT_LEFT, wxLIST_AUTOSIZE_USEHEADER);
     _list->SetToolTip("Available " + _type_name + "s.");
 
-    _button_new = new wxButton{this, ID_NEW, "New"};
-    _button_rename = new wxButton{this, ID_RENAME, "Rename"};
-    _button_duplicate = new wxButton{this, ID_DUPLICATE, "Duplicate"};
-    _button_delete = new wxButton{this, ID_DELETE, "Delete"};
+    _button_new = new wxButton{this, wxID_ANY, "New"};
+    _button_rename = new wxButton{this, wxID_ANY, "Rename"};
+    _button_duplicate = new wxButton{this, wxID_ANY, "Duplicate"};
+    _button_delete = new wxButton{this, wxID_ANY, "Delete"};
 
     _button_new->SetToolTip("Create a new, blank " + _type_name + ".");
     _button_rename->SetToolTip("Rename the selected " + _type_name + ".");
@@ -68,58 +68,50 @@ public:
                 [&](wxSizeEvent&) { _list->SetColumnWidth(0, wxLIST_AUTOSIZE_USEHEADER); },
                 wxID_ANY);
 
-    Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-         [&](wxCommandEvent&) {
-           static const std::string new_name = "New " + _type_name;
-           auto name = new_name;
-           int number = 0;
-           while (_data.find(name) != _data.end()) {
-             name = new_name + " (" + std::to_string(number) + ")";
-             ++number;
-           }
-           _data[name] = {};
-           SetSelection(name);
-           RefreshData();
-           _on_create(name);
-         },
-         ID_NEW);
+    _button_new->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+      static const std::string new_name = "New " + _type_name;
+      auto name = new_name;
+      int number = 0;
+      while (_data.find(name) != _data.end()) {
+        name = new_name + " (" + std::to_string(number) + ")";
+        ++number;
+      }
+      _data[name] = {};
+      SetSelection(name);
+      RefreshData();
+      _on_create(name);
+    });
 
-    Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-         [&](wxCommandEvent&) {
-           for (int i = 0; i < _list->GetItemCount(); ++i) {
-             if (_list->GetItemText(i) == _selection) {
-               _list->EditLabel(i);
-             }
-           }
-         },
-         ID_RENAME);
+    _button_rename->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+      for (int i = 0; i < _list->GetItemCount(); ++i) {
+        if (_list->GetItemText(i) == _selection) {
+          _list->EditLabel(i);
+        }
+      }
+    });
 
-    Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-         [&](wxCommandEvent&) {
-           auto name = _selection + " copy";
-           int number = 0;
-           while (_data.find(name) != _data.end()) {
-             name = _selection + " copy (" + std::to_string(number) + ")";
-             ++number;
-           }
-           _data[name] = _data[_selection];
-           SetSelection(name);
-           RefreshData();
-           _on_create(name);
-         },
-         ID_DUPLICATE);
+    _button_duplicate->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+      auto name = _selection + " copy";
+      int number = 0;
+      while (_data.find(name) != _data.end()) {
+        name = _selection + " copy (" + std::to_string(number) + ")";
+        ++number;
+      }
+      _data[name] = _data[_selection];
+      SetSelection(name);
+      RefreshData();
+      _on_create(name);
+    });
 
-    Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-         [&](wxCommandEvent&) {
-           if (wxMessageBox("Really delete " + _type_name + " '" + _selection + "'?", "",
-                            wxICON_QUESTION | wxYES_NO, this) == wxYES) {
-             auto name = _selection;
-             _data.erase(name);
-             RefreshData();
-             _on_delete(name);
-           }
-         },
-         ID_DELETE);
+    _button_delete->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+      if (wxMessageBox("Really delete " + _type_name + " '" + _selection + "'?", "",
+                       wxICON_QUESTION | wxYES_NO, this) == wxYES) {
+        auto name = _selection;
+        _data.erase(name);
+        RefreshData();
+        _on_delete(name);
+      }
+    });
 
     Bind(wxEVT_LIST_ITEM_SELECTED,
          [&](wxListEvent& e) {
@@ -211,12 +203,6 @@ private:
     _on_change(selection);
   }
 
-  enum {
-    ID_NEW = 11010,
-    ID_RENAME = 11011,
-    ID_DUPLICATE = 11012,
-    ID_DELETE = 11013,
-  };
   map_type& _data;
   std::string _type_name;
   std::string _selection;

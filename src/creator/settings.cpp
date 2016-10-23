@@ -89,9 +89,9 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
                              wxDefaultPosition,
                              wxDefaultSize,
                              wxSL_HORIZONTAL | wxSL_AUTOTICKS | wxSL_VALUE_LABEL};
-  auto button_ok = new wxButton{panel, ID_OK, "OK"};
-  auto button_cancel = new wxButton{panel, ID_CANCEL, "Cancel"};
-  _button_apply = new wxButton{panel, ID_APPLY, "Apply"};
+  auto button_ok = new wxButton{panel, wxID_ANY, "OK"};
+  auto button_cancel = new wxButton{panel, wxID_ANY, "Cancel"};
+  _button_apply = new wxButton{panel, wxID_ANY, "Apply"};
 
   _enable_vsync->SetToolTip(VSYNC_TOOLTIP);
   _enable_vsync->SetValue(_system.enable_vsync());
@@ -140,6 +140,7 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
 
   panel->SetSizer(sizer);
   SetClientSize(sizer->GetMinSize());
+  CentreOnParent();
   Show(true);
 
   auto changed = [&](wxCommandEvent&) { Changed(); };
@@ -147,14 +148,12 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   Bind(wxEVT_SLIDER, changed);
   Bind(wxEVT_SPINCTRL, changed);
 
-  Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-       [&](wxCommandEvent&) {
-         Apply();
-         Close();
-       },
-       ID_OK);
-  Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { Close(); }, ID_CANCEL);
-  Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { Apply(); }, ID_APPLY);
+  button_ok->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    Apply();
+    Close();
+  });
+  button_cancel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { Close(); });
+  _button_apply->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { Apply(); });
 
   Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event) {
     _parent->SettingsClosed();
