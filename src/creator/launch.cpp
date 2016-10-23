@@ -134,28 +134,34 @@ VariableConfiguration::VariableConfiguration(trance_pb::System& system,
   if (!session.variable_map().empty()) {
     _sizer = new wxStaticBoxSizer{wxVERTICAL, panel, "Variable configuration"};
   }
+  std::vector<std::string> variable_names;
   for (const auto& pair : session.variable_map()) {
-    wxStaticText* label = new wxStaticText{panel, wxID_ANY, pair.first + ":"};
+    variable_names.push_back(pair.first);
+  }
+  std::sort(variable_names.begin(), variable_names.end());
+  for (const auto& variable_name : variable_names) {
+    const auto& variable = session.variable_map().find(variable_name)->second;
+    wxStaticText* label = new wxStaticText{panel, wxID_ANY, variable_name + ":"};
     wxChoice* choice = new wxChoice{panel, wxID_ANY};
     int i = 0;
-    auto jt = last_variables.find(pair.first);
+    auto jt = last_variables.find(variable_name);
     bool has_last_value = jt != last_variables.end() &&
-        std::find(pair.second.value().begin(), pair.second.value().end(), jt->second) !=
-            pair.second.value().end();
-    std::vector<std::string> values{pair.second.value().begin(), pair.second.value().end()};
+        std::find(variable.value().begin(), variable.value().end(), jt->second) !=
+            variable.value().end();
+    std::vector<std::string> values{variable.value().begin(), variable.value().end()};
     std::sort(values.begin(), values.end());
     for (const auto& value : values) {
       choice->Append(value);
       if ((has_last_value && value == jt->second) ||
-          (!has_last_value && value == pair.second.default_value())) {
+          (!has_last_value && value == variable.default_value())) {
         choice->SetSelection(i);
       }
       ++i;
     }
-    _variables[pair.first] = choice;
+    _variables[variable_name] = choice;
 
-    label->SetToolTip(pair.second.description());
-    choice->SetToolTip(pair.second.description());
+    label->SetToolTip(variable.description());
+    choice->SetToolTip(variable.description());
     _sizer->Add(label, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
     _sizer->Add(choice, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
 
