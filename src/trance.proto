@@ -170,6 +170,10 @@ message PlaylistItem
     repeated string playlist_item_name = 1;
   }
 
+  // Deprecated; replaced by standard!
+  string program = 100;
+  uint32 play_time_seconds = 101;
+
   oneof contents {
     Standard standard = 1;
     Subroutine subroutine = 2;
