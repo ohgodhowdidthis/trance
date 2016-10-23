@@ -21,6 +21,7 @@ class wxBoxSizer;
 class wxCheckBox;
 class wxChoice;
 class wxPanel;
+class wxRadioButton;
 class wxSpinCtrl;
 class wxStaticText;
 
@@ -35,6 +36,9 @@ public:
   void RefreshDirectory(const std::string& directory);
 
 private:
+  void SwitchToStandard();
+  void SwitchToSubroutine();
+  void AddSubroutineItem(const std::string& playlist_item_name);
   void AddNextItem(const std::string& name, std::uint32_t weight_value, const std::string& variable,
                    const std::string& variable_value);
   void AddAudioEvent(const trance_pb::AudioEvent& event);
@@ -46,13 +50,18 @@ private:
   ItemList<trance_pb::PlaylistItem>* _item_list;
 
   wxCheckBox* _is_first;
+  wxRadioButton* _standard;
+  wxRadioButton* _subroutine;
   wxChoice* _program;
   wxSpinCtrl* _play_time_seconds;
 
   wxPanel* _left_panel;
   wxPanel* _right_panel;
+  wxPanel* _bottom_bottom_panel;
+  wxBoxSizer* _playlist_item_sizer;
   wxBoxSizer* _next_items_sizer;
   wxBoxSizer* _audio_events_sizer;
+  std::vector<wxChoice*> _subroutine_items;
   std::vector<wxBoxSizer*> _next_items;
   std::vector<wxBoxSizer*> _audio_events;
 };

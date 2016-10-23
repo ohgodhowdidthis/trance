@@ -8,6 +8,7 @@
 #include <src/trance.pb.h>
 #include <wx/checkbox.h>
 #include <wx/choice.h>
+#include <wx/radiobut.h>
 #include <wx/sizer.h>
 #include <wx/spinctrl.h>
 #include <wx/splitter.h>
@@ -20,6 +21,14 @@ namespace
   const std::string IS_FIRST_TOOLTIP =
       "Whether this is the first playlist item used when the session starts.";
 
+  const std::string STANDARD_TOOLTIP =
+      "A standard playlist item that uses a particular program for a given duration.";
+
+  const std::string SUBROUTINE_TOOLTIP =
+      "A subroutine playlist item invokes one or more other playlists in sequence. "
+      "After each item in the sequence finishes (by reaching a state where there is "
+      "nothing more to play), control returns to the subroutine.";
+
   const std::string PROGRAM_TOOLTIP = "The program used for the duration of this playlist item.";
 
   const std::string PLAY_TIME_SECONDS_TOOLTIP =
@@ -27,9 +36,11 @@ namespace
       "After the time is up, the next playlist item is chosen randomly based "
       "on the weights assigned below.";
 
-  const std::string NEXT_ITEMS_TOOLTIP =
-      "After the time is up, the next playlist item is chosen randomly based "
-      "on the weights assigned below.";
+  const std::string SUBROUTINE_ITEM_TOOLTIP =
+      "A subplaylist invoked by this subroutine. When the subplaylist finishes "
+      "because there is no next playlist item available, control returns to the "
+      "subroutine. When there are no more subplaylists, a new playlist item is "
+      "chosen from the next playlist items of the subroutine.";
 
   const std::string NEXT_ITEM_CHOICE_TOOLTIP = "Which playlist item might be chosen next.";
 
@@ -65,7 +76,11 @@ namespace
 
 PlaylistPage::PlaylistPage(wxNotebook* parent, CreatorFrame& creator_frame,
                            trance_pb::Session& session)
-: wxNotebookPage{parent, wxID_ANY}, _creator_frame{creator_frame}, _session(session)
+: wxNotebookPage{parent, wxID_ANY}
+, _creator_frame{creator_frame}
+, _session(session)
+, _program{nullptr}
+, _play_time_seconds{nullptr}
 {
   auto sizer = new wxBoxSizer{wxVERTICAL};
   auto splitter = new wxSplitterWindow{this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
@@ -76,13 +91,23 @@ PlaylistPage::PlaylistPage(wxNotebook* parent, CreatorFrame& creator_frame,
   auto bottom_panel = new wxPanel{splitter, wxID_ANY};
   auto bottom = new wxBoxSizer{wxHORIZONTAL};
 
-  auto bottom_splitter = new wxSplitterWindow{bottom_panel, wxID_ANY, wxDefaultPosition,
+  auto bottom_bottom_splitter = new wxSplitterWindow{
+      bottom_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxSP_THIN_SASH | wxSP_LIVE_UPDATE};
+  bottom_bottom_splitter->SetSashGravity(0.5);
+  bottom_bottom_splitter->SetMinimumPaneSize(128);
+
+  _bottom_bottom_panel = new wxPanel{bottom_bottom_splitter, wxID_ANY};
+  _next_items_sizer = new wxStaticBoxSizer{wxVERTICAL, _bottom_bottom_panel, "Next playlist items"};
+  auto bottom_top_panel = new wxPanel{bottom_bottom_splitter, wxID_ANY};
+  auto bottom_top = new wxBoxSizer{wxHORIZONTAL};
+
+  auto bottom_splitter = new wxSplitterWindow{bottom_top_panel, wxID_ANY, wxDefaultPosition,
                                               wxDefaultSize, wxSP_THIN_SASH | wxSP_LIVE_UPDATE};
   bottom_splitter->SetSashGravity(0.5);
   bottom_splitter->SetMinimumPaneSize(128);
 
   _left_panel = new wxPanel{bottom_splitter, wxID_ANY};
-  auto left = new wxStaticBoxSizer{wxVERTICAL, _left_panel, "Playlist"};
+  auto left = new wxStaticBoxSizer{wxVERTICAL, _left_panel, "Playlist item"};
   _right_panel = new wxPanel{bottom_splitter, wxID_ANY};
   _audio_events_sizer = new wxStaticBoxSizer{wxVERTICAL, _right_panel, "Audio events"};
 
@@ -97,33 +122,35 @@ PlaylistPage::PlaylistPage(wxNotebook* parent, CreatorFrame& creator_frame,
       std::bind(&CreatorFrame::PlaylistItemRenamed, &_creator_frame, std::placeholders::_1,
                 std::placeholders::_2)};
 
-  wxStaticText* label = nullptr;
+  auto options_sizer = new wxWrapSizer{wxHORIZONTAL};
+
   _is_first = new wxCheckBox{_left_panel, wxID_ANY, "First playlist item"};
   _is_first->SetToolTip(IS_FIRST_TOOLTIP);
-  left->Add(_is_first, 0, wxALL, DEFAULT_BORDER);
-  label = new wxStaticText{_left_panel, wxID_ANY, "Program:"};
-  label->SetToolTip(PROGRAM_TOOLTIP);
-  left->Add(label, 0, wxALL, DEFAULT_BORDER);
-  _program = new wxChoice{_left_panel, wxID_ANY};
-  _program->SetToolTip(PROGRAM_TOOLTIP);
-  left->Add(_program, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
-  label = new wxStaticText{_left_panel, wxID_ANY, "Play time (seconds):"};
-  label->SetToolTip(PLAY_TIME_SECONDS_TOOLTIP);
-  left->Add(label, 0, wxALL, DEFAULT_BORDER);
-  _play_time_seconds = new wxSpinCtrl{_left_panel, wxID_ANY};
-  _play_time_seconds->SetToolTip(PLAY_TIME_SECONDS_TOOLTIP);
-  _play_time_seconds->SetRange(0, 86400);
-  left->Add(_play_time_seconds, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
-  label = new wxStaticText{_left_panel, wxID_ANY, "Next playlist items:"};
-  label->SetToolTip(NEXT_ITEMS_TOOLTIP);
-  left->Add(label, 0, wxALL, DEFAULT_BORDER);
-  _next_items_sizer = new wxBoxSizer{wxVERTICAL};
-  left->Add(_next_items_sizer, 0, wxEXPAND);
+  options_sizer->Add(_is_first, 0, wxALL, DEFAULT_BORDER);
 
+  _standard = new wxRadioButton{_left_panel,       wxID_ANY,      "Standard",
+                                wxDefaultPosition, wxDefaultSize, wxRB_GROUP};
+  _standard->SetToolTip(STANDARD_TOOLTIP);
+  options_sizer->Add(_standard, 0, wxALL, DEFAULT_BORDER);
+  _subroutine = new wxRadioButton{_left_panel, wxID_ANY, "Subroutine"};
+  _subroutine->SetToolTip(SUBROUTINE_TOOLTIP);
+  options_sizer->Add(_subroutine, 0, wxALL, DEFAULT_BORDER);
+  left->Add(options_sizer);
+
+  _playlist_item_sizer = new wxBoxSizer{wxVERTICAL};
+  left->Add(_playlist_item_sizer, 1, wxEXPAND);
+  SwitchToStandard();
+
+  _bottom_bottom_panel->SetSizer(_next_items_sizer);
   _left_panel->SetSizer(left);
   _right_panel->SetSizer(_audio_events_sizer);
-  bottom->Add(bottom_splitter, 1, wxEXPAND, 0);
+
+  bottom_top->Add(bottom_splitter, 1, wxEXPAND, 0);
   bottom_splitter->SplitVertically(_left_panel, _right_panel);
+  bottom_top_panel->SetSizer(bottom_top);
+
+  bottom->Add(bottom_bottom_splitter, 1, wxEXPAND, 0);
+  bottom_bottom_splitter->SplitHorizontally(bottom_top_panel, _bottom_bottom_panel);
   bottom_panel->SetSizer(bottom);
 
   sizer->Add(splitter, 1, wxEXPAND, 0);
@@ -136,21 +163,27 @@ PlaylistPage::PlaylistPage(wxNotebook* parent, CreatorFrame& creator_frame,
     _creator_frame.MakeDirty(true);
   });
 
-  _program->Bind(wxEVT_CHOICE, [&](wxCommandEvent& e) {
+  _standard->Bind(wxEVT_RADIOBUTTON, [&](wxCommandEvent&) {
     auto it = _session.mutable_playlist()->find(_item_selected);
     if (it == _session.mutable_playlist()->end()) {
       return;
     }
-    it->second.mutable_standard()->set_program(_program->GetString(_program->GetSelection()));
+    auto& standard = *it->second.mutable_standard();
+    if (_session.program_map().find(standard.program()) == _session.program_map().end() &&
+        !_session.program_map().empty()) {
+      standard.set_program(_session.program_map().begin()->first);
+    }
+    RefreshOurData();
     _creator_frame.MakeDirty(true);
   });
 
-  _play_time_seconds->Bind(wxEVT_SPINCTRL, [&](wxCommandEvent& e) {
+  _subroutine->Bind(wxEVT_RADIOBUTTON, [&](wxCommandEvent&) {
     auto it = _session.mutable_playlist()->find(_item_selected);
     if (it == _session.mutable_playlist()->end()) {
       return;
     }
-    it->second.mutable_standard()->set_play_time_seconds(_play_time_seconds->GetValue());
+    it->second.mutable_subroutine();
+    RefreshOurData();
     _creator_frame.MakeDirty(true);
   });
 }
@@ -177,13 +210,25 @@ void PlaylistPage::RefreshOurData()
   _is_first->Enable(!is_first);
   auto it = _session.playlist().find(_item_selected);
   if (it != _session.playlist().end()) {
-    for (unsigned int i = 0; i < _program->GetCount(); ++i) {
-      if (_program->GetString(i) == it->second.standard().program()) {
-        _program->SetSelection(i);
-        break;
+    if (it->second.has_standard()) {
+      SwitchToStandard();
+
+      for (unsigned int i = 0; i < _program->GetCount(); ++i) {
+        if (_program->GetString(i) == it->second.standard().program()) {
+          _program->SetSelection(i);
+          break;
+        }
       }
+      _play_time_seconds->SetValue(it->second.standard().play_time_seconds());
+    } else if (it->second.has_subroutine()) {
+      SwitchToSubroutine();
+
+      for (const auto& subroutine_item : it->second.subroutine().playlist_item_name()) {
+        AddSubroutineItem(subroutine_item);
+      }
+      AddSubroutineItem("");
     }
-    _play_time_seconds->SetValue(it->second.standard().play_time_seconds());
+
     for (const auto& item : it->second.next_item()) {
       AddNextItem(item.playlist_item_name(), item.random_weight(), item.condition_variable_name(),
                   item.condition_variable_value());
@@ -204,14 +249,16 @@ void PlaylistPage::RefreshData()
 
 void PlaylistPage::RefreshProgramsAndPlaylists()
 {
-  _program->Clear();
-  std::vector<std::string> programs;
-  for (const auto& pair : _session.program_map()) {
-    programs.push_back(pair.first);
-  }
-  std::sort(programs.begin(), programs.end());
-  for (const auto& program : programs) {
-    _program->Append(program);
+  if (_program) {
+    _program->Clear();
+    std::vector<std::string> programs;
+    for (const auto& pair : _session.program_map()) {
+      programs.push_back(pair.first);
+    }
+    std::sort(programs.begin(), programs.end());
+    for (const auto& program : programs) {
+      _program->Append(program);
+    }
   }
 }
 
@@ -220,6 +267,116 @@ void PlaylistPage::RefreshDirectory(const std::string& directory)
   _audio_files.clear();
   search_audio_files(_audio_files, directory);
   std::sort(_audio_files.begin(), _audio_files.end());
+}
+
+void PlaylistPage::SwitchToStandard()
+{
+  _standard->SetValue(true);
+  _playlist_item_sizer->Clear(true);
+  _program = nullptr;
+  _play_time_seconds = nullptr;
+  _subroutine_items.clear();
+  wxStaticText* label = nullptr;
+
+  label = new wxStaticText{_left_panel, wxID_ANY, "Program:"};
+  label->SetToolTip(PROGRAM_TOOLTIP);
+  _playlist_item_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+
+  _program = new wxChoice{_left_panel, wxID_ANY};
+  _program->SetToolTip(PROGRAM_TOOLTIP);
+  _playlist_item_sizer->Add(_program, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+
+  label = new wxStaticText{_left_panel, wxID_ANY, "Play time (seconds):"};
+  label->SetToolTip(PLAY_TIME_SECONDS_TOOLTIP);
+  _playlist_item_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+
+  _play_time_seconds = new wxSpinCtrl{_left_panel, wxID_ANY};
+  _play_time_seconds->SetToolTip(PLAY_TIME_SECONDS_TOOLTIP);
+  _play_time_seconds->SetRange(0, 86400);
+  _playlist_item_sizer->Add(_play_time_seconds, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+
+  _left_panel->Layout();
+  RefreshProgramsAndPlaylists();
+
+  _program->Bind(wxEVT_CHOICE, [&](wxCommandEvent& e) {
+    auto it = _session.mutable_playlist()->find(_item_selected);
+    if (it == _session.mutable_playlist()->end()) {
+      return;
+    }
+    it->second.mutable_standard()->set_program(_program->GetString(_program->GetSelection()));
+    _creator_frame.MakeDirty(true);
+  });
+
+  _play_time_seconds->Bind(wxEVT_SPINCTRL, [&](wxCommandEvent& e) {
+    auto it = _session.mutable_playlist()->find(_item_selected);
+    if (it == _session.mutable_playlist()->end()) {
+      return;
+    }
+    it->second.mutable_standard()->set_play_time_seconds(_play_time_seconds->GetValue());
+    _creator_frame.MakeDirty(true);
+  });
+}
+
+void PlaylistPage::SwitchToSubroutine()
+{
+  _subroutine->SetValue(true);
+  _playlist_item_sizer->Clear(true);
+  _program = nullptr;
+  _play_time_seconds = nullptr;
+  _subroutine_items.clear();
+
+  auto label = new wxStaticText{_left_panel, wxID_ANY, "Subroutine playlist items:"};
+  label->SetToolTip(SUBROUTINE_TOOLTIP);
+  _playlist_item_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
+  RefreshProgramsAndPlaylists();
+}
+
+void PlaylistPage::AddSubroutineItem(const std::string& playlist_item_name)
+{
+  auto choice = new wxChoice{_left_panel, wxID_ANY};
+  choice->SetToolTip(SUBROUTINE_ITEM_TOOLTIP);
+  _playlist_item_sizer->Add(choice, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+
+  std::vector<std::string> playlist_items;
+  for (const auto& pair : _session.playlist()) {
+    playlist_items.push_back(pair.first);
+  }
+  std::sort(playlist_items.begin(), playlist_items.end());
+  choice->Append("");
+  int i = 1;
+  for (const auto& item_name : playlist_items) {
+    choice->Append(item_name);
+    if (item_name == playlist_item_name) {
+      choice->SetSelection(i);
+    }
+    ++i;
+  }
+  if (playlist_item_name.empty()) {
+    choice->SetSelection(0);
+  }
+
+  auto index = _subroutine_items.size();
+  _subroutine_items.push_back(choice);
+  _left_panel->Layout();
+
+  choice->Bind(wxEVT_CHOICE, [&, index, choice](wxCommandEvent&) {
+    auto it = _session.mutable_playlist()->find(_item_selected);
+    if (it == _session.mutable_playlist()->end()) {
+      return;
+    }
+    std::string name = choice->GetString(choice->GetSelection());
+    if (name != "") {
+      while (it->second.subroutine().playlist_item_name_size() <= int(index)) {
+        it->second.mutable_subroutine()->add_playlist_item_name(name);
+      }
+      it->second.mutable_subroutine()->set_playlist_item_name(int(index), name);
+    } else if (it->second.subroutine().playlist_item_name_size() > int(index)) {
+      it->second.mutable_subroutine()->mutable_playlist_item_name()->erase(
+          index + it->second.mutable_subroutine()->mutable_playlist_item_name()->begin());
+    }
+    _creator_frame.MakeDirty(true);
+    RefreshOurData();
+  });
 }
 
 void PlaylistPage::AddNextItem(const std::string& name, std::uint32_t weight_value,
@@ -232,7 +389,7 @@ void PlaylistPage::AddNextItem(const std::string& name, std::uint32_t weight_val
   std::sort(playlist_items.begin(), playlist_items.end());
 
   auto sizer = new wxBoxSizer{wxHORIZONTAL};
-  auto choice = new wxChoice{_left_panel, wxID_ANY};
+  auto choice = new wxChoice{_bottom_bottom_panel, wxID_ANY};
   choice->SetToolTip(NEXT_ITEM_CHOICE_TOOLTIP);
   choice->Append("");
   int i = 1;
@@ -250,12 +407,12 @@ void PlaylistPage::AddNextItem(const std::string& name, std::uint32_t weight_val
   wxSizer* box_sizer;
 
   box_sizer = new wxBoxSizer{wxHORIZONTAL};
-  label = new wxStaticText{_left_panel, wxID_ANY, "Weight:"};
+  label = new wxStaticText{_bottom_bottom_panel, wxID_ANY, "Weight:"};
   label->SetToolTip(NEXT_ITEM_WEIGHT_TOOLTIP);
   box_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
   label->Enable(name != "");
 
-  auto weight = new wxSpinCtrl{_left_panel, wxID_ANY};
+  auto weight = new wxSpinCtrl{_bottom_bottom_panel, wxID_ANY};
   weight->SetToolTip(NEXT_ITEM_WEIGHT_TOOLTIP);
   weight->SetRange(name == "" ? 0 : 1, 100);
   weight->SetValue(weight_value);
@@ -264,12 +421,12 @@ void PlaylistPage::AddNextItem(const std::string& name, std::uint32_t weight_val
   wrap_sizer->Add(box_sizer, 0, wxEXPAND);
 
   box_sizer = new wxBoxSizer{wxHORIZONTAL};
-  label = new wxStaticText{_left_panel, wxID_ANY, "Condition variable:"};
+  label = new wxStaticText{_bottom_bottom_panel, wxID_ANY, "Condition variable:"};
   label->SetToolTip(NEXT_ITEM_VARIABLE_TOOLTIP);
   box_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
   label->Enable(name != "");
 
-  auto variable_choice = new wxChoice{_left_panel, wxID_ANY};
+  auto variable_choice = new wxChoice{_bottom_bottom_panel, wxID_ANY};
   variable_choice->SetToolTip(NEXT_ITEM_VARIABLE_TOOLTIP);
   variable_choice->Enable(name != "");
   variable_choice->Append("[None]");
@@ -283,12 +440,12 @@ void PlaylistPage::AddNextItem(const std::string& name, std::uint32_t weight_val
   }
   box_sizer->Add(variable_choice, 0, wxALL, DEFAULT_BORDER);
 
-  label = new wxStaticText{_left_panel, wxID_ANY, "Value:"};
+  label = new wxStaticText{_bottom_bottom_panel, wxID_ANY, "Value:"};
   label->SetToolTip(NEXT_ITEM_VARIABLE_VALUE_TOOLTIP);
   box_sizer->Add(label, 0, wxALL, DEFAULT_BORDER);
   label->Enable(name != "" && variable != "");
 
-  auto variable_value_choice = new wxChoice{_left_panel, wxID_ANY};
+  auto variable_value_choice = new wxChoice{_bottom_bottom_panel, wxID_ANY};
   variable_value_choice->SetToolTip(NEXT_ITEM_VARIABLE_VALUE_TOOLTIP);
   variable_value_choice->Enable(name != "" && variable != "");
   if (!variable.empty()) {
@@ -307,7 +464,7 @@ void PlaylistPage::AddNextItem(const std::string& name, std::uint32_t weight_val
 
   sizer->Add(wrap_sizer, 1, wxEXPAND);
   _next_items_sizer->Add(sizer, 0, wxEXPAND);
-  _left_panel->Layout();
+  _bottom_bottom_panel->Layout();
 
   auto index = _next_items.size();
   _next_items.push_back(sizer);
