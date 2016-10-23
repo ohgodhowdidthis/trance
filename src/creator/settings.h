@@ -18,11 +18,6 @@ class wxSpinCtrl;
 class SettingsFrame : public wxFrame
 {
 public:
-  enum {
-    ID_OK = 10201,
-    ID_CANCEL = 10202,
-    ID_APPLY = 10203,
-  };
   SettingsFrame(CreatorFrame* parent, trance_pb::System& system);
 
 private:

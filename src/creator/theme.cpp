@@ -242,12 +242,12 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
       "Text messages that are part "
       "of the currently-selected theme.");
 
-  _button_new = new wxButton{right_panel, ID_NEW, "New"};
-  _button_edit = new wxButton{right_panel, ID_EDIT, "Edit"};
-  _button_delete = new wxButton{right_panel, ID_DELETE, "Delete"};
-  _button_open = new wxButton{leftleft_panel, ID_OPEN, "Show in explorer"};
-  _button_rename = new wxButton{leftleft_panel, ID_RENAME, "Move / rename"};
-  _button_refresh = new wxButton{leftleft_panel, ID_REFRESH, "Refresh directory"};
+  _button_new = new wxButton{right_panel, wxID_ANY, "New"};
+  _button_edit = new wxButton{right_panel, wxID_ANY, "Edit"};
+  _button_delete = new wxButton{right_panel, wxID_ANY, "Delete"};
+  _button_open = new wxButton{leftleft_panel, wxID_ANY, "Show in explorer"};
+  _button_rename = new wxButton{leftleft_panel, wxID_ANY, "Move / rename"};
+  _button_refresh = new wxButton{leftleft_panel, wxID_ANY, "Refresh directory"};
 
   _button_new->SetToolTip("Create a new text item.");
   _button_edit->SetToolTip("Edit the selected text item.");
@@ -321,149 +321,135 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
       },
       wxID_ANY);
 
-  right_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-                    [&](wxCommandEvent&) {
-                      (*_session.mutable_theme_map())[_item_selected].add_text_line("NEW TEXT");
-                      RefreshOurData();
-                      _text_list->SetItemState(_text_list->GetItemCount() - 1,
-                                               wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
-                      _creator_frame.MakeDirty(true);
-                    },
-                    ID_NEW);
+  _button_new->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    (*_session.mutable_theme_map())[_item_selected].add_text_line("NEW TEXT");
+    RefreshOurData();
+    _text_list->SetItemState(_text_list->GetItemCount() - 1, wxLIST_STATE_SELECTED,
+                             wxLIST_STATE_SELECTED);
+    _creator_frame.MakeDirty(true);
+  });
 
-  right_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-                    [&](wxCommandEvent&) {
-                      for (int i = 0; i < _text_list->GetItemCount(); ++i) {
-                        if (_text_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
-                          _text_list->EditLabel(i);
-                          return;
-                        }
-                      }
-                    },
-                    ID_EDIT);
+  _button_edit->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    for (int i = 0; i < _text_list->GetItemCount(); ++i) {
+      if (_text_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
+        _text_list->EditLabel(i);
+        return;
+      }
+    }
+  });
 
-  right_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-                    [&](wxCommandEvent&) {
-                      int removed = -1;
-                      for (int i = 0; i < _text_list->GetItemCount(); ++i) {
-                        if (_text_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
-                          auto& theme = (*_session.mutable_theme_map())[_item_selected];
-                          theme.mutable_text_line()->erase(i + theme.mutable_text_line()->begin());
-                          removed = i;
-                          break;
-                        }
-                      }
-                      RefreshOurData();
-                      if (removed >= 0 && _text_list->GetItemCount()) {
-                        _text_list->SetItemState(std::min(_text_list->GetItemCount() - 1, removed),
-                                                 wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
-                      }
-                      _creator_frame.MakeDirty(true);
-                    },
-                    ID_DELETE);
+  _button_delete->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    int removed = -1;
+    for (int i = 0; i < _text_list->GetItemCount(); ++i) {
+      if (_text_list->GetItemState(i, wxLIST_STATE_SELECTED)) {
+        auto& theme = (*_session.mutable_theme_map())[_item_selected];
+        theme.mutable_text_line()->erase(i + theme.mutable_text_line()->begin());
+        removed = i;
+        break;
+      }
+    }
+    RefreshOurData();
+    if (removed >= 0 && _text_list->GetItemCount()) {
+      _text_list->SetItemState(std::min(_text_list->GetItemCount() - 1, removed),
+                               wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
+    }
+    _creator_frame.MakeDirty(true);
+  });
 
-  leftleft_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-                       [&](wxCommandEvent&) {
-                         auto root = std::tr2::sys::path{_session_path}.parent_path().string();
-                         for (const auto& pair : _tree_lookup) {
-                           if (pair.second == _tree->GetSelection()) {
-                             auto path = root + "\\" + pair.first;
-                             _creator_frame.SetStatusText("Opening " + path);
-                             wxExecute("explorer /select,\"" + path + "\"", wxEXEC_ASYNC);
-                           }
-                         }
-                       },
-                       ID_OPEN);
+  _button_open->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    auto root = std::tr2::sys::path{_session_path}.parent_path().string();
+    for (const auto& pair : _tree_lookup) {
+      if (pair.second == _tree->GetSelection()) {
+        auto path = root + "\\" + pair.first;
+        _creator_frame.SetStatusText("Opening " + path);
+        wxExecute("explorer /select,\"" + path + "\"", wxEXEC_ASYNC);
+      }
+    }
+  });
 
-  leftleft_panel->Bind(
-      wxEVT_COMMAND_BUTTON_CLICKED,
-      [&](wxCommandEvent&) {
-        auto root = std::tr2::sys::path{_session_path}.parent_path().string();
-        std::string old_relative_path;
-        for (const auto& pair : _tree_lookup) {
-          if (pair.second == _tree->GetSelection()) {
-            old_relative_path = pair.first;
-            break;
+  _button_refresh->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    auto root = std::tr2::sys::path{_session_path}.parent_path().string();
+    std::string old_relative_path;
+    for (const auto& pair : _tree_lookup) {
+      if (pair.second == _tree->GetSelection()) {
+        old_relative_path = pair.first;
+        break;
+      }
+    }
+    if (old_relative_path.empty()) {
+      return;
+    }
+    std::unique_ptr<wxTextEntryDialog> dialog{new wxTextEntryDialog(
+        this, "New location (relative to session directory):", "Move / rename", old_relative_path)};
+    if (dialog->ShowModal() != wxID_OK) {
+      return;
+    }
+    std::string new_relative_path = dialog->GetValue();
+    if (new_relative_path == old_relative_path) {
+      return;
+    }
+    auto rename_file = [&](const std::string old_abs, const std::string& new_abs) {
+      auto old_path = std::tr2::sys::path{old_abs};
+      auto new_path = std::tr2::sys::path{new_abs};
+      std::error_code ec;
+      auto parent = std::tr2::sys::canonical(new_path.parent_path(), ec);
+      if (!std::tr2::sys::is_directory(parent) &&
+          (ec || !std::tr2::sys::create_directories(parent))) {
+        wxMessageBox("Couldn't create directory " + parent.string(), "", wxICON_ERROR, this);
+        return false;
+      }
+      bool exists = std::tr2::sys::exists(new_path, ec);
+      if (exists || ec) {
+        wxMessageBox(
+            "Couldn't rename " + old_path.string() + ": " + new_path.string() + " already exists",
+            "", wxICON_ERROR, this);
+        return false;
+      }
+      std::tr2::sys::rename(old_path, new_path, ec);
+      if (ec) {
+        wxMessageBox("Couldn't rename " + old_path.string() + " to " + new_path.string(), "",
+                     wxICON_ERROR, this);
+        return false;
+      }
+      for (auto& pair : *session.mutable_theme_map()) {
+        auto& theme = pair.second;
+        auto c = [&](google::protobuf::RepeatedPtrField<std::string>& field) {
+          auto it = std::find(field.begin(), field.end(), make_relative(root, old_abs));
+          if (it != field.end()) {
+            *field.Add() = make_relative(root, new_abs);
           }
-        }
-        if (old_relative_path.empty()) {
-          return;
-        }
-        std::unique_ptr<wxTextEntryDialog> dialog{
-            new wxTextEntryDialog(this, "New location (relative to session directory):",
-                                  "Move / rename", old_relative_path)};
-        if (dialog->ShowModal() != wxID_OK) {
-          return;
-        }
-        std::string new_relative_path = dialog->GetValue();
-        if (new_relative_path == old_relative_path) {
-          return;
-        }
-        auto rename_file = [&](const std::string old_abs, const std::string& new_abs) {
-          auto old_path = std::tr2::sys::path{old_abs};
-          auto new_path = std::tr2::sys::path{new_abs};
-          std::error_code ec;
-          auto parent = std::tr2::sys::canonical(new_path.parent_path(), ec);
-          if (!std::tr2::sys::is_directory(parent) &&
-              (ec || !std::tr2::sys::create_directories(parent))) {
-            wxMessageBox("Couldn't create directory " + parent.string(), "", wxICON_ERROR, this);
-            return false;
-          }
-          bool exists = std::tr2::sys::exists(new_path, ec);
-          if (exists || ec) {
-            wxMessageBox("Couldn't rename " + old_path.string() + ": " + new_path.string() +
-                             " already exists",
-                         "", wxICON_ERROR, this);
-            return false;
-          }
-          std::tr2::sys::rename(old_path, new_path, ec);
-          if (ec) {
-            wxMessageBox("Couldn't rename " + old_path.string() + " to " + new_path.string(), "",
-                         wxICON_ERROR, this);
-            return false;
-          }
-          for (auto& pair : *session.mutable_theme_map()) {
-            auto& theme = pair.second;
-            auto c = [&](google::protobuf::RepeatedPtrField<std::string>& field) {
-              auto it = std::find(field.begin(), field.end(), make_relative(root, old_abs));
-              if (it != field.end()) {
-                *field.Add() = make_relative(root, new_abs);
-              }
-            };
-            c(*theme.mutable_font_path());
-            c(*theme.mutable_image_path());
-            c(*theme.mutable_animation_path());
-          }
-          return true;
         };
-        auto old_root = root + "/" + old_relative_path;
-        auto new_root = root + "/" + new_relative_path;
-        if (std::tr2::sys::is_regular_file(old_root)) {
-          rename_file(old_root, new_root);
-        } else {
-          for (auto it = std::tr2::sys::recursive_directory_iterator(old_root);
-               it != std::tr2::sys::recursive_directory_iterator(); ++it) {
-            if (!std::tr2::sys::is_regular_file(it->status())) {
-              continue;
-            }
-            auto rel_rel = make_relative(old_root, it->path().string());
-            if (!rename_file(old_root + "/" + rel_rel, new_root + "/" + rel_rel)) {
-              break;
-            }
-          }
+        c(*theme.mutable_font_path());
+        c(*theme.mutable_image_path());
+        c(*theme.mutable_animation_path());
+      }
+      return true;
+    };
+    auto old_root = root + "/" + old_relative_path;
+    auto new_root = root + "/" + new_relative_path;
+    if (std::tr2::sys::is_regular_file(old_root)) {
+      rename_file(old_root, new_root);
+    } else {
+      for (auto it = std::tr2::sys::recursive_directory_iterator(old_root);
+           it != std::tr2::sys::recursive_directory_iterator(); ++it) {
+        if (!std::tr2::sys::is_regular_file(it->status())) {
+          continue;
         }
-        _creator_frame.RefreshDirectory();
-        _creator_frame.MakeDirty(true);
-        RefreshOurData();
-      },
-      ID_RENAME);
+        auto rel_rel = make_relative(old_root, it->path().string());
+        if (!rename_file(old_root + "/" + rel_rel, new_root + "/" + rel_rel)) {
+          break;
+        }
+      }
+    }
+    _creator_frame.RefreshDirectory();
+    _creator_frame.MakeDirty(true);
+    RefreshOurData();
+  });
 
-  leftleft_panel->Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-                       [&](wxCommandEvent&) {
-                         _creator_frame.RefreshDirectory();
-                         RefreshOurData();
-                       },
-                       ID_REFRESH);
+  _button_refresh->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    _creator_frame.RefreshDirectory();
+    RefreshOurData();
+  });
 
   _tree->Bind(wxEVT_TREELIST_SELECTION_CHANGED,
               [&](wxTreeListEvent& e) {

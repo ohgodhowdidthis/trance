@@ -1,5 +1,6 @@
 #include "export.h"
 #include "../common.h"
+#include "../session.h"
 #include "../util.h"
 #include "main.h"
 
@@ -39,13 +40,15 @@ namespace
 }
 
 ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
-                         const std::string& default_path)
+                         const trance_pb::Session& session, const std::string& session_path,
+                         const std::string& executable_path)
 : wxFrame{parent,         wxID_ANY,
           "Export video", wxDefaultPosition,
           wxDefaultSize,  wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN}
 , _system{system}
 , _parent{parent}
 {
+  auto default_path = (executable_path / *--std::tr2::sys::path{session_path}.end()).string();
   const auto& settings = system.last_export_settings();
 
   std::tr2::sys::path last_path =
@@ -103,8 +106,9 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
                           wxDefaultPosition,
                           wxDefaultSize,
                           wxSL_HORIZONTAL | wxSL_AUTOTICKS | wxSL_VALUE_LABEL};
-  auto button_export = new wxButton{panel, ID_EXPORT, "Export"};
-  auto button_cancel = new wxButton{panel, ID_CANCEL, "Cancel"};
+  auto button_export = new wxButton{panel, wxID_ANY, "Export"};
+  auto button_defaults = new wxButton{panel, wxID_ANY, "Defaults"};
+  auto button_cancel = new wxButton{panel, wxID_ANY, "Cancel"};
 
   _width->SetToolTip(WIDTH_TOOLTIP);
   _height->SetToolTip(HEIGHT_TOOLTIP);
@@ -166,7 +170,13 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
   top_inner->Add(_threads, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
 
   bottom->Add(button_cancel, 1, wxALL, DEFAULT_BORDER);
+  bottom->Add(button_defaults, 1, wxALL, DEFAULT_BORDER);
   bottom->Add(button_export, 1, wxALL, DEFAULT_BORDER);
+
+  if (!session.variable_map().empty()) {
+    _configuration.reset(new VariableConfiguration{_system, session, session_path, [] {}, panel});
+    top->Add(_configuration->Sizer(), 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+  }
 
   if (frame_by_frame) {
     _threads->Enable(false);
@@ -179,19 +189,36 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
 
   panel->SetSizer(sizer);
   SetClientSize(sizer->GetMinSize());
+  CentreOnParent();
   Show(true);
 
-  Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-       [&](wxCommandEvent&) {
-         Export();
-         Close();
-       },
-       ID_EXPORT);
-  Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { Close(); }, ID_CANCEL);
+  button_export->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    Export();
+    Close();
+  });
+  button_defaults->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { ResetDefaults(); });
+  button_cancel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { Close(); });
+}
+
+void ExportFrame::ResetDefaults()
+{
+  if (_configuration) {
+    _configuration->ResetDefaults();
+  }
+  auto defaults = get_default_system().last_export_settings();
+  _width->SetValue(defaults.width());
+  _height->SetValue(defaults.height());
+  _fps->SetValue(defaults.fps());
+  _length->SetValue(defaults.length());
+  _quality->SetValue(defaults.quality());
+  _threads->SetValue(defaults.threads());
 }
 
 void ExportFrame::Export()
 {
+  if (_configuration) {
+    _configuration->SaveToSystem(_parent);
+  }
   auto& settings = *_system.mutable_last_export_settings();
   settings.set_path(_path);
   settings.set_width(_width->GetValue());

@@ -27,12 +27,6 @@ public:
   void RefreshData();
 
 private:
-  enum {
-    ID_NEW = 10420,
-    ID_EDIT = 10421,
-    ID_DELETE = 10422,
-  };
-
   CreatorFrame& _creator_frame;
   trance_pb::Session& _session;
 
@@ -41,7 +35,7 @@ private:
   ItemList<trance_pb::Variable>* _item_list;
 
   wxButton* _button_new;
-  wxButton* _button_edit;
+  wxButton* _button_rename;
   wxButton* _button_delete;
   wxChoice* _default_value;
   wxListCtrl* _value_list;

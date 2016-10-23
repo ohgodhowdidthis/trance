@@ -145,7 +145,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
          }
          Disable();
          _notebook->Disable();
-         auto frame = new LaunchFrame{this, _system, _session, _session_path, [&] { Launch(); }};
+         auto frame = new LaunchFrame{this, _system, _session, _session_path};
        },
        ID_LAUNCH_SESSION);
 
@@ -154,11 +154,9 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
          if (!ConfirmDiscardChanges()) {
            return;
          }
-         auto default_path =
-             (_executable_path / *--std::tr2::sys::path{_session_path}.end()).string();
          Disable();
          _notebook->Disable();
-         auto frame = new ExportFrame{this, _system, default_path};
+         auto frame = new ExportFrame{this, _system, _session, _session_path, _executable_path};
        },
        ID_EXPORT_VIDEO);
 
@@ -211,13 +209,6 @@ void CreatorFrame::Launch()
 }
 
 void CreatorFrame::ExportVideo(const std::string& path)
-{
-  Disable();
-  _notebook->Disable();
-  new LaunchFrame{this, _system, _session, _session_path, [&, path] { ExportVideoLaunch(path); }};
-}
-
-void CreatorFrame::ExportVideoLaunch(const std::string& path)
 {
   bool frame_by_frame = ext_is(path, "jpg") || ext_is(path, "png") || ext_is(path, "bmp");
   const auto& settings = _system.last_export_settings();
@@ -506,8 +497,8 @@ void CreatorFrame::SetSessionPath(const std::string& path)
   _session_path = path;
   _menu_bar->Enable(wxID_SAVE, true);
   RefreshDirectory();
-  _panel->Show();
   _panel->Layout();
+  _panel->Show();
 }
 
 std::string CreatorFrame::EncodeVariables()

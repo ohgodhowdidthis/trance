@@ -115,35 +115,26 @@ namespace
   }
 }
 
-LaunchFrame::LaunchFrame(CreatorFrame* parent, trance_pb::System& system,
-                         const trance_pb::Session& session, const std::string& session_path,
-                         const std::function<void()>& callback)
-: wxFrame{parent,           wxID_ANY,
-          "Launch session", wxDefaultPosition,
-          wxDefaultSize,    wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN}
-, _parent{parent}
-, _system{system}
+VariableConfiguration::VariableConfiguration(trance_pb::System& system,
+                                             const trance_pb::Session& session,
+                                             const std::string& session_path,
+                                             const std::function<void()>& on_change, wxPanel* panel)
+: _system{system}
 , _session{session}
 , _session_path{session_path}
-, _callback{callback}
+, _on_change{on_change}
+, _sizer{nullptr}
 {
-  auto panel = new wxPanel{this};
-  auto sizer = new wxBoxSizer{wxVERTICAL};
-  auto top = new wxBoxSizer{wxVERTICAL};
-  auto bottom = new wxBoxSizer{wxHORIZONTAL};
-  wxStaticBoxSizer* top_inner;
-  if (!_session.variable_map().empty()) {
-    top_inner = new wxStaticBoxSizer{wxVERTICAL, panel, "Variable configuration"};
-  }
-  auto top_bottom = new wxStaticBoxSizer{wxVERTICAL, panel, "Estimated running time"};
-
   std::unordered_map<std::string, std::string> last_variables;
-  auto it = _system.last_session_map().find(_session_path);
-  if (it != _system.last_session_map().end()) {
+  auto it = system.last_session_map().find(session_path);
+  if (it != system.last_session_map().end()) {
     last_variables.insert(it->second.variable_map().begin(), it->second.variable_map().end());
   }
 
-  for (const auto& pair : _session.variable_map()) {
+  if (!session.variable_map().empty()) {
+    _sizer = new wxStaticBoxSizer{wxVERTICAL, panel, "Variable configuration"};
+  }
+  for (const auto& pair : session.variable_map()) {
     wxStaticText* label = new wxStaticText{panel, wxID_ANY, pair.first + ":"};
     wxChoice* choice = new wxChoice{panel, wxID_ANY};
     int i = 0;
@@ -165,39 +156,86 @@ LaunchFrame::LaunchFrame(CreatorFrame* parent, trance_pb::System& system,
 
     label->SetToolTip(pair.second.description());
     choice->SetToolTip(pair.second.description());
-    top_inner->Add(label, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
-    top_inner->Add(choice, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+    _sizer->Add(label, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+    _sizer->Add(choice, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
 
-    choice->Bind(wxEVT_CHOICE, [&](wxCommandEvent&) { RefreshTimeEstimate(); });
+    choice->Bind(wxEVT_CHOICE, [&](wxCommandEvent&) { _on_change(); });
   }
+}
 
-  auto button_cancel = new wxButton{panel, ID_CANCEL, "Cancel"};
-  bottom->Add(button_cancel, 1, wxALL, DEFAULT_BORDER);
+std::unordered_map<std::string, std::string> VariableConfiguration::Variables() const
+{
+  std::unordered_map<std::string, std::string> variables;
+  for (const auto& pair : _variables) {
+    variables[pair.first] = pair.second->GetString(pair.second->GetSelection());
+  }
+  return variables;
+}
 
+wxSizer* VariableConfiguration::Sizer() const
+{
+  return _sizer;
+}
+
+void VariableConfiguration::SaveToSystem(CreatorFrame* parent) const
+{
+  auto& last_session = (*_system.mutable_last_session_map())[_session_path];
+  last_session.mutable_variable_map()->clear();
+  for (const auto& pair : _variables) {
+    (*last_session.mutable_variable_map())[pair.first] =
+        pair.second->GetString(pair.second->GetSelection());
+  }
+  parent->SaveSystem(false);
+}
+
+void VariableConfiguration::ResetDefaults()
+{
+  for (const auto& pair : _variables) {
+    auto it = _session.variable_map().find(pair.first);
+    if (it == _session.variable_map().end()) {
+      continue;
+    }
+    for (unsigned int i = 0; i < pair.second->GetCount(); ++i) {
+      if (pair.second->GetString(i) == it->second.default_value()) {
+        pair.second->SetSelection(i);
+        break;
+      }
+    }
+  }
+  _on_change();
+}
+
+LaunchFrame::LaunchFrame(CreatorFrame* parent, trance_pb::System& system,
+                         const trance_pb::Session& session, const std::string& session_path)
+: wxFrame{parent,           wxID_ANY,
+          "Launch session", wxDefaultPosition,
+          wxDefaultSize,    wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN}
+, _parent{parent}
+, _system{system}
+, _session{session}
+, _session_path{session_path}
+{
+  auto panel = new wxPanel{this};
+  auto sizer = new wxBoxSizer{wxVERTICAL};
+  auto top = new wxBoxSizer{wxVERTICAL};
+  auto bottom = new wxBoxSizer{wxHORIZONTAL};
   if (!_session.variable_map().empty()) {
-    auto button_defaults = new wxButton{panel, ID_DEFAULTS, "Defaults"};
+    _configuration.reset(new VariableConfiguration{_system, _session, _session_path,
+                                                   [&] { RefreshTimeEstimate(); }, panel});
+    top->Add(_configuration->Sizer(), 1, wxALL | wxEXPAND, DEFAULT_BORDER);
+  }
+  auto top_bottom = new wxStaticBoxSizer{wxVERTICAL, panel, "Estimated running time"};
+
+  auto button_cancel = new wxButton{panel, wxID_ANY, "Cancel"};
+  bottom->Add(button_cancel, 1, wxALL, DEFAULT_BORDER);
+  if (_configuration) {
+    auto button_defaults = new wxButton{panel, wxID_ANY, "Defaults"};
     bottom->Add(button_defaults, 1, wxALL, DEFAULT_BORDER);
 
-    Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-         [&](wxCommandEvent&) {
-           for (const auto& pair : _variables) {
-             auto it = _session.variable_map().find(pair.first);
-             if (it == _session.variable_map().end()) {
-               continue;
-             }
-             for (unsigned int i = 0; i < pair.second->GetCount(); ++i) {
-               if (pair.second->GetString(i) == it->second.default_value()) {
-                 pair.second->SetSelection(i);
-                 break;
-               }
-             }
-           }
-           RefreshTimeEstimate();
-         },
-         ID_DEFAULTS);
+    button_defaults->Bind(wxEVT_COMMAND_BUTTON_CLICKED,
+                          [&](wxCommandEvent&) { _configuration->ResetDefaults(); });
   }
-
-  auto button_launch = new wxButton{panel, ID_LAUNCH, "Launch"};
+  auto button_launch = new wxButton{panel, wxID_ANY, "Launch"};
   bottom->Add(button_launch, 1, wxALL, DEFAULT_BORDER);
 
   Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event) {
@@ -205,9 +243,6 @@ LaunchFrame::LaunchFrame(CreatorFrame* parent, trance_pb::System& system,
     Destroy();
   });
 
-  if (!_session.variable_map().empty()) {
-    top->Add(top_inner, 1, wxALL | wxEXPAND, DEFAULT_BORDER);
-  }
   _text = new wxStaticText{panel, wxID_ANY, ""};
   top_bottom->Add(_text, 1, wxALL | wxEXPAND, DEFAULT_BORDER);
   top->Add(top_bottom, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
@@ -216,38 +251,32 @@ LaunchFrame::LaunchFrame(CreatorFrame* parent, trance_pb::System& system,
   sizer->Add(top, 1, wxEXPAND, 0);
   sizer->Add(bottom, 0, wxEXPAND, 0);
 
+  button_launch->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    Launch();
+    Close();
+  });
+
+  button_cancel->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { Close(); });
+
   panel->SetSizer(sizer);
   SetClientSize(sizer->GetMinSize());
-
-  Bind(wxEVT_COMMAND_BUTTON_CLICKED,
-       [&](wxCommandEvent&) {
-         Launch();
-         Close();
-       },
-       ID_LAUNCH);
-
-  Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) { Close(); }, ID_CANCEL);
-
+  CentreOnParent();
   Show(true);
 }
 
 void LaunchFrame::Launch()
 {
-  auto& last_session = (*_system.mutable_last_session_map())[_session_path];
-  last_session.mutable_variable_map()->clear();
-  for (const auto& pair : _variables) {
-    (*last_session.mutable_variable_map())[pair.first] =
-        pair.second->GetString(pair.second->GetSelection());
+  if (_configuration) {
+    _configuration->SaveToSystem(_parent);
   }
-  _parent->SaveSystem(false);
-  _callback();
+  _parent->Launch();
 }
 
 void LaunchFrame::RefreshTimeEstimate()
 {
   std::unordered_map<std::string, std::string> variables;
-  for (const auto& pair : _variables) {
-    variables[pair.first] = pair.second->GetString(pair.second->GetSelection());
+  if (_configuration) {
+    variables = _configuration->Variables();
   }
   auto play_time = calculate_play_time(_session, variables);
 
