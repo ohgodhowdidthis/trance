@@ -344,7 +344,8 @@ void CreatorFrame::ProgramRenamed(const std::string& old_name, const std::string
 void CreatorFrame::PlaylistItemCreated(const std::string& playlist_item_name)
 {
   auto& playlist_item = (*_session.mutable_playlist())[playlist_item_name];
-  if (!_session.program_map().empty()) {
+  if (!_session.program_map().empty() && !playlist_item.has_standard() &&
+      !playlist_item.has_subroutine()) {
     playlist_item.mutable_standard()->set_program(_session.program_map().begin()->first);
   }
   _playlist_page->RefreshProgramsAndPlaylists();
