@@ -366,6 +366,14 @@ void CreatorFrame::PlaylistItemDeleted(const std::string& playlist_item_name)
           ? pair.second.mutable_next_item()->erase(it)
           : 1 + it;
     }
+    if (pair.second.has_subroutine()) {
+      auto& subroutine = *pair.second.mutable_subroutine();
+      for (auto it = subroutine.mutable_playlist_item_name()->begin();
+           it != subroutine.mutable_playlist_item_name()->end();) {
+        it =
+            *it == playlist_item_name ? subroutine.mutable_playlist_item_name()->erase(it) : 1 + it;
+      }
+    }
   }
   _playlist_page->RefreshProgramsAndPlaylists();
   _playlist_page->RefreshOurData();
@@ -382,6 +390,13 @@ void CreatorFrame::PlaylistItemRenamed(const std::string& old_name, const std::s
     for (auto& next_item : *pair.second.mutable_next_item()) {
       if (next_item.playlist_item_name() == old_name) {
         next_item.set_playlist_item_name(new_name);
+      }
+    }
+    if (pair.second.has_subroutine()) {
+      for (auto& name : *pair.second.mutable_subroutine()->mutable_playlist_item_name()) {
+        if (name == old_name) {
+          name = new_name;
+        }
       }
     }
   }
