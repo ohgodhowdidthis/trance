@@ -147,10 +147,24 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
     }
   }
 
-  const trance_pb::PlaylistItem* item =
-      &session.playlist().find(session.first_playlist_item())->second;
+  struct PlayStackEntry {
+    const trance_pb::PlaylistItem* item;
+    int subroutine_step;
+  };
+  std::vector<PlayStackEntry> stack;
+  stack.push_back({&session.playlist().find(session.first_playlist_item())->second, 0});
+
   auto program = [&]() -> const trance_pb::Program& {
-    return session.program_map().find(item->program())->second;
+    static const auto default_session = get_default_session();
+    static const auto default_program = default_session.program_map().find("default")->second;
+    if (!stack.back().item->has_standard()) {
+      return default_program;
+    }
+    auto it = session.program_map().find(stack.back().item->standard().program());
+    if (it == session.program_map().end()) {
+      return default_program;
+    }
+    return it->second;
   };
 
   std::cout << "loading themes" << std::endl;
@@ -170,7 +184,7 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
   if (realtime) {
     async_thread = run_async_thread(running, *theme_bank);
     audio.reset(new Audio{root_path});
-    audio->TriggerEvents(*item);
+    audio->TriggerEvents(*stack.back().item);
   }
   std::cout << std::endl << "-> " << session.first_playlist_item() << std::endl;
 
@@ -227,13 +241,46 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
       }
 
       auto time_since_switch = clock_time() - last_playlist_switch;
-      std::string next;
-      while (time_since_switch >= 1000 * item->play_time_seconds() &&
-             !(next = next_playlist_item(variables, item)).empty()) {
+      while (true) {
+        auto& entry = stack.back();
+        // Continue if we're in a standard playlist item.
+        if (entry.item->has_standard() &&
+            time_since_switch < 1000 * entry.item->standard().play_time_seconds()) {
+          break;
+        }
+        // Trigger the next item of a subroutine.
+        if (entry.item->has_subroutine() &&
+            entry.subroutine_step < entry.item->subroutine().playlist_item_name_size()) {
+          if (stack.size() >= MAXIMUM_STACK) {
+            std::cerr << "error: subroutine stack overflow\n";
+            entry.subroutine_step = entry.item->subroutine().playlist_item_name_size();
+          } else {
+            last_playlist_switch = clock_time();
+            auto name = entry.item->subroutine().playlist_item_name(entry.subroutine_step);
+            stack.push_back({&session.playlist().find(name)->second, 0});
+            if (realtime) {
+              audio->TriggerEvents(*stack.back().item);
+            }
+            std::cout << "\n-> " << name << std::endl;
+            theme_bank->set_program(program());
+            director->set_program(program());
+            ++entry.subroutine_step;
+            continue;
+          }
+        }
+        auto next = next_playlist_item(variables, entry.item);
+        // Finish a subroutine.
+        if (next.empty() && stack.size() > 1) {
+          stack.pop_back();
+          continue;
+        } else if (next.empty()) {
+          break;
+        }
+        // Trigger the next item of a standard playlist item.
         last_playlist_switch = clock_time();
-        item = &session.playlist().find(next)->second;
+        stack.back().item = &session.playlist().find(next)->second;
         if (realtime) {
-          audio->TriggerEvents(*item);
+          audio->TriggerEvents(*entry.item);
         }
         std::cout << "\n-> " << next << std::endl;
         theme_bank->set_program(program());

@@ -82,7 +82,7 @@ namespace
 
   void set_default_playlist(trance_pb::Session& session, const std::string& program)
   {
-    (*session.mutable_playlist())["default"].set_program(program);
+    (*session.mutable_playlist())["default"].mutable_standard()->set_program(program);
   }
 
   void validate_colour(trance_pb::Colour& colour)
@@ -149,9 +149,23 @@ namespace
 
   void validate_playlist_item(trance_pb::PlaylistItem& playlist_item, trance_pb::Session& session)
   {
-    auto it = session.program_map().find(playlist_item.program());
-    if (it == session.program_map().end()) {
-      set_default_program(session, playlist_item.program());
+    if (playlist_item.has_standard()) {
+      auto it = session.program_map().find(playlist_item.standard().program());
+      if (it == session.program_map().end()) {
+        set_default_program(session, playlist_item.standard().program());
+      }
+    }
+    if (playlist_item.has_subroutine()) {
+      auto& subroutine = *playlist_item.mutable_subroutine();
+      for (auto it = subroutine.mutable_playlist_item_name()->begin();
+           it != subroutine.mutable_playlist_item_name()->end();) {
+        auto jt = session.playlist().find(*it);
+        if (jt == session.playlist().end()) {
+          it = subroutine.mutable_playlist_item_name()->erase(it);
+        } else {
+          ++it;
+        }
+      }
     }
 
     bool has_next_item = false;
@@ -175,8 +189,8 @@ namespace
         }
       }
     }
-    if (!has_next_item) {
-      playlist_item.set_play_time_seconds(0);
+    if (!has_next_item && playlist_item.has_standard()) {
+      playlist_item.mutable_standard()->set_play_time_seconds(0);
     }
   }
 
@@ -273,7 +287,7 @@ bool is_audio_file(const std::string& path)
   return ext_is(path, "wav") || ext_is(path, "ogg") || ext_is(path, "flac") || ext_is(path, "aiff");
 }
 
-bool is_enabled(const trance_pb::PlaylistItem::NextItem& next,
+bool is_enabled(const trance_pb::PlaylistItem_NextItem& next,
                 const std::unordered_map<std::string, std::string>& variables)
 {
   if (next.condition_variable_name().empty()) {
@@ -474,7 +488,7 @@ void validate_session(trance_pb::Session& session)
     set_default_playlist(session, session.program_map().begin()->first);
   }
   if (session.program_map().empty()) {
-    set_default_program(session, session.playlist().begin()->second.program());
+    set_default_program(session, "default");
   }
   for (auto& pair : *session.mutable_variable_map()) {
     validate_variable(pair.second);

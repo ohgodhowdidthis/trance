@@ -26,22 +26,30 @@ namespace
                                const std::unordered_map<std::string, std::string>& variables)
   {
     PlayTime result;
+    struct PlayStackEntry {
+      bool operator==(const PlayStackEntry& entry) const
+      {
+        return name == entry.name && subroutine_count == entry.subroutine_count;
+      }
+      std::string name;
+      int subroutine_count;
+    };
     struct LoopSearchEntry {
-      std::string playlist_item;
+      std::vector<PlayStackEntry> playlist_stack;
       uint64_t seconds;
     };
 
     std::vector<std::vector<LoopSearchEntry>> queue;
     std::unordered_map<std::string, TimeBounds> loop_times;
 
-    queue.push_back({{session.first_playlist_item(), 0}});
+    queue.push_back({{{{session.first_playlist_item(), 0}}, 0}});
     while (!queue.empty()) {
       auto entry = queue.front();
       queue.erase(queue.begin());
 
       bool looped = false;
       for (auto it = entry.begin(); it != std::prev(entry.end()); ++it) {
-        if (it->playlist_item == entry.back().playlist_item) {
+        if (it->playlist_stack == entry.back().playlist_stack) {
           looped = true;
           auto initial_sequence = it->seconds;
           auto after_looping = entry.back().seconds - it->seconds;
@@ -60,21 +68,45 @@ namespace
         continue;
       }
 
-      auto it = session.playlist().find(entry.back().playlist_item);
+      auto it = session.playlist().find(entry.back().playlist_stack.back().name);
       if (it == session.playlist().end()) {
         continue;
       }
+
+      if (it->second.has_subroutine() && entry.back().playlist_stack.size() < MAXIMUM_STACK &&
+          entry.back().playlist_stack.back().subroutine_count <
+              it->second.subroutine().playlist_item_name_size()) {
+        queue.emplace_back(entry);
+        queue.back().emplace_back(entry.back());
+        ++queue.back().back().playlist_stack.back().subroutine_count;
+        queue.back().back().playlist_stack.push_back(
+            {it->second.subroutine().playlist_item_name(
+                 entry.back().playlist_stack.back().subroutine_count),
+             0});
+        continue;
+      }
+
       bool any_next = false;
       for (const auto& next : it->second.next_item()) {
         if (!is_enabled(next, variables)) {
           continue;
         }
         queue.emplace_back(entry);
-        queue.back().push_back(
-            {next.playlist_item_name(), entry.back().seconds + it->second.play_time_seconds()});
+        queue.back().emplace_back(entry.back());
+        queue.back().back().playlist_stack.back().name = next.playlist_item_name();
+        if (it->second.has_standard()) {
+          queue.back().back().seconds += it->second.standard().play_time_seconds();
+        }
         any_next = true;
       }
-      if (!any_next) {
+      if (!any_next && entry.back().playlist_stack.size() > 1) {
+        queue.emplace_back(entry);
+        queue.back().emplace_back(entry.back());
+        queue.back().back().playlist_stack.pop_back();
+        if (it->second.has_standard()) {
+          queue.back().back().seconds += it->second.standard().play_time_seconds();
+        }
+      } else if (!any_next) {
         queue.emplace_back(entry);
         queue.back().emplace_back(entry.back());
       }
