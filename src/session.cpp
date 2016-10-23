@@ -149,6 +149,10 @@ namespace
 
   void validate_playlist_item(trance_pb::PlaylistItem& playlist_item, trance_pb::Session& session)
   {
+    if (!playlist_item.program().empty() || playlist_item.play_time_seconds()) {
+      playlist_item.mutable_standard()->set_program(playlist_item.program());
+      playlist_item.mutable_standard()->set_play_time_seconds(playlist_item.play_time_seconds());
+    }
     if (playlist_item.has_standard()) {
       auto it = session.program_map().find(playlist_item.standard().program());
       if (it == session.program_map().end()) {
