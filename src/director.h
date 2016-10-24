@@ -61,12 +61,14 @@ public:
   render_image(const Image& image, float alpha, float multiplier = 8.f, float zoom = 0.f) const;
   void render_text(const std::string& text, float multiplier = 4.f) const;
   void render_subtext(float alpha, float multiplier = 6.f) const;
+  void render_small_subtext(float alpha, float multiplier = 6.f) const;
   void render_spiral() const;
 
   void rotate_spiral(float amount);
   void change_spiral();
   void change_font(bool force = false);
   void change_subtext(bool alternate = false);
+  void change_small_subtext(bool force = false, bool alternate = false);
   bool change_themes();
   bool change_visual(uint32_t chance);
 
@@ -126,6 +128,9 @@ private:
   std::string _current_font;
   std::string _current_subfont;
   std::vector<std::string> _subtext;
+  std::string _small_subtext;
+  float _small_subtext_x;
+  float _small_subtext_y;
   std::unordered_map<std::string, uint32_t> _text_size_cache;
   mutable std::vector<uint32_t> _recent_images;
 
