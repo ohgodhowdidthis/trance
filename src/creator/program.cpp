@@ -159,14 +159,14 @@ ProgramPage::ProgramPage(wxNotebook* parent, CreatorFrame& creator_frame,
     });
   };
 
-  add_visual("2-parallel", PARALLEL_TOOLTIP, trance_pb::Program::PARALLEL);
-  add_visual("3-parallel", SUPER_PARALLEL_TOOLTIP, trance_pb::Program::SUPER_PARALLEL);
-  add_visual("Accelerate", ACCELERATE_TOOLTIP, trance_pb::Program::ACCELERATE);
-  add_visual("Alternate", SLOW_FLASH_TOOLTIP, trance_pb::Program::SLOW_FLASH);
-  add_visual("Animation", ANIMATION_TOOLTIP, trance_pb::Program::ANIMATION);
-  add_visual("Fade", FLASH_TEXT_TOOLTIP, trance_pb::Program::FLASH_TEXT);
-  add_visual("Rapid", SUPER_FAST_TOOLTIP, trance_pb::Program::SUPER_FAST);
-  add_visual("Subtext", SUB_TEXT_TOOLTIP, trance_pb::Program::SUB_TEXT);
+  add_visual("2-parallel (moderate)", PARALLEL_TOOLTIP, trance_pb::Program::PARALLEL);
+  add_visual("3-parallel (intense)", SUPER_PARALLEL_TOOLTIP, trance_pb::Program::SUPER_PARALLEL);
+  add_visual("Accelerate (mixed)", ACCELERATE_TOOLTIP, trance_pb::Program::ACCELERATE);
+  add_visual("Alternate (mixed)", SLOW_FLASH_TOOLTIP, trance_pb::Program::SLOW_FLASH);
+  add_visual("Animation (moderate)", ANIMATION_TOOLTIP, trance_pb::Program::ANIMATION);
+  add_visual("Fade (moderate)", FLASH_TEXT_TOOLTIP, trance_pb::Program::FLASH_TEXT);
+  add_visual("Rapid (intense)", SUPER_FAST_TOOLTIP, trance_pb::Program::SUPER_FAST);
+  add_visual("Subtext (moderate)", SUB_TEXT_TOOLTIP, trance_pb::Program::SUB_TEXT);
 
   leftright_panel->SetSizer(leftright);
   left->Add(left_splitter, 1, wxEXPAND, 0);

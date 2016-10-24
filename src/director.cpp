@@ -754,7 +754,8 @@ void Director::render_subtext(float alpha, float multiplier) const
   if (d.y <= 0) {
     return;
   }
-  auto colour = sf::Color(0, 0, 0, sf::Uint8(alpha * 255));
+  auto colour = colour2sf(_program->shadow_text_colour());
+  colour.a = uint8_t(colour.a * alpha);
   render_raw_text(text, font, colour, sf::Vector2f{offx3d, 0});
   auto offset = d.y + 4;
   for (int i = 1; d.y / 2 + i * offset < _height; ++i) {
@@ -764,6 +765,27 @@ void Director::render_subtext(float alpha, float multiplier) const
     text = make_text();
     render_raw_text(text, font, colour, -sf::Vector2f{offx3d, i * offset});
   }
+}
+
+void Director::render_small_subtext(float alpha, float multiplier) const
+{
+  if (_current_subfont.empty() || _small_subtext.empty()) {
+    return;
+  }
+
+  static const uint32_t char_size = 100;
+  std::size_t n = 0;
+  const auto& font = _fonts.get_font(_current_subfont, char_size);
+
+  float offx3d = off3d(multiplier, true).x;
+  auto d = get_text_size(_small_subtext, font);
+  if (d.y <= 0) {
+    return;
+  }
+  auto colour = colour2sf(_program->shadow_text_colour());
+  colour.a = uint8_t(colour.a * alpha);
+  render_raw_text(_small_subtext, font, colour, sf::Vector2f{offx3d + _small_subtext_x * _width / 2,
+                                                             _small_subtext_y * _height / 2});
 }
 
 void Director::render_spiral() const
@@ -843,6 +865,26 @@ void Director::change_subtext(bool alternate)
     if (!s.empty()) {
       _subtext.push_back(s);
     }
+  }
+}
+
+void Director::change_small_subtext(bool force, bool alternate)
+{
+  if (force || _small_subtext.empty()) {
+    _small_subtext = _themes.get_text(alternate, false);
+    std::replace(_small_subtext.begin(), _small_subtext.end(), '\n', ' ');
+    float x = _small_subtext_x;
+    float y = _small_subtext_y;
+    while (std::abs(x - _small_subtext_x) < .25f) {
+      x = (random_chance() ? 1 : -1) * (16 + random(64)) / 128.f;
+    }
+    while (std::abs(y - _small_subtext_y) < .25f) {
+      y = (random_chance() ? 1 : -1) * (16 + random(64)) / 128.f;
+    }
+    _small_subtext_x = x;
+    _small_subtext_y = y;
+  } else {
+    _small_subtext.clear();
   }
 }
 

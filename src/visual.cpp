@@ -200,6 +200,9 @@ void SlowFlashVisual::update()
 {
   director().rotate_spiral(_flash ? 4.f : 2.f);
 
+  if (_change_timer % 16 == 0 || (_flash && _change_timer % 4 == 0)) {
+    director().change_small_subtext(true, _flash);
+  }
   if (--_change_timer) {
     if (!_flash && _change_timer == max_speed / 2) {
       director().maybe_upload_next();
@@ -252,6 +255,7 @@ void SlowFlashVisual::render() const
       _anim && !_flash ? Director::Anim::ANIM : Director::Anim::NONE, _current, 1, 8.f + extra,
       zoom);
   director().render_spiral();
+  director().render_small_subtext(1.f / 8);
   if ((!_flash && _change_timer < max_speed / 2) || (_flash && _image_count % 2)) {
     director().render_text(_current_text[0],
                            _flash ? 3.f + 8.f * (_image_count / (4.f * cycle_length)) : 4.f);
@@ -284,6 +288,9 @@ void FlashTextVisual::update()
     if (_current_text.empty()) {
       _current_text = SplitWords(director().get_text(), SplitType::LINE);
     }
+  }
+  if (_timer % 16 == 0) {
+    director().change_small_subtext();
   }
 
   if (!--_timer) {
@@ -318,6 +325,7 @@ void FlashTextVisual::render() const
       _end, 1.f - float(_timer) / length, 40.f - extra, (_animated ? 1.5f : 1.f) * (1.f - zoom));
 
   director().render_spiral();
+  director().render_small_subtext(1.f / 8);
   if (_cycle % 2) {
     director().render_text(_current_text[0], 3.f + 4.f * _timer / length);
   }
@@ -344,6 +352,9 @@ void ParallelVisual::update()
   ++_length;
   ++_alternate_length;
   director().rotate_spiral(3.f);
+  if (_timer % 8 == 0) {
+    director().change_small_subtext();
+  }
   if (--_timer) {
     if (_timer == length / 2) {
       director().maybe_upload_next();
@@ -392,6 +403,7 @@ void ParallelVisual::render() const
                                        1.5f * float(_alternate_length) / length);
 
   director().render_spiral();
+  director().render_small_subtext(1.f / 4);
   if (_cycle % 4 == 1 || _cycle % 4 == 2) {
     director().render_text(_current_text[0]);
   }
@@ -490,6 +502,9 @@ void AnimationVisual::update()
   if (_timer % animation_length == 0) {
     _animation_backup = director().get_image();
   }
+  if (_timer % 16 == 0) {
+    director().change_small_subtext(true, random_chance());
+  }
 
   if (--_timer) {
     if (_timer % 128 == 0) {
@@ -530,6 +545,7 @@ void AnimationVisual::render() const
   director().render_image(_current, .2f, 20.f - 8.f * float(_timer % image_length) / image_length,
                           1.f - float(_timer % image_length) / image_length);
   director().render_spiral();
+  director().render_small_subtext(1.f / 8);
   if (_timer % 128 >= 64) {
     director().render_text(_current_text[0], 5.f);
   }

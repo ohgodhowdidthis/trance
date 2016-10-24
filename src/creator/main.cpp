@@ -42,7 +42,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
   menu_file->Append(wxID_OPEN);
   menu_file->Append(wxID_SAVE);
   menu_file->AppendSeparator();
-  menu_file->Append(ID_LAUNCH_SESSION, "&Launch session\tCtrl+L", "Launch the current session");
+  menu_file->Append(ID_LAUNCH_SESSION, "&Launch session...\tCtrl+L", "Launch the current session");
   menu_file->Append(ID_EXPORT_VIDEO, "Export &video...\tCtrl+V",
                     "Export the current session as a video");
   menu_file->AppendSeparator();
