@@ -242,8 +242,8 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
         theme_bank->async_update();
       }
 
-      auto time_since_switch = clock_time() - last_playlist_switch;
       while (true) {
+        auto time_since_switch = clock_time() - last_playlist_switch;
         auto& entry = stack.back();
         // Continue if we're in a standard playlist item.
         if (entry.item->has_standard() &&
@@ -266,7 +266,7 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
             std::cout << "\n-> " << name << std::endl;
             theme_bank->set_program(program());
             director->set_program(program());
-            ++entry.subroutine_step;
+            ++stack[stack.size() - 2].subroutine_step;
             continue;
           }
         }
