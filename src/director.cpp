@@ -772,8 +772,10 @@ void Director::render_small_subtext(float alpha, float multiplier) const
   if (_current_subfont.empty() || _small_subtext.empty()) {
     return;
   }
+  static const uint32_t border_x = 400;
+  static const uint32_t border_y = 200;
 
-  static const uint32_t char_size = 100;
+  uint32_t char_size = _oculus.enabled ? 80 : 100;
   std::size_t n = 0;
   const auto& font = _fonts.get_font(_current_subfont, char_size);
 
@@ -783,9 +785,10 @@ void Director::render_small_subtext(float alpha, float multiplier) const
     return;
   }
   auto colour = colour2sf(_program->shadow_text_colour());
-  colour.a = uint8_t(colour.a * alpha);
-  render_raw_text(_small_subtext, font, colour, sf::Vector2f{offx3d + _small_subtext_x * _width / 2,
-                                                             _small_subtext_y * _height / 2});
+  colour.a = uint8_t(colour.a * (_oculus.enabled ? 1.5f : 1.f) * alpha);
+  render_raw_text(_small_subtext, font, colour,
+                  sf::Vector2f{offx3d + _small_subtext_x * (_width - border_x) / 2,
+                               _small_subtext_y * (_height - border_y) / 2});
 }
 
 void Director::render_spiral() const
@@ -876,10 +879,14 @@ void Director::change_small_subtext(bool force, bool alternate)
     float x = _small_subtext_x;
     float y = _small_subtext_y;
     while (std::abs(x - _small_subtext_x) < .25f) {
-      x = (random_chance() ? 1 : -1) * (16 + random(64)) / 128.f;
+      x = (random_chance() ? 1 : -1) * (16 + random(80)) / 128.f;
     }
     while (std::abs(y - _small_subtext_y) < .25f) {
-      y = (random_chance() ? 1 : -1) * (16 + random(64)) / 128.f;
+      if (_oculus.enabled) {
+        y = (random_chance() ? 1 : -1) * (2 + random(64)) / 128.f;
+      } else {
+        y = (random_chance() ? 1 : -1) * (16 + random(80)) / 128.f;
+      }
     }
     _small_subtext_x = x;
     _small_subtext_y = y;
