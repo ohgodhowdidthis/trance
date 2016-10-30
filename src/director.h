@@ -132,7 +132,6 @@ private:
   float _small_subtext_x;
   float _small_subtext_y;
   std::unordered_map<std::string, uint32_t> _text_size_cache;
-  mutable std::vector<uint32_t> _recent_images;
 
   uint32_t _switch_themes;
   std::unique_ptr<Visual> _visual;

@@ -596,34 +596,7 @@ const uint8_t* Director::get_screen_data() const
 
 Image Director::get_image(bool alternate) const
 {
-  static const uint32_t recent_images = 8;
-
-  // Fail-safe: try to avoid showing the same image twice. This doesn't handle
-  // duplicate images in different sets.
-  Image image;
-  while (true) {
-    image = _themes.get_image(alternate);
-
-    bool found = false;
-    for (const auto& p : _recent_images) {
-      if (p == image.texture()) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      break;
-    }
-    if (!_recent_images.empty()) {
-      _recent_images.pop_back();
-    }
-  }
-
-  if (_recent_images.size() >= recent_images) {
-    _recent_images.erase(--_recent_images.end());
-  }
-  _recent_images.insert(_recent_images.begin(), image.texture());
-  return image;
+  return _themes.get_image(alternate);
 }
 
 const std::string& Director::get_text(bool alternate) const

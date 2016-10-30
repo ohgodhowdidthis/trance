@@ -45,8 +45,7 @@ namespace
     return c;
   }
 
-  const std::string ACCELERATE_TOOLTIP =
-      "Accelerates and decelerates changing images with overlaid text.";
+  const std::string ACCELERATE_TOOLTIP = "Accelerates changing images with overlaid text.";
   const std::string SLOW_FLASH_TOOLTIP =
       "Alternates between slowly-changing images and animations, and "
       "rapidly-changing images, with overlaid text.";
@@ -56,7 +55,7 @@ namespace
       "Displays two images or animations at once with overlaid text.";
   const std::string SUPER_PARALLEL_TOOLTIP =
       "Displays three images or animations at once with overlaid text.";
-  const std::string ANIMATION_TOOLTIP = "Displays an animation with overlaid text.";
+  const std::string ANIMATION_TOOLTIP = "Displays animations with overlaid text.";
   const std::string SUPER_FAST_TOOLTIP =
       "Splices rapidly-changing images and overlaid text with "
       "brief clips of animation.";
