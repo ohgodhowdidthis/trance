@@ -255,7 +255,7 @@ void SlowFlashVisual::render() const
       _anim && !_flash ? Director::Anim::ANIM : Director::Anim::NONE, _current, 1, 8.f + extra,
       zoom);
   director().render_spiral();
-  director().render_small_subtext(1.f / 8);
+  director().render_small_subtext(1.f / 4);
   if ((!_flash && _change_timer < max_speed / 2) || (_flash && _image_count % 2)) {
     director().render_text(_current_text[0],
                            _flash ? 3.f + 8.f * (_image_count / (4.f * cycle_length)) : 4.f);
@@ -325,7 +325,7 @@ void FlashTextVisual::render() const
       _end, 1.f - float(_timer) / length, 40.f - extra, (_animated ? 1.5f : 1.f) * (1.f - zoom));
 
   director().render_spiral();
-  director().render_small_subtext(1.f / 8);
+  director().render_small_subtext(1.f / 4);
   if (_cycle % 2) {
     director().render_text(_current_text[0], 3.f + 4.f * _timer / length);
   }
