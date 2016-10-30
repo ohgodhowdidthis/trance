@@ -774,8 +774,8 @@ void Director::render_small_subtext(float alpha, float multiplier) const
   }
   static const uint32_t border_x = 400;
   static const uint32_t border_y = 200;
+  static const uint32_t char_size = 100;
 
-  uint32_t char_size = _oculus.enabled ? 80 : 100;
   std::size_t n = 0;
   const auto& font = _fonts.get_font(_current_subfont, char_size);
 
@@ -785,7 +785,7 @@ void Director::render_small_subtext(float alpha, float multiplier) const
     return;
   }
   auto colour = colour2sf(_program->shadow_text_colour());
-  colour.a = uint8_t(colour.a * (_oculus.enabled ? 1.5f : 1.f) * alpha);
+  colour.a = uint8_t(colour.a * alpha);
   render_raw_text(_small_subtext, font, colour,
                   sf::Vector2f{offx3d + _small_subtext_x * (_width - border_x) / 2,
                                _small_subtext_y * (_height - border_y) / 2});
