@@ -46,6 +46,7 @@ AccelerateVisual::AccelerateVisual(Director& director)
 , _current{director.get_image()}
 , _current_text{SplitWords(director.get_text(), SplitType::LINE)}
 , _text_on{true}
+, _image_count{0}
 , _change_timer{max_speed}
 , _change_speed{max_speed}
 , _change_speed_timer{0}
@@ -72,14 +73,15 @@ void AccelerateVisual::update()
     return;
   }
 
+  ++_image_count;
   _change_timer = _change_speed;
-  _current = director().get_image();
+  _current = director().get_image((_image_count / 32) % 2);
   _text_on = !_text_on;
   if (!_text_on) {
     _current_text.erase(_current_text.begin());
     if (_current_text.empty()) {
-      _current_text =
-          SplitWords(director().get_text(), _change_speed < 8 ? SplitType::WORD : SplitType::LINE);
+      _current_text = SplitWords(director().get_text((_image_count / 32) % 2),
+                                 _change_speed < 8 ? SplitType::WORD : SplitType::LINE);
     }
   }
   _text_timer = text_time;
@@ -98,7 +100,7 @@ void AccelerateVisual::update()
 
   director().change_spiral();
   if (director().change_themes()) {
-    _current_text = SplitWords(director().get_text(), SplitType::LINE);
+    _current_text = SplitWords(director().get_text((_image_count / 32) % 2), SplitType::LINE);
   }
   director().change_font();
   // Frames is something like:
@@ -113,7 +115,9 @@ void AccelerateVisual::render() const
 {
   auto z = float(_change_timer) / (2 * _change_speed);
   director().render_image(_current, 1, 8.f + 48.f - _change_speed, .5f - z);
-  director().render_animation_or_image(Director::Anim::ANIM, {}, .2f, 6.f);
+  director().render_animation_or_image(
+      (_image_count / 32) % 2 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM, {}, .2f,
+      6.f);
   director().render_spiral();
   if (_change_speed == min_speed || (_text_on && _text_timer)) {
     director().render_text(_current_text[0]);
@@ -125,6 +129,7 @@ SubTextVisual::SubTextVisual(Director& director)
 , _current{director.get_image()}
 , _current_text{SplitWords(director.get_text(), SplitType::LINE)}
 , _text_on{true}
+, _alternate{false}
 , _change_timer{speed}
 , _sub_timer{sub_speed}
 , _cycle{cycles}
@@ -138,7 +143,7 @@ void SubTextVisual::update()
 
   if (!--_sub_timer) {
     _sub_timer = sub_speed * _sub_speed_multiplier;
-    director().change_subtext();
+    director().change_subtext(_alternate);
   }
 
   if (--_change_timer) {
@@ -147,18 +152,14 @@ void SubTextVisual::update()
     }
     return;
   }
-
   _change_timer = speed;
-  _current = director().get_image();
-  _text_on = !_text_on;
-  if (_text_on) {
-    _current_text = SplitWords(director().get_text(), SplitType::LINE);
-  }
 
   if (!--_cycle) {
     _cycle = cycles;
     if (director().change_themes()) {
-      _current_text = SplitWords(director().get_text(), SplitType::LINE);
+      _current_text = SplitWords(director().get_text(_alternate), SplitType::LINE);
+    } else {
+      _alternate = !_alternate;
     }
     director().change_font();
     // 1/3 chance after 32 * 48 = 1536 frames.
@@ -168,11 +169,18 @@ void SubTextVisual::update()
     }
     ++_sub_speed_multiplier;
   }
+
+  _current = director().get_image(_alternate);
+  _text_on = !_text_on;
+  if (_text_on) {
+    _current_text = SplitWords(director().get_text(_alternate), SplitType::LINE);
+  }
 }
 
 void SubTextVisual::render() const
 {
-  director().render_animation_or_image(Director::Anim::ANIM, {}, 1, 10.f);
+  director().render_animation_or_image(
+      _alternate ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM, {}, 1, 10.f);
   director().render_image(_current, .8f, 8.f, 2.f - float(_change_timer) / speed);
   director().render_subtext(1.f / 4);
   director().render_spiral();
@@ -255,7 +263,7 @@ void SlowFlashVisual::render() const
       _anim && !_flash ? Director::Anim::ANIM : Director::Anim::NONE, _current, 1, 8.f + extra,
       zoom);
   director().render_spiral();
-  director().render_small_subtext(1.f / 4);
+  director().render_small_subtext(1.f / 5);
   if ((!_flash && _change_timer < max_speed / 2) || (_flash && _image_count % 2)) {
     director().render_text(_current_text[0],
                            _flash ? 3.f + 8.f * (_image_count / (4.f * cycle_length)) : 4.f);
@@ -286,11 +294,8 @@ void FlashTextVisual::update()
   if (_timer == length / 2 && _cycle % 2 == 0) {
     _current_text.erase(_current_text.begin());
     if (_current_text.empty()) {
-      _current_text = SplitWords(director().get_text(), SplitType::LINE);
+      _current_text = SplitWords(director().get_text((_cycle / 2) % 2), SplitType::LINE);
     }
-  }
-  if (_timer % 16 == 0) {
-    director().change_small_subtext();
   }
 
   if (!--_timer) {
@@ -303,8 +308,11 @@ void FlashTextVisual::update()
     }
 
     _start = _end;
-    _end = director().get_image();
+    _end = director().get_image((_cycle / 2) % 2);
     _timer = length;
+  }
+  if (_timer % 16 == 0) {
+    director().change_small_subtext();
   }
 
   if (_timer == length / 2) {
@@ -316,16 +324,20 @@ void FlashTextVisual::render() const
 {
   float extra = 32.f * _timer / length;
   float zoom = float(_timer) / length;
-  director().render_animation_or_image(Director::Anim::NONE, _start, 1, 8.f + extra,
-                                       (_animated ? 1.5f : 1.f) * (2.f - zoom));
+  director().render_animation_or_image(
+      !_animated || _cycle % 2
+          ? Director::Anim::NONE
+          : (_cycle / 2) % 2 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM,
+      _start, 1, 8.f + extra, (_animated ? 1.5f : 1.f) * (2.f - zoom));
 
   director().render_animation_or_image(
-      !_animated ? Director::Anim::NONE
-                 : _cycle % 2 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM,
+      !_animated || _cycle % 2 == 0
+          ? Director::Anim::NONE
+          : (_cycle / 2) % 2 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM,
       _end, 1.f - float(_timer) / length, 40.f - extra, (_animated ? 1.5f : 1.f) * (1.f - zoom));
 
   director().render_spiral();
-  director().render_small_subtext(1.f / 4);
+  director().render_small_subtext(1.f / 5);
   if (_cycle % 2) {
     director().render_text(_current_text[0], 3.f + 4.f * _timer / length);
   }
@@ -403,7 +415,7 @@ void ParallelVisual::render() const
                                        1.5f * float(_alternate_length) / length);
 
   director().render_spiral();
-  director().render_small_subtext(1.f / 4);
+  director().render_small_subtext(1.f / 5);
   if (_cycle % 4 == 1 || _cycle % 4 == 2) {
     director().render_text(_current_text[0]);
   }
@@ -497,9 +509,9 @@ void AnimationVisual::update()
 {
   director().rotate_spiral(3.5f);
   if (_timer % image_length == 0) {
-    _current = director().get_image(true);
+    _current = director().get_image((_timer / image_length) % 2 == 0);
   }
-  if (_timer % animation_length == 0) {
+  if (_timer % (animation_length / 4) == 0) {
     _animation_backup = director().get_image();
   }
   if (_timer % 16 == 0) {
@@ -545,7 +557,7 @@ void AnimationVisual::render() const
   director().render_image(_current, .2f, 20.f - 8.f * float(_timer % image_length) / image_length,
                           1.f - float(_timer % image_length) / image_length);
   director().render_spiral();
-  director().render_small_subtext(1.f / 8);
+  director().render_small_subtext(1.f / 5);
   if (_timer % 128 >= 64) {
     director().render_text(_current_text[0], 5.f);
   }
@@ -557,7 +569,7 @@ SuperFastVisual::SuperFastVisual(Director& director)
 , _current_text{SplitWords(director.get_text(), SplitType::WORD)}
 , _start_timer{0}
 , _animation_timer{anim_length + random(anim_length)}
-, _animation_alt{false}
+, _alternate{false}
 , _timer{length}
 {
 }
@@ -570,14 +582,14 @@ void SuperFastVisual::update()
     return;
   }
   if (_timer % image_length == 0) {
-    _current = director().get_image();
+    _current = director().get_image(_alternate);
     _current_text.erase(_current_text.begin());
     if (_current_text.empty()) {
-      _current_text = SplitWords(director().get_text(), SplitType::WORD);
+      _current_text = SplitWords(director().get_text(_alternate), SplitType::WORD);
     }
   }
   if (!_start_timer && random_chance(128)) {
-    _animation_alt = !_animation_alt;
+    _alternate = !_alternate;
     _animation_timer = anim_length + random(anim_length);
     _start_timer = nonanim_length;
   }
@@ -602,7 +614,7 @@ void SuperFastVisual::render() const
 {
   if (_animation_timer) {
     director().render_animation_or_image(
-        _animation_alt ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM, _current, 1.f,
+        _alternate ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM, _current, 1.f,
         20.f - 8.f * float(_animation_timer) / anim_length,
         4.f - 2.f * float(_animation_timer) / anim_length);
   } else {
