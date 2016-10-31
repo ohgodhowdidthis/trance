@@ -367,7 +367,7 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
     }
   });
 
-  _button_refresh->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+  _button_rename->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
     auto root = std::tr2::sys::path{_session_path}.parent_path().string();
     std::string old_relative_path;
     for (const auto& pair : _tree_lookup) {
