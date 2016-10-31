@@ -171,8 +171,14 @@ Image ThemeBank::get_animation(bool alternate, std::size_t frame)
     return {};
   }
   auto len = a.frames.size();
-  auto f = frame % (2 * len - 2);
-  f = f < len ? f : 2 * len - 2 - f;
+  std::size_t f = 0;
+  if (!len) {
+    return {};
+  }
+  if (len > 1) {
+    f = frame % (2 * len - 2);
+    f = f < len ? f : 2 * len - 2 - f;
+  }
   do_video_upload(a.frames[f]);
   return a.frames[f];
 }
