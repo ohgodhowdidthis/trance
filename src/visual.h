@@ -52,6 +52,7 @@ private:
   std::vector<std::string> _current_text;
 
   bool _text_on;
+  uint32_t _image_count;
   uint32_t _change_timer;
   uint32_t _change_speed;
   uint32_t _change_speed_timer;
@@ -73,6 +74,7 @@ private:
   Image _current;
   std::vector<std::string> _current_text;
   bool _text_on;
+  bool _alternate;
   uint32_t _change_timer;
   uint32_t _sub_timer;
   uint32_t _cycle;
@@ -206,7 +208,7 @@ private:
   std::vector<std::string> _current_text;
   uint32_t _start_timer;
   uint32_t _animation_timer;
-  bool _animation_alt;
+  bool _alternate;
   uint32_t _timer;
 };
 
