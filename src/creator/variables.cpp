@@ -238,10 +238,10 @@ void VariablePage::RefreshOurData()
       _current_value = values.front();
     }
 
-    while (_value_list->GetItemCount() < values.size()) {
+    while (std::size_t(_value_list->GetItemCount()) < values.size()) {
       _value_list->InsertItem(_value_list->GetItemCount(), "");
     }
-    while (_value_list->GetItemCount() > it->second.value_size()) {
+    while (std::size_t(_value_list->GetItemCount()) > values.size()) {
       _value_list->DeleteItem(_value_list->GetItemCount() - 1);
     }
 
