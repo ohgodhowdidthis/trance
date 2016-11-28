@@ -110,11 +110,14 @@ void ThemeBank::set_program(const trance_pb::Program& program)
     if (theme.pinned()) {
       _pinned_theme = theme.theme_name();
     }
-    auto index = _theme_map[theme.theme_name()];
-    _themes[index]->enabled = true;
+    if (theme.random_weight() || theme.pinned()) {
+      auto index = _theme_map[theme.theme_name()];
+      _themes[index]->enabled = true;
+    }
   }
   for (uint32_t i = 1; i < _active_themes.size(); ++i) {
-    if (_active_themes[i].load() && !_active_themes[i].load()->enabled) {
+    auto theme = _active_themes[i].load();
+    if (theme && !theme->enabled) {
       _swaps_to_match_theme = std::max(_swaps_to_match_theme, i);
     }
   }
