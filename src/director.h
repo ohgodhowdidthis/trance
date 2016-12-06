@@ -90,6 +90,7 @@ private:
     mutable bool rendering_right;
   } _oculus;
 
+  GLuint _new_program;
   GLuint _image_program;
   GLuint _spiral_program;
   GLuint _text_program;

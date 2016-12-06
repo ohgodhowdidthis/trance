@@ -211,6 +211,7 @@
     <ClInclude Include="src\image.h" />
     <ClInclude Include="src\jpgd\jpgd.h" />
     <ClInclude Include="src\session.h" />
+    <ClInclude Include="src\shaders.h" />
     <ClInclude Include="src\theme.h" />
     <ClInclude Include="src\util.h" />
     <ClInclude Include="src\visual.h" />
