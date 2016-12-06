@@ -86,6 +86,9 @@
     <ClInclude Include="src\visual_cyclers.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="src\shaders.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\trance.proto">
