@@ -59,7 +59,7 @@ private:
   bool init_framebuffer(uint32_t& fbo, uint32_t& fb_tex, uint32_t width, uint32_t height) const;
   bool init_oculus_rift();
   void change_visual(uint32_t length);
-  void render_texture(float l, float t, float r, float b, bool flip_h, bool flip_v) const;
+  float eye_offset() const;
 
   sf::RenderWindow& _window;
   const trance_pb::Session& _session;
@@ -91,12 +91,10 @@ private:
   } _oculus;
 
   GLuint _new_program;
-  GLuint _image_program;
   GLuint _spiral_program;
   GLuint _text_program;
   GLuint _yuv_program;
   GLuint _quad_buffer;
-  GLuint _tex_buffer;
 
   std::unique_ptr<VisualApiImpl> _visual_api;
   std::unique_ptr<Visual> _visual;
