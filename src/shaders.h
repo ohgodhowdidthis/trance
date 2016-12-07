@@ -17,6 +17,7 @@ void main()
   vcolour = colour;
 }
 )";
+
 const std::string text_fragment = R"(
 uniform sampler2D texture;
 varying vec2 vtexcoord;
@@ -43,9 +44,10 @@ uniform float eye_offset;
 uniform float alpha;
 
 // Virtual position of vertex (in [-1 - |eye|, 1 + |eye|] X [-1, 1] X [0, 1]).
-// Z-coordinate is the zoom amount; X- and Y-coordinates need to be scaled by
-// (texture_size / window_size) to maintain correct aspect ratio!
-attribute vec3 virtual_position;
+// X- and Y-coordinates need to be scaled by (texture_size / window_size) to maintain correct
+// aspect ratio. Z-coordinate is the zoom amount; W-coordinate is the zoom origin (same as zoom
+// value will perfectly correct and show image at original size but zoomed depth in VR).
+attribute vec4 virtual_position;
 // Texture coordinate for this vertex.
 attribute vec2 texture_coord;
 
@@ -61,19 +63,19 @@ mat4 m_perspective = mat4(
     0., 0., (near_plane + far_plane) / (near_plane - far_plane), -1.,
     0., 0., 2. * (near_plane * far_plane) / (near_plane - far_plane), 0.);
 
-// Applies the zoom coordinate.
+// Projects onto far plane with zoom coordinate.
 mat4 m_virtual = mat4(
-    far_plane / near_plane, 0., 0., -(far_plane / near_plane) * eye_offset,
-    0., far_plane / near_plane, 0., 0.,
+    (1 - virtual_position.w) * far_plane / near_plane + virtual_position.w, 0., 0., 0.,
+    0., (1 - virtual_position.w) * far_plane / near_plane + virtual_position.w, 0., 0.,
     0., 0., far_plane - near_plane, 0.,
-    0., 0., -far_plane, 1.);
+    -eye_offset, 0., -far_plane, 1.);
 
 // Avoids the very edge of images.
 const float texture_epsilon = 1. / 256;
 
 void main()
 {
-  gl_Position = m_perspective * m_virtual * vec4(virtual_position, 1.);
+  gl_Position = m_perspective * m_virtual * vec4(virtual_position.xyz, 1.);
   out_texture_coord =
       texture_coord * (1. - texture_epsilon) + texture_epsilon / 2.;
   out_alpha = alpha;
@@ -94,59 +96,39 @@ void main()
 }
 )";
 
-const std::string image_vertex = R"(
-uniform vec2 min_coord;
-uniform vec2 max_coord;
-uniform vec2 flip;
-uniform float alpha;
-uniform float zoom;
-attribute vec2 position;
-attribute vec2 texcoord;
-varying vec2 vtexcoord;
-varying float valpha;
-
-void main()
-{
-  vec2 pos = position / 2.0 + 0.5;
-  pos = pos * (max_coord - min_coord) + min_coord;
-  pos = (pos - 0.5) * 2.0;
-  gl_Position = vec4(pos, 0.0, 1.0);
-  float z = min(0.5, 0.1 * zoom + 0.005);
-  vtexcoord = vec2(texcoord.x > 0.5 ? 1.0 - z : z,
-                   texcoord.y > 0.5 ? 1.0 - z : z);
-  vtexcoord = vec2(flip.x != 0.0 ? 1.0 - vtexcoord.x : vtexcoord.x,
-                   flip.y != 0.0 ? 1.0 - vtexcoord.y : vtexcoord.y);
-  valpha = alpha;
-}
-)";
-const std::string image_fragment = R"(
-uniform sampler2D texture;
-varying vec2 vtexcoord;
-varying float valpha;
-
-void main()
-{
-  gl_FragColor = vec4(texture2D(texture, vtexcoord).rgb, valpha);
-}
-)";
-
 const std::string spiral_vertex = R"(
-attribute vec2 position;
+// Position in [-1, 1] X [-1, 1].
+attribute vec2 device_position;
+
+// Output texture coordinate.
+varying vec2 out_texture_coord;
 
 void main() {
-  gl_Position = vec4(position.xy, 0.0, 1.0);
+  gl_Position = vec4(device_position.xy, 0.0, 1.0);
+  out_texture_coord = device_position;
 }
 )";
+
 const std::string spiral_fragment = R"(
+// See main shader for details.
+uniform float near_plane;
+uniform float far_plane;
+uniform float eye_offset;
+
+// Width divided by height. We fix y from [-1, 1] and let x span [-aspect_ratio, aspect_ratio].
+uniform float aspect_ratio;
+// A divisor of 360 (determines the number of spiral arms).
+uniform float width;
+// Switch between spiral types.
+uniform float spiral_type;
+// Makes the spiral spin.
 uniform float time;
-uniform vec2 resolution;
-uniform float offset;
+
 uniform vec4 acolour;
 uniform vec4 bcolour;
 
-// A divisor of 360 (determines the number of spiral arms).
-uniform float width;
-uniform float spiral_type;
+// Input coordinate.
+varying vec2 out_texture_coord;
 
 float spiral1(float r)
 {
@@ -187,14 +169,68 @@ float spiral7(float r)
   return r + m * 3.0;
 }
 
+// Raycasts from eye through near plane onto a cone defined by the near and far planes.
+// See https://www.geometrictools.com/Documentation/IntersectionLineCone.pdf for details.
+vec2 cone_intersection(vec2 aspect_position)
+{
+  // Cone origin.
+  vec3 cone_origin = vec3(0., 0., far_plane);
+  // Cone axis unit vector.
+  vec3 cone_axis = vec3(0., 0., -1.);
+  // Cone angle, chosen such that the cone intersects the corners of the near plane.
+  float max_width = aspect_ratio + abs(eye_offset);
+  float cone_angle = atan(
+      (sqrt(max_width * max_width + 1.)) / (far_plane - near_plane));
+
+  // Eye position.
+  vec3 ray_origin = vec3(eye_offset, 0., 0.);
+  // Unit vector from eye to near plane.
+  vec3 ray_vector = normalize(vec3(aspect_position, near_plane));
+
+  // Quadratic equation for line-cone intersection.
+  vec3 m = cone_axis * cone_axis - cos(cone_angle) * cos(cone_angle);
+  vec3 delta = ray_origin - cone_origin;
+
+  float a = dot(m, ray_vector * ray_vector);
+  float b = 2 * dot(m, ray_vector * delta);
+  float c = dot(m, delta * delta);
+
+  // Solution for equation.
+  float d = sqrt(b * b - 4 * a * c);
+  float t0 = (-b - d) / (2 * a);
+  float t1 = (-b + d) / (2 * a);
+  float d0 = dot(cone_axis, ray_origin + t0 * ray_vector - cone_origin);
+  float d1 = dot(cone_axis, ray_origin + t1 * ray_vector - cone_origin);
+
+  float t = 0.;
+  if (a == 0.) {
+    // Ray parallel to cone; only one solution.
+    t = -c / b;
+  } else if (d == 0.) {
+    // Only one intersection point.
+    t = -b / (2 * a);
+  } if (t0 < 0. || d0 < 0.) {
+    // Intersection behind near plane or far plane (respectively).
+    t = t1;
+  } else {
+    t = t0;
+  }
+
+  // This is the intersection point with the cone.
+  vec3 cone_intersection = ray_origin + t * ray_vector;
+  // Now we project back through the origin to correct the distortion (and cancel out if the
+  // eye is at the origin).
+  return near_plane * cone_intersection.xy / cone_intersection.z;
+}
+
 void main(void)
 {
-  vec2 aspect = vec2(resolution.x / resolution.y, 1.0);
-  vec2 op = gl_FragCoord.xy - vec2(offset, 0.0);
-  vec2 position = -aspect.xy + 2.0 * op / resolution.xy * aspect.xy;
-  float angle = 0.0;
+  // Near-plane position with correct aspect ratio.
+  vec2 position = cone_intersection(out_texture_coord * vec2(aspect_ratio, 1.));
+  float angle = 0.;
   float radius = length(position);
-  if (position.x != 0.0 && position.y != 0.0) {
+
+  if (position.x != 0. && position.y != 0.) {
     angle = degrees(atan(position.y, position.x));
   }
 
@@ -206,19 +242,22 @@ void main(void)
       spiral_type == 5 ? spiral5(radius) :
       spiral_type == 6 ? spiral6(radius) :
                          spiral7(radius);
-  float amod = mod(angle - width * time - 2.0 * width * factor, width);
-  float v = amod < width / 2 ? 0.0 : 1.0;
-  float t = 0.2 + 2.0 * (1.0 - pow(min(1.0, radius), 0.4));
-  if (amod > width / 2.0 - t && amod < width / 2.0 + t) {
-    v = (amod - width / 2.0 + t) / (2.0 * t);
+  float amod = mod(angle - width * time - 2. * width * factor, width);
+  float v = amod < width / 2. ? 0. : 1.;
+  float t = .2 + 2. * (1.0 - pow(min(1., radius), .4));
+  if (amod > width / 2.0 - t && amod < width / 2. + t) {
+    v = (amod - width / 2. + t) / (2. * t);
   }
   if (amod < t) {
-    v = 1.0 - (amod + t) / (2.0 * t);
+    v = 1. - (amod + t) / (2. * t);
   }
   if (amod > width - t) {
-    v = 1.0 - (amod - width + t) / (2.0 * t);
+    v = 1. - (amod - width + t) / (2. * t);
   }
-  gl_FragColor = mix(acolour, bcolour, v);
+  gl_FragColor = mix(
+      (acolour + bcolour) / 2.,
+      mix(acolour, bcolour, v),
+      clamp(radius * 1024. / (360. / width), 0., 1.));
 }
 )";
 
@@ -229,6 +268,7 @@ void main() {
   gl_Position = vec4(position.xy, 0.0, 1.0);
 }
 )";
+
 const std::string yuv_fragment = R"(
 uniform sampler2D source;
 uniform vec2 resolution;

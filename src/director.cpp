@@ -17,7 +17,12 @@ extern "C" {
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)
 
-static const uint32_t spiral_type_max = 7;
+namespace
+{
+  const float max_eye_offset = 1.f / 16;
+  const float far_plane_distance = 8.f;
+  const uint32_t spiral_type_max = 7;
+}
 #include "shaders.h"
 
 Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
@@ -37,10 +42,8 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 , _render_fb_tex{0}
 , _yuv_fbo{0}
 , _yuv_fb_tex{0}
-, _image_program{0}
 , _spiral_program{0}
 , _quad_buffer{0}
-, _tex_buffer{0}
 {
   _oculus.enabled = false;
   _oculus.session = nullptr;
@@ -141,7 +144,6 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 
   _new_program = compile(new_vertex, new_fragment);
   _spiral_program = compile(spiral_vertex, spiral_fragment);
-  _image_program = compile(image_vertex, image_fragment);
   _text_program = compile(text_vertex, text_fragment);
   _yuv_program = compile(yuv_vertex, yuv_fragment);
 
@@ -150,12 +152,6 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
   glGenBuffers(1, &_quad_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, _quad_buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, quad_data, GL_STATIC_DRAW);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  static const float tex_data[] = {0.f, 1.f, 1.f, 1.f, 0.f, 0.f, 1.f, 1.f, 1.f, 0.f, 0.f, 0.f};
-  glGenBuffers(1, &_tex_buffer);
-  glBindBuffer(GL_ARRAY_BUFFER, _tex_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, tex_data, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   _visual_api.reset(new VisualApiImpl{*this, _themes, session, system});
@@ -169,6 +165,7 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 
 Director::~Director()
 {
+  glDeleteBuffers(1, &_quad_buffer);
   if (_oculus.session) {
     ovr_Destroy(_oculus.session);
   }
@@ -346,61 +343,104 @@ sf::Vector2f Director::off3d(float multiplier, bool text) const
 
 void Director::render_image(const Image& image, float alpha, float multiplier, float zoom) const
 {
+  GLuint position_buffer;
+  glGenBuffers(1, &position_buffer);
+  std::vector<float> position_data;
+
+  GLuint texture_buffer;
+  glGenBuffers(1, &texture_buffer);
+  std::vector<float> texture_data;
+
+  auto x_scale = float(image.width()) / _width;
+  auto y_scale = float(image.height()) / _height;
+  auto x_size = std::min(1.f, x_scale / y_scale);
+  auto y_size = std::min(1.f, y_scale / x_scale);
+  if (_oculus.enabled) {
+    x_size /= 2.5;
+    y_size /= 2.5;
+  }
+  zoom /= 2;
+  float zoom_origin = 0;
+
+  GLsizei vertex_count = 0;
+  auto add_quad = [&](int x, int y, bool x_flip, bool y_flip) {
+    auto x_offset = 2 * x * x_size;
+    auto y_offset = 2 * y * y_size;
+    vertex_count += 6;
+
+    position_data.insert(position_data.end(),
+                         {x_offset - x_size, y_offset - y_size, zoom, zoom_origin,
+                          x_offset + x_size, y_offset - y_size, zoom, zoom_origin,
+                          x_offset - x_size, y_offset + y_size, zoom, zoom_origin,
+                          x_offset + x_size, y_offset - y_size, zoom, zoom_origin,
+                          x_offset + x_size, y_offset + y_size, zoom, zoom_origin,
+                          x_offset - x_size, y_offset + y_size, zoom, zoom_origin});
+
+    texture_data.insert(
+        texture_data.end(),
+        {x_flip ? 1.f : 0.f, y_flip ? 0.f : 1.f, x_flip ? 0.f : 1.f, y_flip ? 0.f : 1.f,
+         x_flip ? 1.f : 0.f, y_flip ? 1.f : 0.f, x_flip ? 0.f : 1.f, y_flip ? 0.f : 1.f,
+         x_flip ? 0.f : 1.f, y_flip ? 1.f : 0.f, x_flip ? 1.f : 0.f, y_flip ? 1.f : 0.f});
+  };
+
+  for (int x = 0; x_size * (2 * x - 1) < 1 + max_eye_offset; ++x) {
+    for (int y = 0; y_size * (2 * y - 1) < 1; ++y) {
+      add_quad(x, y, x % 2, y % 2);
+      if (x) {
+        add_quad(-x, y, x % 2, y % 2);
+      }
+      if (y) {
+        add_quad(x, -y, x % 2, y % 2);
+      }
+      if (x && y) {
+        add_quad(-x, -y, x % 2, y % 2);
+      }
+    }
+  }
+
+  glBindBuffer(GL_ARRAY_BUFFER, position_buffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * position_data.size(), position_data.data(),
+               GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, texture_buffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * texture_data.size(), texture_data.data(),
+               GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
   glEnable(GL_BLEND);
   glDisable(GL_TEXTURE_2D);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glDisable(GL_DEPTH_TEST);
   glDisable(GL_CULL_FACE);
-  glUseProgram(_image_program);
+  glUseProgram(_new_program);
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, image.texture());
-  glUniform1f(glGetUniformLocation(_image_program, "alpha"), alpha);
-  glUniform1f(glGetUniformLocation(_image_program, "zoom"), _program->zoom_intensity() * zoom);
+  glUniform1i(glGetUniformLocation(_new_program, "texture"), 0);
+  glUniform1f(glGetUniformLocation(_new_program, "near_plane"), 1.f);
+  glUniform1f(glGetUniformLocation(_new_program, "far_plane"), 1.f + far_plane_distance);
+  glUniform1f(glGetUniformLocation(_new_program, "eye_offset"), eye_offset());
+  glUniform1f(glGetUniformLocation(_new_program, "alpha"), alpha);
 
-  GLuint ploc = glGetAttribLocation(_image_program, "position");
-  glEnableVertexAttribArray(ploc);
-  glBindBuffer(GL_ARRAY_BUFFER, _quad_buffer);
-  glVertexAttribPointer(ploc, 2, GL_FLOAT, false, 0, 0);
+  GLuint position_location = glGetAttribLocation(_new_program, "virtual_position");
+  glEnableVertexAttribArray(position_location);
+  glBindBuffer(GL_ARRAY_BUFFER, position_buffer);
+  glVertexAttribPointer(position_location, 4, GL_FLOAT, false, 0, 0);
 
-  GLuint tloc = glGetAttribLocation(_image_program, "texcoord");
-  glEnableVertexAttribArray(tloc);
-  glBindBuffer(GL_ARRAY_BUFFER, _tex_buffer);
-  glVertexAttribPointer(tloc, 2, GL_FLOAT, false, 0, 0);
+  GLuint texture_location = glGetAttribLocation(_new_program, "texture_coord");
+  glEnableVertexAttribArray(texture_location);
+  glBindBuffer(GL_ARRAY_BUFFER, texture_buffer);
+  glVertexAttribPointer(texture_location, 2, GL_FLOAT, false, 0, 0);
 
-  float offx3d = off3d(multiplier, false).x;
-  auto x = float(image.width());
-  auto y = float(image.height());
+  glDrawArrays(GL_TRIANGLES, 0, vertex_count);
 
-  auto scale = std::min(float(_height) / y, float(_width) / x);
-  if (_oculus.enabled) {
-    scale *= 0.5f;
-  }
-  x *= scale;
-  y *= scale;
-
-  for (int i = 0; _width / 2 - i * x + x / 2 >= 0; ++i) {
-    for (int j = 0; _height / 2 - j * y + y / 2 >= 0; ++j) {
-      auto x1 = offx3d + _width / 2 - x / 2;
-      auto x2 = offx3d + _width / 2 + x / 2;
-      auto y1 = _height / 2 - y / 2;
-      auto y2 = _height / 2 + y / 2;
-      render_texture(x1 - i * x, y1 - j * y, x2 - i * x, y2 - j * y, i % 2 != 0, j % 2 != 0);
-      if (i != 0) {
-        render_texture(x1 + i * x, y1 - j * y, x2 + i * x, y2 - j * y, i % 2 != 0, j % 2 != 0);
-      }
-      if (j != 0) {
-        render_texture(x1 - i * x, y1 + j * y, x2 - i * x, y2 + j * y, i % 2 != 0, j % 2 != 0);
-      }
-      if (i != 0 && j != 0) {
-        render_texture(x1 + i * x, y1 + j * y, x2 + i * x, y2 + j * y, i % 2 != 0, j % 2 != 0);
-      }
-    }
-  }
-
-  glDisableVertexAttribArray(ploc);
-  glDisableVertexAttribArray(tloc);
+  glDisableVertexAttribArray(position_location);
+  glDisableVertexAttribArray(texture_location);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  glDeleteBuffers(1, &position_buffer);
+  glDeleteBuffers(1, &texture_buffer);
 }
 
 void Director::render_text(const std::string& text, const Font& font, const sf::Color& colour,
@@ -431,23 +471,22 @@ void Director::render_text(const std::string& text, const Font& font, const sf::
   float ymax = -256.f;
 
   uint32_t prev = 0;
-  for (std::size_t i = 0; i < text.length(); ++i) {
-    uint32_t current = text[i];
+  for (char current : text) {
     x += font.font->getKerning(prev, current, font.key.char_size);
     prev = current;
 
     switch (current) {
-    case L' ':
+    case ' ':
       x += hspace;
       continue;
-    case L'\t':
+    case '\t':
       x += hspace * 4;
       continue;
-    case L'\n':
+    case '\n':
       y += vspace;
       x = 0;
       continue;
-    case L'\v':
+    case '\v':
       y += vspace * 4;
       continue;
     }
@@ -494,11 +533,11 @@ void Director::render_text(const std::string& text, const Font& font, const sf::
               colour.b / 255.f, colour.a / 255.f);
   const char* data = reinterpret_cast<const char*>(vertices.data());
 
-  GLuint ploc = glGetAttribLocation(_image_program, "position");
+  GLuint ploc = glGetAttribLocation(_text_program, "position");
   glEnableVertexAttribArray(ploc);
   glVertexAttribPointer(ploc, 2, GL_FLOAT, false, sizeof(vertex), data);
 
-  GLuint tloc = glGetAttribLocation(_image_program, "texcoord");
+  GLuint tloc = glGetAttribLocation(_text_program, "texcoord");
   glEnableVertexAttribArray(tloc);
   glVertexAttribPointer(tloc, 2, GL_FLOAT, false, sizeof(vertex), data + 8);
   glDrawArrays(GL_QUADS, 0, (GLsizei) vertices.size());
@@ -512,15 +551,16 @@ void Director::render_spiral(float spiral, uint32_t spiral_width, uint32_t spira
   glDisable(GL_TEXTURE_2D);
   glDisable(GL_CULL_FACE);
 
-  glUseProgram(_spiral_program);
-  glUniform1f(glGetUniformLocation(_spiral_program, "time"), spiral);
-  glUniform2f(glGetUniformLocation(_spiral_program, "resolution"), float(view_width()),
-              float(_height));
+  auto aspect_ratio = float(view_width()) / float(_height);
 
-  float offset = off3d(0.f, false).x + (_oculus.rendering_right ? float(view_width()) : 0.f);
-  glUniform1f(glGetUniformLocation(_spiral_program, "offset"), _oculus.enabled ? offset : 0.f);
+  glUseProgram(_spiral_program);
+  glUniform1f(glGetUniformLocation(_spiral_program, "near_plane"), 1.f);
+  glUniform1f(glGetUniformLocation(_spiral_program, "far_plane"), 1.f + far_plane_distance);
+  glUniform1f(glGetUniformLocation(_spiral_program, "eye_offset"), eye_offset());
+  glUniform1f(glGetUniformLocation(_spiral_program, "aspect_ratio"), aspect_ratio);
   glUniform1f(glGetUniformLocation(_spiral_program, "width"), float(spiral_width));
   glUniform1f(glGetUniformLocation(_spiral_program, "spiral_type"), float(spiral_type));
+  glUniform1f(glGetUniformLocation(_spiral_program, "time"), spiral);
   glUniform4f(glGetUniformLocation(_spiral_program, "acolour"), _program->spiral_colour_a().r(),
               _program->spiral_colour_a().g(), _program->spiral_colour_a().b(),
               _program->spiral_colour_a().a());
@@ -528,12 +568,12 @@ void Director::render_spiral(float spiral, uint32_t spiral_width, uint32_t spira
               _program->spiral_colour_b().g(), _program->spiral_colour_b().b(),
               _program->spiral_colour_b().a());
 
-  auto loc = glGetAttribLocation(_spiral_program, "position");
-  glEnableVertexAttribArray(loc);
+  auto position_location = glGetAttribLocation(_spiral_program, "device_position");
+  glEnableVertexAttribArray(position_location);
   glBindBuffer(GL_ARRAY_BUFFER, _quad_buffer);
-  glVertexAttribPointer(loc, 2, GL_FLOAT, false, 0, 0);
+  glVertexAttribPointer(position_location, 2, GL_FLOAT, false, 0, 0);
   glDrawArrays(GL_TRIANGLES, 0, 6);
-  glDisableVertexAttribArray(loc);
+  glDisableVertexAttribArray(position_location);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
@@ -699,10 +739,7 @@ void Director::change_visual(uint32_t length)
   }
 }
 
-void Director::render_texture(float l, float t, float r, float b, bool flip_h, bool flip_v) const
+float Director::eye_offset() const
 {
-  glUniform2f(glGetUniformLocation(_image_program, "min_coord"), l / _width, t / _height);
-  glUniform2f(glGetUniformLocation(_image_program, "max_coord"), r / _width, b / _height);
-  glUniform2f(glGetUniformLocation(_image_program, "flip"), flip_h ? 1.f : 0.f, flip_v ? 1.f : 0.f);
-  glDrawArrays(GL_TRIANGLES, 0, 6);
+  return !_oculus.enabled ? 0 : _oculus.rendering_right ? max_eye_offset : -max_eye_offset;
 }
