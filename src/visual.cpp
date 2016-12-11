@@ -7,7 +7,6 @@
 
 AccelerateVisual::AccelerateVisual(VisualControl& api)
 : _current{api.get_image()}
-, _current_text{SplitWords(api.get_text(), SplitType::LINE)}
 , _text_on{true}
 , _image_count{0}
 , _change_timer{max_speed}
@@ -15,6 +14,7 @@ AccelerateVisual::AccelerateVisual(VisualControl& api)
 , _change_speed_timer{0}
 , _text_timer{text_time}
 {
+  api.change_text(VisualControl::SPLIT_LINE);
 }
 
 void AccelerateVisual::update(VisualControl& api)
@@ -40,12 +40,9 @@ void AccelerateVisual::update(VisualControl& api)
   _change_timer = _change_speed;
   _current = api.get_image((_image_count / 32) % 2);
   _text_on = !_text_on;
-  if (!_text_on) {
-    _current_text.erase(_current_text.begin());
-    if (_current_text.empty()) {
-      _current_text = SplitWords(api.get_text((_image_count / 32) % 2),
-                                 _change_speed < 8 ? SplitType::WORD : SplitType::LINE);
-    }
+  if (_text_on) {
+    api.change_text(_change_speed < 8 ? VisualControl::SPLIT_WORD : VisualControl::SPLIT_LINE,
+                    (_image_count / 32) % 2);
   }
   _text_timer = text_time;
 
@@ -62,9 +59,6 @@ void AccelerateVisual::update(VisualControl& api)
   }
 
   api.change_spiral();
-  if (api.change_themes()) {
-    _current_text = SplitWords(api.get_text((_image_count / 32) % 2), SplitType::LINE);
-  }
   api.change_font();
   // Frames is something like:
   // 46 + sum(3 <= k < 48, (1 + floor(k^6/48^5))(48 - k)).
@@ -83,13 +77,12 @@ void AccelerateVisual::render(VisualRender& api) const
       .2f, 6.f);
   api.render_spiral();
   if (_change_speed == min_speed || (_text_on && _text_timer)) {
-    api.render_text(_current_text[0]);
+    api.render_text();
   }
 }
 
 SubTextVisual::SubTextVisual(VisualControl& api)
 : _current{api.get_image()}
-, _current_text{SplitWords(api.get_text(), SplitType::LINE)}
 , _text_on{true}
 , _alternate{false}
 , _change_timer{speed}
@@ -97,6 +90,7 @@ SubTextVisual::SubTextVisual(VisualControl& api)
 , _cycle{cycles}
 , _sub_speed_multiplier{1}
 {
+  api.change_text(VisualControl::SPLIT_WORD);
 }
 
 void SubTextVisual::update(VisualControl& api)
@@ -109,6 +103,9 @@ void SubTextVisual::update(VisualControl& api)
   }
 
   if (--_change_timer) {
+    if (_change_timer % 4 == 0) {
+      api.change_text(VisualControl::SPLIT_ONCE_ONLY);
+    }
     if (_change_timer == speed / 2) {
       api.maybe_upload_next();
     }
@@ -118,9 +115,7 @@ void SubTextVisual::update(VisualControl& api)
 
   if (!--_cycle) {
     _cycle = cycles;
-    if (api.change_themes()) {
-      _current_text = SplitWords(api.get_text(_alternate), SplitType::LINE);
-    } else {
+    if (!api.change_themes()) {
       _alternate = !_alternate;
     }
     api.change_font();
@@ -135,7 +130,7 @@ void SubTextVisual::update(VisualControl& api)
   _current = api.get_image(_alternate);
   _text_on = !_text_on;
   if (_text_on) {
-    _current_text = SplitWords(api.get_text(_alternate), SplitType::LINE);
+    api.change_text(VisualControl::SPLIT_WORD, _alternate);
   }
 }
 
@@ -147,10 +142,7 @@ void SubTextVisual::render(VisualRender& api) const
   api.render_subtext(1.f / 4);
   api.render_spiral();
   if (_text_on) {
-    auto index = (speed - _change_timer) / 4;
-    if (index < _current_text.size()) {
-      api.render_text(_current_text[index]);
-    }
+    api.render_text();
   }
 }
 
@@ -158,11 +150,11 @@ SlowFlashVisual::SlowFlashVisual(VisualControl& api)
 : _flash{false}
 , _anim{false}
 , _current{api.get_image()}
-, _current_text{SplitWords(api.get_text(), _flash ? SplitType::WORD : SplitType::LINE)}
 , _change_timer{max_speed}
 , _image_count{cycle_length}
 , _cycle_count{set_length}
 {
+  api.change_text(VisualControl::SPLIT_LINE);
 }
 
 void SlowFlashVisual::update(VisualControl& api)
@@ -179,18 +171,9 @@ void SlowFlashVisual::update(VisualControl& api)
     return;
   }
 
-  bool changed_text = false;
   if (!--_image_count) {
     _flash = !_flash;
     _image_count = _flash ? 2 * cycle_length : cycle_length;
-    if (_change_timer < max_speed / 2 || _flash) {
-      changed_text = true;
-      _current_text.erase(_current_text.begin());
-      if (_current_text.empty()) {
-        _current_text =
-            SplitWords(api.get_text(_flash), _flash ? SplitType::WORD : SplitType::LINE);
-      }
-    }
     api.change_spiral();
     api.change_font();
     if (!--_cycle_count) {
@@ -205,11 +188,8 @@ void SlowFlashVisual::update(VisualControl& api)
   _change_timer = _flash ? min_speed : max_speed;
   _anim = !_anim;
   _current = api.get_image(_flash);
-  if (!changed_text) {
-    _current_text.erase(_current_text.begin());
-    if (_current_text.empty()) {
-      _current_text = SplitWords(api.get_text(_flash), _flash ? SplitType::WORD : SplitType::LINE);
-    }
+  if (!_flash || _image_count % 2) {
+    api.change_text(_flash ? VisualControl::SPLIT_WORD : VisualControl::SPLIT_LINE, _flash);
   }
 }
 
@@ -225,8 +205,7 @@ void SlowFlashVisual::render(VisualRender& api) const
   api.render_spiral();
   api.render_small_subtext(1.f / 5);
   if ((!_flash && _change_timer < max_speed / 2) || (_flash && _image_count % 2)) {
-    api.render_text(_current_text[0],
-                    _flash ? 3.f + 8.f * (_image_count / (4.f * cycle_length)) : 4.f);
+    api.render_text(_flash ? 3.f + 8.f * (_image_count / (4.f * cycle_length)) : 4.f);
   }
 }
 
@@ -234,7 +213,6 @@ FlashTextVisual::FlashTextVisual(VisualControl& api)
 : _animated{random_chance()}
 , _start{api.get_image()}
 , _end{api.get_image()}
-, _current_text{SplitWords(api.get_text(), SplitType::LINE)}
 , _timer{length}
 , _font_timer{font_length}
 , _cycle{cycles}
@@ -251,10 +229,7 @@ void FlashTextVisual::update(VisualControl& api)
   }
 
   if (_timer == length / 2 && _cycle % 2 == 0) {
-    _current_text.erase(_current_text.begin());
-    if (_current_text.empty()) {
-      _current_text = SplitWords(api.get_text((_cycle / 2) % 2), SplitType::LINE);
-    }
+    api.change_text(VisualControl::SPLIT_LINE, (_cycle / 2) % 2);
   }
 
   if (!--_timer) {
@@ -298,7 +273,7 @@ void FlashTextVisual::render(VisualRender& api) const
   api.render_spiral();
   api.render_small_subtext(1.f / 5);
   if (_cycle % 2) {
-    api.render_text(_current_text[0], 3.f + 4.f * _timer / length);
+    api.render_text(3.f + 4.f * _timer / length);
   }
 }
 
@@ -311,10 +286,10 @@ ParallelVisual::ParallelVisual(VisualControl& api)
 , _alternate_length{length / 2}
 , _switch_alt{false}
 , _text_on{true}
-, _current_text{SplitWords(api.get_text(random_chance()), SplitType::LINE)}
 , _timer{length}
 , _cycle{cycles}
 {
+  api.change_text(VisualControl::SPLIT_LINE, random_chance());
 }
 
 void ParallelVisual::update(VisualControl& api)
@@ -354,10 +329,7 @@ void ParallelVisual::update(VisualControl& api)
     _length = 0;
   }
   if (_cycle % 4 == 2) {
-    _current_text.erase(_current_text.begin());
-    if (_current_text.empty()) {
-      _current_text = SplitWords(api.get_text(random_chance()), SplitType::LINE);
-    }
+    api.change_text(VisualControl::SPLIT_LINE, random_chance());
   }
 }
 
@@ -375,15 +347,13 @@ void ParallelVisual::render(VisualRender& api) const
   api.render_spiral();
   api.render_small_subtext(1.f / 5);
   if (_cycle % 4 == 1 || _cycle % 4 == 2) {
-    api.render_text(_current_text[0]);
+    api.render_text();
   }
 }
 
-SuperParallelVisual::SuperParallelVisual(VisualControl& api)
-: _current_text{SplitWords(api.get_text(random_chance()), SplitType::WORD)}
-, _timer{length}
-, _cycle{cycles}
+SuperParallelVisual::SuperParallelVisual(VisualControl& api) : _timer{length}, _cycle{cycles}
 {
+  api.change_text(VisualControl::SPLIT_WORD, random_chance());
   for (std::size_t i = 0; i < image_count; ++i) {
     _images.push_back(api.get_image(i % 2 == 0));
     _lengths.push_back(((image_count * length) - i * length) % (image_count * length));
@@ -405,10 +375,7 @@ void SuperParallelVisual::update(VisualControl& api)
     return;
   }
   _timer = length;
-  _current_text.erase(_current_text.begin());
-  if (_current_text.empty()) {
-    _current_text = SplitWords(api.get_text(random_chance()), SplitType::WORD);
-  }
+  api.change_text(VisualControl::SPLIT_WORD, random_chance());
 
   if (!--_cycle) {
     api.change_spiral();
@@ -447,18 +414,14 @@ void SuperParallelVisual::render(VisualRender& api) const
   }
   api.render_spiral();
   if (_timer > length / 2) {
-    api.render_text(_current_text.empty() ? "" : _current_text[0], 5.f);
+    api.render_text(5.f);
   }
 }
 
 AnimationVisual::AnimationVisual(VisualControl& api)
-: _animation_backup{api.get_image()}
-, _current{api.get_image(true)}
-, _current_text_base{api.get_text()}
-, _current_text{SplitWords(_current_text_base, SplitType::WORD)}
-, _timer{length}
-, _cycle{cycles}
+: _animation_backup{api.get_image()}, _current{api.get_image(true)}, _timer{length}, _cycle{cycles}
 {
+  api.change_text(VisualControl::SPLIT_LINE);
 }
 
 void AnimationVisual::update(VisualControl& api)
@@ -479,10 +442,7 @@ void AnimationVisual::update(VisualControl& api)
       api.maybe_upload_next();
     }
     if (_timer % 128 == 63) {
-      _current_text.erase(_current_text.begin());
-      if (_current_text.empty()) {
-        _current_text = SplitWords(_current_text_base, SplitType::WORD);
-      }
+      api.change_text(VisualControl::SPLIT_LINE);
     }
     return;
   }
@@ -493,9 +453,6 @@ void AnimationVisual::update(VisualControl& api)
     api.change_font();
     api.change_themes();
     _cycle = cycles;
-    _current_text_base = api.get_text();
-    _current_text.erase(_current_text.begin());
-    _current_text = SplitWords(_current_text_base, SplitType::WORD);
     // 1/4 chance after 256 * 4 = 1024 frames.
     // Average length 4 * 1024 = 4096 frames.
     api.change_visual(4);
@@ -514,18 +471,18 @@ void AnimationVisual::render(VisualRender& api) const
   api.render_spiral();
   api.render_small_subtext(1.f / 5);
   if (_timer % 128 >= 64) {
-    api.render_text(_current_text[0], 5.f);
+    api.render_text(5.f);
   }
 }
 
 SuperFastVisual::SuperFastVisual(VisualControl& api)
 : _current{api.get_image()}
-, _current_text{SplitWords(api.get_text(), SplitType::WORD)}
 , _start_timer{0}
 , _animation_timer{anim_length + random(anim_length)}
 , _alternate{false}
 , _timer{length}
 {
+  api.change_text(VisualControl::SPLIT_WORD);
 }
 
 void SuperFastVisual::update(VisualControl& api)
@@ -537,10 +494,7 @@ void SuperFastVisual::update(VisualControl& api)
   }
   if (_timer % image_length == 0) {
     _current = api.get_image(_alternate);
-    _current_text.erase(_current_text.begin());
-    if (_current_text.empty()) {
-      _current_text = SplitWords(api.get_text(_alternate), SplitType::WORD);
-    }
+    api.change_text(VisualControl::SPLIT_WORD, _alternate);
   }
   if (!_start_timer && random_chance(128)) {
     _alternate = !_alternate;
@@ -575,7 +529,7 @@ void SuperFastVisual::render(VisualRender& api) const
     api.render_image(_current, 1.f, 20.f - 12.f * float(_timer % image_length) / image_length,
                      1.f - float(_timer % image_length) / image_length);
     if (_timer % image_length < 2) {
-      api.render_text(_current_text[0], 5.f);
+      api.render_text(5.f);
     }
   }
   api.render_spiral();

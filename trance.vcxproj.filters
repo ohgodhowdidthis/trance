@@ -34,6 +34,9 @@
     <ClCompile Include="src\visual_api.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\visual_cyclers.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="src">
@@ -78,6 +81,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\visual_api.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\visual_cyclers.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

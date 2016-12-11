@@ -31,8 +31,6 @@ private:
   static const uint32_t text_time = 4;
 
   Image _current;
-  std::vector<std::string> _current_text;
-
   bool _text_on;
   uint32_t _image_count;
   uint32_t _change_timer;
@@ -54,7 +52,6 @@ private:
   static const uint32_t cycles = 32;
 
   Image _current;
-  std::vector<std::string> _current_text;
   bool _text_on;
   bool _alternate;
   uint32_t _change_timer;
@@ -80,7 +77,6 @@ private:
   bool _anim;
 
   Image _current;
-  std::vector<std::string> _current_text;
   uint32_t _change_timer;
 
   uint32_t _image_count;
@@ -102,7 +98,6 @@ private:
   bool _animated;
   Image _start;
   Image _end;
-  std::vector<std::string> _current_text;
   uint32_t _timer;
   uint32_t _cycle;
   uint32_t _font_timer;
@@ -127,7 +122,6 @@ private:
   uint32_t _alternate_length;
   bool _switch_alt;
   bool _text_on;
-  std::vector<std::string> _current_text;
   uint32_t _timer;
   uint32_t _cycle;
 };
@@ -146,7 +140,6 @@ private:
 
   std::vector<Image> _images;
   std::vector<uint32_t> _lengths;
-  std::vector<std::string> _current_text;
   uint32_t _timer;
   uint32_t _font_timer;
   uint32_t _cycle;
@@ -167,8 +160,6 @@ private:
 
   Image _animation_backup;
   Image _current;
-  std::string _current_text_base;
-  std::vector<std::string> _current_text;
   uint32_t _timer;
   uint32_t _cycle;
 };
@@ -187,7 +178,6 @@ private:
   static const uint32_t image_length = 8;
 
   Image _current;
-  std::vector<std::string> _current_text;
   uint32_t _start_timer;
   uint32_t _animation_timer;
   bool _alternate;

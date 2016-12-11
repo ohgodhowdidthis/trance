@@ -4,13 +4,6 @@
 #include <vector>
 #include "font.h"
 
-enum class SplitType {
-  NONE = 0,
-  WORD = 1,
-  LINE = 2,
-};
-std::vector<std::string> SplitWords(const std::string& text, SplitType type);
-
 class Director;
 class Image;
 class ThemeBank;
@@ -23,13 +16,23 @@ namespace trance_pb
 class VisualControl
 {
 public:
+  virtual ~VisualControl() = default;
+
+  enum SplitType {
+    SPLIT_WORD = 0,
+    SPLIT_LINE = 1,
+    SPLIT_WORD_GAPS = 2,
+    SPLIT_LINE_GAPS = 3,
+    SPLIT_ONCE_ONLY = 4,
+  };
+
   virtual Image get_image(bool alternate = false) const = 0;
-  virtual const std::string& get_text(bool alternate = false) const = 0;
   virtual void maybe_upload_next() const = 0;
 
   virtual void rotate_spiral(float amount) = 0;
   virtual void change_spiral() = 0;
   virtual void change_font(bool force = false) = 0;
+  virtual void change_text(SplitType split_type, bool alternate = false) = 0;
   virtual void change_subtext(bool alternate = false) = 0;
   virtual void change_small_subtext(bool force = false, bool alternate = false) = 0;
   virtual bool change_themes() = 0;
@@ -39,6 +42,8 @@ public:
 class VisualRender
 {
 public:
+  virtual ~VisualRender() = default;
+
   enum class Anim {
     NONE,
     ANIM,
@@ -48,7 +53,7 @@ public:
                                          float multiplier = 8.f, float zoom = 0.f) const = 0;
   virtual void
   render_image(const Image& image, float alpha, float multiplier = 8.f, float zoom = 0.f) const = 0;
-  virtual void render_text(const std::string& text, float multiplier = 4.f) const = 0;
+  virtual void render_text(float multiplier = 4.f) const = 0;
   virtual void render_subtext(float alpha, float multiplier = 6.f) const = 0;
   virtual void render_small_subtext(float alpha, float multiplier = 6.f) const = 0;
   virtual void render_spiral() const = 0;
@@ -62,12 +67,12 @@ public:
   void update();
 
   Image get_image(bool alternate = false) const override;
-  const std::string& get_text(bool alternate = false) const override;
   void maybe_upload_next() const override;
 
   void rotate_spiral(float amount) override;
   void change_spiral() override;
   void change_font(bool force = false) override;
+  void change_text(SplitType split_type, bool alternate = false) override;
   void change_subtext(bool alternate = false) override;
   void change_small_subtext(bool force = false, bool alternate = false) override;
   bool change_themes() override;
@@ -77,7 +82,7 @@ public:
                                  float zoom = 0.f) const override;
   void render_image(const Image& image, float alpha, float multiplier = 8.f,
                     float zoom = 0.f) const override;
-  void render_text(const std::string& text, float multiplier = 4.f) const override;
+  void render_text(float multiplier = 4.f) const override;
   void render_subtext(float alpha, float multiplier = 6.f) const override;
   void render_small_subtext(float alpha, float multiplier = 6.f) const override;
   void render_spiral() const override;
@@ -102,6 +107,7 @@ private:
   float _small_subtext_x;
   float _small_subtext_y;
 
+  std::vector<std::string> _current_text;
   std::unordered_map<std::string, uint32_t> _text_size_cache;
 };
 
