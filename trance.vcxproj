@@ -187,6 +187,7 @@
     <ClCompile Include="src\theme.cpp" />
     <ClCompile Include="src\visual.cpp" />
     <ClCompile Include="src\visual_api.cpp" />
+    <ClCompile Include="src\visual_cyclers.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\trance.proto">
@@ -214,6 +215,7 @@
     <ClInclude Include="src\util.h" />
     <ClInclude Include="src\visual.h" />
     <ClInclude Include="src\visual_api.h" />
+    <ClInclude Include="src\visual_cyclers.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

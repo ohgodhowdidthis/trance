@@ -18,7 +18,7 @@ ThemeBank::ThemeBank(const std::string& root_path, const trance_pb::Session& ses
 , _updates{0}
 , _cooldown{switch_cooldown}
 {
-  // Find all images in all themese and set up data for each.
+  // Find all images in all themes and set up data for each.
   std::unordered_set<std::string> all_image_paths;
   std::unordered_set<std::string> all_animation_paths;
   for (const auto& pair : session.theme_map()) {

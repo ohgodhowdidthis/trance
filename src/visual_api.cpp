@@ -17,29 +17,25 @@ namespace
     return sf::Color(sf::Uint8(colour.r() * 255), sf::Uint8(colour.g() * 255),
                      sf::Uint8(colour.b() * 255), sf::Uint8(colour.a() * 255));
   }
-}
 
-std::vector<std::string> SplitWords(const std::string& text, SplitType type)
-{
-  std::vector<std::string> result;
-  if (type == SplitType::NONE) {
-    result.emplace_back(text);
+  std::vector<std::string> SplitText(const std::string& text, bool split_words)
+  {
+    std::vector<std::string> result;
+    std::string s = text;
+    while (!s.empty()) {
+      auto of = split_words ? " \t\r\n" : "\r\n";
+      auto p = s.find_first_of(of);
+      auto q = s.substr(0, p != std::string::npos ? p : s.size());
+      if (!q.empty()) {
+        result.push_back(q);
+      }
+      s = s.substr(p != std::string::npos ? 1 + p : s.size());
+    }
+    if (result.empty()) {
+      result.emplace_back();
+    }
     return result;
   }
-  std::string s = text;
-  while (!s.empty()) {
-    auto of = type == SplitType::LINE ? "\r\n" : " \t\r\n";
-    auto p = s.find_first_of(of);
-    auto q = s.substr(0, p != std::string::npos ? p : s.size());
-    if (!q.empty()) {
-      result.push_back(q);
-    }
-    s = s.substr(p != std::string::npos ? 1 + p : s.size());
-  }
-  if (result.empty()) {
-    result.emplace_back();
-  }
-  return result;
 }
 
 VisualApiImpl::VisualApiImpl(Director& director, ThemeBank& themes,
@@ -77,10 +73,10 @@ VisualApiImpl::VisualApiImpl(Director& director, ThemeBank& themes,
         continue;
       }
       for (const auto& text : pair.second.text_line()) {
-        for (const auto& line : SplitWords(text, SplitType::LINE)) {
+        for (const auto& line : SplitText(text, false)) {
           cache_text_size(line);
         }
-        for (const auto& word : SplitWords(text, SplitType::WORD)) {
+        for (const auto& word : SplitText(text, true)) {
           cache_text_size(word);
         }
       }
@@ -100,11 +96,6 @@ void VisualApiImpl::update()
 Image VisualApiImpl::get_image(bool alternate) const
 {
   return _themes.get_image(alternate);
-}
-
-const std::string& VisualApiImpl::get_text(bool alternate) const
-{
-  return _themes.get_text(alternate, true);
 }
 
 void VisualApiImpl::maybe_upload_next() const
@@ -140,6 +131,24 @@ void VisualApiImpl::change_font(bool force)
   if (force || random_chance(4)) {
     _current_font = _themes.get_font(false);
   }
+}
+
+void VisualApiImpl::change_text(SplitType split_type, bool alternate)
+{
+  bool gaps = split_type == SPLIT_LINE_GAPS || split_type == SPLIT_WORD_GAPS;
+  bool split_word = split_type == SPLIT_WORD || split_type == SPLIT_WORD_GAPS;
+  bool once_only = split_type == SPLIT_ONCE_ONLY;
+
+  if (_current_text.empty() && once_only) {
+    return;
+  }
+  if (!_current_text.empty()) {
+    _current_text.erase(_current_text.begin());
+    if (!_current_text.empty() || gaps || once_only) {
+      return;
+    }
+  }
+  _current_text = SplitText(_themes.get_text(alternate, true), split_word);
 }
 
 void VisualApiImpl::change_subtext(bool alternate)
@@ -229,11 +238,13 @@ void VisualApiImpl::render_image(const Image& image, float alpha, float multipli
   _director.render_image(image, alpha, multiplier, zoom);
 }
 
-void VisualApiImpl::render_text(const std::string& text, float multiplier) const
+void VisualApiImpl::render_text(float multiplier) const
 {
-  if (_current_font.empty() || text.empty()) {
+  if (_current_font.empty() || _current_text.empty() || _current_text.front().empty()) {
     return;
   }
+  const auto& text = _current_text.front();
+
   auto cache_key = _current_font + "/\t/\t/" + text;
   auto it = _text_size_cache.find(cache_key);
   if (it == _text_size_cache.end()) {
