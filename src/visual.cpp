@@ -1,50 +1,13 @@
 #include "visual.h"
 #include "director.h"
 #include "util.h"
-
-std::vector<std::string> SplitWords(const std::string& text, SplitType type)
-{
-  std::vector<std::string> result;
-  if (type == SplitType::NONE) {
-    result.emplace_back(text);
-    return result;
-  }
-  std::string s = text;
-  while (!s.empty()) {
-    auto of = type == SplitType::LINE ? "\r\n" : " \t\r\n";
-    auto p = s.find_first_of(of);
-    auto q = s.substr(0, p != std::string::npos ? p : s.size());
-    if (!q.empty()) {
-      result.push_back(q);
-    }
-    s = s.substr(p != std::string::npos ? 1 + p : s.size());
-  }
-  if (result.empty()) {
-    result.emplace_back();
-  }
-  return result;
-}
-
+#include "visual_api.h"
 // TODO: some sort of unification of this logic, especially timers, calls to
 // maybe_upload_next, etc.
-Visual::Visual(Director& director) : _director{director}
-{
-}
 
-const Director& Visual::director() const
-{
-  return _director;
-}
-
-Director& Visual::director()
-{
-  return _director;
-}
-
-AccelerateVisual::AccelerateVisual(Director& director)
-: Visual{director}
-, _current{director.get_image()}
-, _current_text{SplitWords(director.get_text(), SplitType::LINE)}
+AccelerateVisual::AccelerateVisual(VisualControl& api)
+: _current{api.get_image()}
+, _current_text{SplitWords(api.get_text(), SplitType::LINE)}
 , _text_on{true}
 , _image_count{0}
 , _change_timer{max_speed}
@@ -54,13 +17,13 @@ AccelerateVisual::AccelerateVisual(Director& director)
 {
 }
 
-void AccelerateVisual::update()
+void AccelerateVisual::update(VisualControl& api)
 {
   unsigned long long d = max_speed - _change_speed;
   unsigned long long m = max_speed;
 
   float spiral_d = 1 + float(d) / 8;
-  director().rotate_spiral(spiral_d);
+  api.rotate_spiral(spiral_d);
 
   if (_text_timer) {
     --_text_timer;
@@ -68,19 +31,19 @@ void AccelerateVisual::update()
   if (_change_timer) {
     --_change_timer;
     if (_change_timer == _change_speed / 2 && _change_speed > max_speed / 2) {
-      director().maybe_upload_next();
+      api.maybe_upload_next();
     }
     return;
   }
 
   ++_image_count;
   _change_timer = _change_speed;
-  _current = director().get_image((_image_count / 32) % 2);
+  _current = api.get_image((_image_count / 32) % 2);
   _text_on = !_text_on;
   if (!_text_on) {
     _current_text.erase(_current_text.begin());
     if (_current_text.empty()) {
-      _current_text = SplitWords(director().get_text((_image_count / 32) % 2),
+      _current_text = SplitWords(api.get_text((_image_count / 32) % 2),
                                  _change_speed < 8 ? SplitType::WORD : SplitType::LINE);
     }
   }
@@ -98,36 +61,35 @@ void AccelerateVisual::update()
     return;
   }
 
-  director().change_spiral();
-  if (director().change_themes()) {
-    _current_text = SplitWords(director().get_text((_image_count / 32) % 2), SplitType::LINE);
+  api.change_spiral();
+  if (api.change_themes()) {
+    _current_text = SplitWords(api.get_text((_image_count / 32) % 2), SplitType::LINE);
   }
-  director().change_font();
+  api.change_font();
   // Frames is something like:
   // 46 + sum(3 <= k < 48, (1 + floor(k^6/48^5))(48 - k)).
   // 1/2 chance after ~2850.
   // 1/2 random weight.
   // Average length 2 * 2850 = 5700 frames.
-  director().change_visual(2);
+  api.change_visual(2);
 }
 
-void AccelerateVisual::render() const
+void AccelerateVisual::render(VisualRender& api) const
 {
   auto z = float(_change_timer) / (2 * _change_speed);
-  director().render_image(_current, 1, 8.f + 48.f - _change_speed, .5f - z);
-  director().render_animation_or_image(
-      (_image_count / 32) % 2 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM, {}, .2f,
-      6.f);
-  director().render_spiral();
+  api.render_image(_current, 1, 8.f + 48.f - _change_speed, .5f - z);
+  api.render_animation_or_image(
+      (_image_count / 32) % 2 ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, {},
+      .2f, 6.f);
+  api.render_spiral();
   if (_change_speed == min_speed || (_text_on && _text_timer)) {
-    director().render_text(_current_text[0]);
+    api.render_text(_current_text[0]);
   }
 }
 
-SubTextVisual::SubTextVisual(Director& director)
-: Visual{director}
-, _current{director.get_image()}
-, _current_text{SplitWords(director.get_text(), SplitType::LINE)}
+SubTextVisual::SubTextVisual(VisualControl& api)
+: _current{api.get_image()}
+, _current_text{SplitWords(api.get_text(), SplitType::LINE)}
 , _text_on{true}
 , _alternate{false}
 , _change_timer{speed}
@@ -137,18 +99,18 @@ SubTextVisual::SubTextVisual(Director& director)
 {
 }
 
-void SubTextVisual::update()
+void SubTextVisual::update(VisualControl& api)
 {
-  director().rotate_spiral(4.f);
+  api.rotate_spiral(4.f);
 
   if (!--_sub_timer) {
     _sub_timer = sub_speed * _sub_speed_multiplier;
-    director().change_subtext(_alternate);
+    api.change_subtext(_alternate);
   }
 
   if (--_change_timer) {
     if (_change_timer == speed / 2) {
-      director().maybe_upload_next();
+      api.maybe_upload_next();
     }
     return;
   }
@@ -156,64 +118,63 @@ void SubTextVisual::update()
 
   if (!--_cycle) {
     _cycle = cycles;
-    if (director().change_themes()) {
-      _current_text = SplitWords(director().get_text(_alternate), SplitType::LINE);
+    if (api.change_themes()) {
+      _current_text = SplitWords(api.get_text(_alternate), SplitType::LINE);
     } else {
       _alternate = !_alternate;
     }
-    director().change_font();
+    api.change_font();
     // 1/3 chance after 32 * 48 = 1536 frames.
     // Average length 3 * 1536 = 4608 frames.
-    if (director().change_visual(3)) {
-      director().change_spiral();
+    if (api.change_visual(3)) {
+      api.change_spiral();
     }
     ++_sub_speed_multiplier;
   }
 
-  _current = director().get_image(_alternate);
+  _current = api.get_image(_alternate);
   _text_on = !_text_on;
   if (_text_on) {
-    _current_text = SplitWords(director().get_text(_alternate), SplitType::LINE);
+    _current_text = SplitWords(api.get_text(_alternate), SplitType::LINE);
   }
 }
 
-void SubTextVisual::render() const
+void SubTextVisual::render(VisualRender& api) const
 {
-  director().render_animation_or_image(
-      _alternate ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM, {}, 1, 10.f);
-  director().render_image(_current, .8f, 8.f, 2.f - float(_change_timer) / speed);
-  director().render_subtext(1.f / 4);
-  director().render_spiral();
+  api.render_animation_or_image(
+      _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, {}, 1, 10.f);
+  api.render_image(_current, .8f, 8.f, 2.f - float(_change_timer) / speed);
+  api.render_subtext(1.f / 4);
+  api.render_spiral();
   if (_text_on) {
     auto index = (speed - _change_timer) / 4;
     if (index < _current_text.size()) {
-      director().render_text(_current_text[index]);
+      api.render_text(_current_text[index]);
     }
   }
 }
 
-SlowFlashVisual::SlowFlashVisual(Director& director)
-: Visual{director}
-, _flash{false}
+SlowFlashVisual::SlowFlashVisual(VisualControl& api)
+: _flash{false}
 , _anim{false}
-, _current{director.get_image()}
-, _current_text{SplitWords(director.get_text(), _flash ? SplitType::WORD : SplitType::LINE)}
+, _current{api.get_image()}
+, _current_text{SplitWords(api.get_text(), _flash ? SplitType::WORD : SplitType::LINE)}
 , _change_timer{max_speed}
 , _image_count{cycle_length}
 , _cycle_count{set_length}
 {
 }
 
-void SlowFlashVisual::update()
+void SlowFlashVisual::update(VisualControl& api)
 {
-  director().rotate_spiral(_flash ? 4.f : 2.f);
+  api.rotate_spiral(_flash ? 4.f : 2.f);
 
   if (_change_timer % 16 == 0 || (_flash && _change_timer % 4 == 0)) {
-    director().change_small_subtext(true, _flash);
+    api.change_small_subtext(true, _flash);
   }
   if (--_change_timer) {
     if (!_flash && _change_timer == max_speed / 2) {
-      director().maybe_upload_next();
+      api.maybe_upload_next();
     }
     return;
   }
@@ -227,222 +188,218 @@ void SlowFlashVisual::update()
       _current_text.erase(_current_text.begin());
       if (_current_text.empty()) {
         _current_text =
-            SplitWords(director().get_text(_flash), _flash ? SplitType::WORD : SplitType::LINE);
+            SplitWords(api.get_text(_flash), _flash ? SplitType::WORD : SplitType::LINE);
       }
     }
-    director().change_spiral();
-    director().change_font();
+    api.change_spiral();
+    api.change_font();
     if (!--_cycle_count) {
       _cycle_count = set_length;
-      director().change_themes();
+      api.change_themes();
       // 1/2 chance after 2 * (16 * 64 + 64 * 4) = 2560 frames.
       // Average length 2 * 2560 = 5120 frames.
-      director().change_visual(2);
+      api.change_visual(2);
     }
   }
 
   _change_timer = _flash ? min_speed : max_speed;
   _anim = !_anim;
-  _current = director().get_image(_flash);
+  _current = api.get_image(_flash);
   if (!changed_text) {
     _current_text.erase(_current_text.begin());
     if (_current_text.empty()) {
-      _current_text =
-          SplitWords(director().get_text(_flash), _flash ? SplitType::WORD : SplitType::LINE);
+      _current_text = SplitWords(api.get_text(_flash), _flash ? SplitType::WORD : SplitType::LINE);
     }
   }
 }
 
-void SlowFlashVisual::render() const
+void SlowFlashVisual::render(VisualRender& api) const
 {
   float extra = 8.f - 8.f * _image_count / (4 * cycle_length);
   auto zoom = 1.5f *
       (1.f -
        (_flash ? float(max_speed - min_speed + _change_timer) : float(_change_timer)) / max_speed);
-  director().render_animation_or_image(
-      _anim && !_flash ? Director::Anim::ANIM : Director::Anim::NONE, _current, 1, 8.f + extra,
-      zoom);
-  director().render_spiral();
-  director().render_small_subtext(1.f / 5);
+  api.render_animation_or_image(
+      _anim && !_flash ? VisualRender::Anim::ANIM : VisualRender::Anim::NONE, _current, 1,
+      8.f + extra, zoom);
+  api.render_spiral();
+  api.render_small_subtext(1.f / 5);
   if ((!_flash && _change_timer < max_speed / 2) || (_flash && _image_count % 2)) {
-    director().render_text(_current_text[0],
-                           _flash ? 3.f + 8.f * (_image_count / (4.f * cycle_length)) : 4.f);
+    api.render_text(_current_text[0],
+                    _flash ? 3.f + 8.f * (_image_count / (4.f * cycle_length)) : 4.f);
   }
 }
 
-FlashTextVisual::FlashTextVisual(Director& director)
-: Visual{director}
-, _animated{random_chance()}
-, _start{director.get_image()}
-, _end{director.get_image()}
-, _current_text{SplitWords(director.get_text(), SplitType::LINE)}
+FlashTextVisual::FlashTextVisual(VisualControl& api)
+: _animated{random_chance()}
+, _start{api.get_image()}
+, _end{api.get_image()}
+, _current_text{SplitWords(api.get_text(), SplitType::LINE)}
 , _timer{length}
 , _font_timer{font_length}
 , _cycle{cycles}
 {
 }
 
-void FlashTextVisual::update()
+void FlashTextVisual::update(VisualControl& api)
 {
-  director().rotate_spiral(2.5f);
+  api.rotate_spiral(2.5f);
 
   if (!--_font_timer) {
-    director().change_font(true);
+    api.change_font(true);
     _font_timer = font_length;
   }
 
   if (_timer == length / 2 && _cycle % 2 == 0) {
     _current_text.erase(_current_text.begin());
     if (_current_text.empty()) {
-      _current_text = SplitWords(director().get_text((_cycle / 2) % 2), SplitType::LINE);
+      _current_text = SplitWords(api.get_text((_cycle / 2) % 2), SplitType::LINE);
     }
   }
 
   if (!--_timer) {
     if (!--_cycle) {
       _cycle = cycles;
-      director().change_themes();
+      api.change_themes();
       // 1/8 chance after 64 * 8 = 512 frames.
       // Average length 8 * 512 = 4096 frames.
-      director().change_visual(8);
+      api.change_visual(8);
     }
 
     _start = _end;
-    _end = director().get_image((_cycle / 2) % 2);
+    _end = api.get_image((_cycle / 2) % 2);
     _timer = length;
   }
   if (_timer % 16 == 0) {
-    director().change_small_subtext();
+    api.change_small_subtext();
   }
 
   if (_timer == length / 2) {
-    director().maybe_upload_next();
+    api.maybe_upload_next();
   }
 }
 
-void FlashTextVisual::render() const
+void FlashTextVisual::render(VisualRender& api) const
 {
   float extra = 32.f * _timer / length;
   float zoom = float(_timer) / length;
-  director().render_animation_or_image(
+  api.render_animation_or_image(
       !_animated || _cycle % 2
-          ? Director::Anim::NONE
-          : (_cycle / 2) % 2 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM,
+          ? VisualRender::Anim::NONE
+          : (_cycle / 2) % 2 ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM,
       _start, 1, 8.f + extra, (_animated ? 1.5f : 1.f) * (2.f - zoom));
 
-  director().render_animation_or_image(
+  api.render_animation_or_image(
       !_animated || _cycle % 2 == 0
-          ? Director::Anim::NONE
-          : (_cycle / 2) % 2 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM,
+          ? VisualRender::Anim::NONE
+          : (_cycle / 2) % 2 ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM,
       _end, 1.f - float(_timer) / length, 40.f - extra, (_animated ? 1.5f : 1.f) * (1.f - zoom));
 
-  director().render_spiral();
-  director().render_small_subtext(1.f / 5);
+  api.render_spiral();
+  api.render_small_subtext(1.f / 5);
   if (_cycle % 2) {
-    director().render_text(_current_text[0], 3.f + 4.f * _timer / length);
+    api.render_text(_current_text[0], 3.f + 4.f * _timer / length);
   }
 }
 
-ParallelVisual::ParallelVisual(Director& director)
-: Visual{director}
-, _image{director.get_image()}
-, _alternate{director.get_image(true)}
+ParallelVisual::ParallelVisual(VisualControl& api)
+: _image{api.get_image()}
+, _alternate{api.get_image(true)}
 , _anim_cycle{0}
 , _alternate_anim_cycle{0}
 , _length{0}
 , _alternate_length{length / 2}
 , _switch_alt{false}
 , _text_on{true}
-, _current_text{SplitWords(director.get_text(random_chance()), SplitType::LINE)}
+, _current_text{SplitWords(api.get_text(random_chance()), SplitType::LINE)}
 , _timer{length}
 , _cycle{cycles}
 {
 }
 
-void ParallelVisual::update()
+void ParallelVisual::update(VisualControl& api)
 {
   ++_length;
   ++_alternate_length;
-  director().rotate_spiral(3.f);
+  api.rotate_spiral(3.f);
   if (_timer % 8 == 0) {
-    director().change_small_subtext();
+    api.change_small_subtext();
   }
   if (--_timer) {
     if (_timer == length / 2) {
-      director().maybe_upload_next();
+      api.maybe_upload_next();
     }
     return;
   }
   _timer = length;
 
   if (!--_cycle) {
-    director().change_spiral();
-    director().change_font();
-    director().change_themes();
+    api.change_spiral();
+    api.change_font();
+    api.change_themes();
     _cycle = cycles;
     // 1/2 chance after 32 * 64 = 2048 frames.
     // Average length 2 * 2048 = 4096 frames.
-    director().change_visual(2);
+    api.change_visual(2);
   }
 
   _switch_alt = !_switch_alt;
   if (_switch_alt) {
-    _alternate = director().get_image(true);
+    _alternate = api.get_image(true);
     ++_alternate_anim_cycle;
     _alternate_length = 0;
   } else {
-    _image = director().get_image(false);
+    _image = api.get_image(false);
     ++_anim_cycle;
     _length = 0;
   }
   if (_cycle % 4 == 2) {
     _current_text.erase(_current_text.begin());
     if (_current_text.empty()) {
-      _current_text = SplitWords(director().get_text(random_chance()), SplitType::LINE);
+      _current_text = SplitWords(api.get_text(random_chance()), SplitType::LINE);
     }
   }
 }
 
-void ParallelVisual::render() const
+void ParallelVisual::render(VisualRender& api) const
 {
   float extra = 32.f * _cycle / cycles;
-  auto anim = _anim_cycle % 3 == 2 ? Director::Anim::ANIM : Director::Anim::NONE;
-  director().render_animation_or_image(anim, _image, 1, 8.f + extra, float(_length) / length);
+  auto anim = _anim_cycle % 3 == 2 ? VisualRender::Anim::ANIM : VisualRender::Anim::NONE;
+  api.render_animation_or_image(anim, _image, 1, 8.f + extra, float(_length) / length);
 
-  auto alt_anim =
-      _alternate_anim_cycle % 3 == 1 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::NONE;
-  director().render_animation_or_image(alt_anim, _alternate, .5f, 8 + 32.f - extra,
-                                       1.5f * float(_alternate_length) / length);
+  auto alt_anim = _alternate_anim_cycle % 3 == 1 ? VisualRender::Anim::ANIM_ALTERNATE
+                                                 : VisualRender::Anim::NONE;
+  api.render_animation_or_image(alt_anim, _alternate, .5f, 8 + 32.f - extra,
+                                1.5f * float(_alternate_length) / length);
 
-  director().render_spiral();
-  director().render_small_subtext(1.f / 5);
+  api.render_spiral();
+  api.render_small_subtext(1.f / 5);
   if (_cycle % 4 == 1 || _cycle % 4 == 2) {
-    director().render_text(_current_text[0]);
+    api.render_text(_current_text[0]);
   }
 }
 
-SuperParallelVisual::SuperParallelVisual(Director& director)
-: Visual{director}
-, _current_text{SplitWords(director.get_text(random_chance()), SplitType::WORD)}
+SuperParallelVisual::SuperParallelVisual(VisualControl& api)
+: _current_text{SplitWords(api.get_text(random_chance()), SplitType::WORD)}
 , _timer{length}
 , _cycle{cycles}
 {
   for (std::size_t i = 0; i < image_count; ++i) {
-    _images.push_back(director.get_image(i % 2 == 0));
+    _images.push_back(api.get_image(i % 2 == 0));
     _lengths.push_back(((image_count * length) - i * length) % (image_count * length));
   }
 }
 
-void SuperParallelVisual::update()
+void SuperParallelVisual::update(VisualControl& api)
 {
   for (std::size_t i = 0; i < image_count; ++i) {
     ++_lengths[i];
     if (_lengths[i] == image_count * length) {
-      _images[i] = director().get_image(i % 2 == 0);
+      _images[i] = api.get_image(i % 2 == 0);
       _lengths[i] = 0;
     }
   }
-  director().rotate_spiral(3.5f);
+  api.rotate_spiral(3.5f);
 
   if (--_timer) {
     return;
@@ -450,25 +407,25 @@ void SuperParallelVisual::update()
   _timer = length;
   _current_text.erase(_current_text.begin());
   if (_current_text.empty()) {
-    _current_text = SplitWords(director().get_text(random_chance()), SplitType::WORD);
+    _current_text = SplitWords(api.get_text(random_chance()), SplitType::WORD);
   }
 
   if (!--_cycle) {
-    director().change_spiral();
-    director().change_font();
-    director().change_themes();
+    api.change_spiral();
+    api.change_font();
+    api.change_themes();
     _cycle = cycles;
     // 1/4 chance after 32 * 32 = 1024 frames.
     // Average length 4 * 1024 = 4096 frames.
-    director().change_visual(4);
+    api.change_visual(4);
   }
 
   if (_cycle % 16 == 0) {
-    director().maybe_upload_next();
+    api.maybe_upload_next();
   }
 }
 
-void SuperParallelVisual::render() const
+void SuperParallelVisual::render(VisualRender& api) const
 {
   float extra = 16.f - 16.f * (_cycle % 128) / (cycles / 4);
   bool single = false;
@@ -479,48 +436,47 @@ void SuperParallelVisual::render() const
   }
   for (std::size_t i = 0; i < image_count; ++i) {
     auto anim = i >= _images.size() / 2
-        ? Director::Anim::NONE
-        : i % 2 ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM;
+        ? VisualRender::Anim::NONE
+        : i % 2 ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM;
     if (single && _lengths[i] < image_count * length - length / 2) {
       continue;
     }
-    director().render_animation_or_image(anim, _images[i], single ? 1.f : 1.f / (1 + i),
-                                         8.f + 4 * i + extra,
-                                         4.f * float(_lengths[i]) / (image_count * length));
+    api.render_animation_or_image(anim, _images[i], single ? 1.f : 1.f / (1 + i),
+                                  8.f + 4 * i + extra,
+                                  4.f * float(_lengths[i]) / (image_count * length));
   }
-  director().render_spiral();
+  api.render_spiral();
   if (_timer > length / 2) {
-    director().render_text(_current_text.empty() ? "" : _current_text[0], 5.f);
+    api.render_text(_current_text.empty() ? "" : _current_text[0], 5.f);
   }
 }
 
-AnimationVisual::AnimationVisual(Director& director)
-: Visual{director}
-, _animation_backup{director.get_image()}
-, _current{director.get_image(true)}
-, _current_text_base{director.get_text()}
+AnimationVisual::AnimationVisual(VisualControl& api)
+: _animation_backup{api.get_image()}
+, _current{api.get_image(true)}
+, _current_text_base{api.get_text()}
 , _current_text{SplitWords(_current_text_base, SplitType::WORD)}
 , _timer{length}
 , _cycle{cycles}
 {
 }
 
-void AnimationVisual::update()
+void AnimationVisual::update(VisualControl& api)
 {
-  director().rotate_spiral(3.5f);
+  api.rotate_spiral(3.5f);
   if (_timer % image_length == 0) {
-    _current = director().get_image((_timer / image_length) % 2 == 0);
+    _current = api.get_image((_timer / image_length) % 2 == 0);
   }
   if (_timer % (animation_length / 4) == 0) {
-    _animation_backup = director().get_image();
+    _animation_backup = api.get_image();
   }
   if (_timer % 16 == 0) {
-    director().change_small_subtext(true, random_chance());
+    api.change_small_subtext(true, random_chance());
   }
 
   if (--_timer) {
     if (_timer % 128 == 0) {
-      director().maybe_upload_next();
+      api.maybe_upload_next();
     }
     if (_timer % 128 == 63) {
       _current_text.erase(_current_text.begin());
@@ -533,40 +489,38 @@ void AnimationVisual::update()
   _timer = length;
 
   if (!--_cycle) {
-    director().change_spiral();
-    director().change_font();
-    director().change_themes();
+    api.change_spiral();
+    api.change_font();
+    api.change_themes();
     _cycle = cycles;
-    _current_text_base = director().get_text();
+    _current_text_base = api.get_text();
     _current_text.erase(_current_text.begin());
     _current_text = SplitWords(_current_text_base, SplitType::WORD);
     // 1/4 chance after 256 * 4 = 1024 frames.
     // Average length 4 * 1024 = 4096 frames.
-    director().change_visual(4);
+    api.change_visual(4);
   }
 }
 
-void AnimationVisual::render() const
+void AnimationVisual::render(VisualRender& api) const
 {
-  auto which_anim =
-      (_timer / animation_length) % 2 ? Director::Anim::ANIM : Director::Anim::ANIM_ALTERNATE;
-  director().render_animation_or_image(
-      which_anim, _animation_backup, 1.f,
-      20.f - 8.f * float(_timer % animation_length) / animation_length,
-      4.f - 4.f * float(_timer % animation_length) / animation_length);
-  director().render_image(_current, .2f, 20.f - 8.f * float(_timer % image_length) / image_length,
-                          1.f - float(_timer % image_length) / image_length);
-  director().render_spiral();
-  director().render_small_subtext(1.f / 5);
+  auto which_anim = (_timer / animation_length) % 2 ? VisualRender::Anim::ANIM
+                                                    : VisualRender::Anim::ANIM_ALTERNATE;
+  api.render_animation_or_image(which_anim, _animation_backup, 1.f,
+                                20.f - 8.f * float(_timer % animation_length) / animation_length,
+                                4.f - 4.f * float(_timer % animation_length) / animation_length);
+  api.render_image(_current, .2f, 20.f - 8.f * float(_timer % image_length) / image_length,
+                   1.f - float(_timer % image_length) / image_length);
+  api.render_spiral();
+  api.render_small_subtext(1.f / 5);
   if (_timer % 128 >= 64) {
-    director().render_text(_current_text[0], 5.f);
+    api.render_text(_current_text[0], 5.f);
   }
 }
 
-SuperFastVisual::SuperFastVisual(Director& director)
-: Visual{director}
-, _current{director.get_image()}
-, _current_text{SplitWords(director.get_text(), SplitType::WORD)}
+SuperFastVisual::SuperFastVisual(VisualControl& api)
+: _current{api.get_image()}
+, _current_text{SplitWords(api.get_text(), SplitType::WORD)}
 , _start_timer{0}
 , _animation_timer{anim_length + random(anim_length)}
 , _alternate{false}
@@ -574,18 +528,18 @@ SuperFastVisual::SuperFastVisual(Director& director)
 {
 }
 
-void SuperFastVisual::update()
+void SuperFastVisual::update(VisualControl& api)
 {
-  director().rotate_spiral(3.f);
+  api.rotate_spiral(3.f);
   if (_animation_timer) {
     --_animation_timer;
     return;
   }
   if (_timer % image_length == 0) {
-    _current = director().get_image(_alternate);
+    _current = api.get_image(_alternate);
     _current_text.erase(_current_text.begin());
     if (_current_text.empty()) {
-      _current_text = SplitWords(director().get_text(_alternate), SplitType::WORD);
+      _current_text = SplitWords(api.get_text(_alternate), SplitType::WORD);
     }
   }
   if (!_start_timer && random_chance(128)) {
@@ -600,30 +554,29 @@ void SuperFastVisual::update()
     return;
   }
 
-  director().change_spiral();
-  director().change_font();
-  director().change_themes();
+  api.change_spiral();
+  api.change_font();
+  api.change_themes();
   _timer = length;
   // Roughly 1024 + ~ 1024 * (128 + 128 / 2) / 256 (ignoring the _start_timer).
   // 1/2 chance after ~1792 frames.
   // Average length 2 * 1792 = 3584 frames.
-  director().change_visual(2);
+  api.change_visual(2);
 }
 
-void SuperFastVisual::render() const
+void SuperFastVisual::render(VisualRender& api) const
 {
   if (_animation_timer) {
-    director().render_animation_or_image(
-        _alternate ? Director::Anim::ANIM_ALTERNATE : Director::Anim::ANIM, _current, 1.f,
+    api.render_animation_or_image(
+        _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, _current, 1.f,
         20.f - 8.f * float(_animation_timer) / anim_length,
         4.f - 2.f * float(_animation_timer) / anim_length);
   } else {
-    director().render_image(_current, 1.f,
-                            20.f - 12.f * float(_timer % image_length) / image_length,
-                            1.f - float(_timer % image_length) / image_length);
+    api.render_image(_current, 1.f, 20.f - 12.f * float(_timer % image_length) / image_length,
+                     1.f - float(_timer % image_length) / image_length);
     if (_timer % image_length < 2) {
-      director().render_text(_current_text[0], 5.f);
+      api.render_text(_current_text[0], 5.f);
     }
   }
-  director().render_spiral();
+  api.render_spiral();
 }

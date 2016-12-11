@@ -3,16 +3,10 @@
 #include <cstddef>
 #include <string>
 #include <vector>
-#include "theme.h"
+#include "image.h"
 
-class Director;
-
-enum class SplitType {
-  NONE = 0,
-  WORD = 1,
-  LINE = 2,
-};
-std::vector<std::string> SplitWords(const std::string& text, SplitType type);
+class VisualControl;
+class VisualRender;
 
 // Interface to an object which can render and control the visual state.
 // These visuals are swapped out by the Director every so often for different
@@ -20,28 +14,16 @@ std::vector<std::string> SplitWords(const std::string& text, SplitType type);
 class Visual
 {
 public:
-  Visual(Director& director);
-  virtual ~Visual()
-  {
-  }
-
-  virtual void update() = 0;
-  virtual void render() const = 0;
-
-protected:
-  const Director& director() const;
-  Director& director();
-
-private:
-  Director& _director;
+  virtual void update(VisualControl& api) = 0;
+  virtual void render(VisualRender& api) const = 0;
 };
 
 class AccelerateVisual : public Visual
 {
 public:
-  AccelerateVisual(Director& director);
-  void update() override;
-  void render() const override;
+  AccelerateVisual(VisualControl& api);
+  void update(VisualControl& api) override;
+  void render(VisualRender& api) const override;
 
 private:
   static const uint32_t max_speed = 48;
@@ -62,9 +44,9 @@ private:
 class SubTextVisual : public Visual
 {
 public:
-  SubTextVisual(Director& director);
-  void update() override;
-  void render() const override;
+  SubTextVisual(VisualControl& api);
+  void update(VisualControl& api) override;
+  void render(VisualRender& api) const override;
 
 private:
   static const uint32_t speed = 48;
@@ -84,9 +66,9 @@ private:
 class SlowFlashVisual : public Visual
 {
 public:
-  SlowFlashVisual(Director& director);
-  void update() override;
-  void render() const override;
+  SlowFlashVisual(VisualControl& api);
+  void update(VisualControl& api) override;
+  void render(VisualRender& api) const override;
 
 private:
   static const uint32_t max_speed = 64;
@@ -108,9 +90,9 @@ private:
 class FlashTextVisual : public Visual
 {
 public:
-  FlashTextVisual(Director& director);
-  void update() override;
-  void render() const override;
+  FlashTextVisual(VisualControl& api);
+  void update(VisualControl& api) override;
+  void render(VisualRender& api) const override;
 
 private:
   static const uint32_t length = 64;
@@ -129,9 +111,9 @@ private:
 class ParallelVisual : public Visual
 {
 public:
-  ParallelVisual(Director& director);
-  void update() override;
-  void render() const override;
+  ParallelVisual(VisualControl& api);
+  void update(VisualControl& api) override;
+  void render(VisualRender& api) const override;
 
 private:
   static const uint32_t length = 32;
@@ -153,9 +135,9 @@ private:
 class SuperParallelVisual : public Visual
 {
 public:
-  SuperParallelVisual(Director& director);
-  void update() override;
-  void render() const override;
+  SuperParallelVisual(VisualControl& api);
+  void update(VisualControl& api) override;
+  void render(VisualRender& api) const override;
 
 private:
   static const std::size_t image_count = 3;
@@ -173,9 +155,9 @@ private:
 class AnimationVisual : public Visual
 {
 public:
-  AnimationVisual(Director& director);
-  void update() override;
-  void render() const override;
+  AnimationVisual(VisualControl& api);
+  void update(VisualControl& api) override;
+  void render(VisualRender& api) const override;
 
 private:
   static const uint32_t length = 256;
@@ -194,9 +176,9 @@ private:
 class SuperFastVisual : public Visual
 {
 public:
-  SuperFastVisual(Director& director);
-  void update() override;
-  void render() const override;
+  SuperFastVisual(VisualControl& api);
+  void update(VisualControl& api) override;
+  void render(VisualRender& api) const override;
 
 private:
   static const uint32_t length = 1024;
