@@ -186,6 +186,7 @@
     <ClCompile Include="src\session.cpp" />
     <ClCompile Include="src\theme.cpp" />
     <ClCompile Include="src\visual.cpp" />
+    <ClCompile Include="src\visual_api.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\trance.proto">
@@ -212,6 +213,7 @@
     <ClInclude Include="src\theme.h" />
     <ClInclude Include="src\util.h" />
     <ClInclude Include="src\visual.h" />
+    <ClInclude Include="src\visual_api.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

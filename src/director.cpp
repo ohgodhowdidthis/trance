@@ -1,10 +1,12 @@
 ﻿#include "director.h"
 #include <algorithm>
 #include <iostream>
+#include "font.h"
 #include "session.h"
 #include "theme.h"
 #include "util.h"
 #include "visual.h"
+#include "visual_api.h"
 
 #pragma warning(push, 0)
 extern "C" {
@@ -13,8 +15,6 @@ extern "C" {
 #include <src/trance.pb.h>
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)
-
-static const uint32_t spiral_type_max = 7;
 
 static const std::string text_vertex = R"(
 uniform vec4 colour;
@@ -258,12 +258,6 @@ void main(void)
 }
 )";
 
-static sf::Color colour2sf(const trance_pb::Colour& colour)
-{
-  return sf::Color(sf::Uint8(colour.r() * 255), sf::Uint8(colour.g() * 255),
-                   sf::Uint8(colour.b() * 255), sf::Uint8(colour.a() * 255));
-}
-
 Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
                    const trance_pb::System& system, ThemeBank& themes,
                    const trance_pb::Program& program, bool realtime, bool oculus_rift,
@@ -272,7 +266,6 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 , _session{session}
 , _system{system}
 , _themes{themes}
-, _fonts{_themes.get_root_path(), system.font_cache_size()}
 , _width{window.getSize().x}
 , _height{window.getSize().y}
 , _program{&program}
@@ -286,10 +279,6 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
 , _spiral_program{0}
 , _quad_buffer{0}
 , _tex_buffer{0}
-, _spiral{0}
-, _spiral_type{0}
-, _spiral_width{60}
-, _switch_themes{0}
 {
   _oculus.enabled = false;
   _oculus.session = nullptr;
@@ -406,43 +395,8 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, tex_data, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  std::cout << "\ncaching text sizes" << std::endl;
-  std::vector<std::string> fonts;
-  for (const auto& pair : session.theme_map()) {
-    for (const auto& font : pair.second.font_path()) {
-      fonts.push_back(font);
-    }
-  }
-  for (const auto& font : fonts) {
-    FontCache temp_cache{_themes.get_root_path(), 8 * system.font_cache_size()};
-    auto cache_text_size = [&](const std::string& text) {
-      auto cache_key = font + "/\t/\t/" + text;
-      auto cache_it = _text_size_cache.find(cache_key);
-      if (cache_it == _text_size_cache.end()) {
-        _text_size_cache[cache_key] = get_cached_text_size(temp_cache, text, font);
-        std::cout << "-";
-      }
-    };
-
-    for (const auto& pair : session.theme_map()) {
-      if (!std::count(pair.second.font_path().begin(), pair.second.font_path().end(), font)) {
-        continue;
-      }
-      for (const auto& text : pair.second.text_line()) {
-        for (const auto& line : SplitWords(text, SplitType::LINE)) {
-          cache_text_size(line);
-        }
-        for (const auto& word : SplitWords(text, SplitType::WORD)) {
-          cache_text_size(word);
-        }
-      }
-    }
-  }
-
-  change_font(true);
-  change_spiral();
-  change_visual(0);
-  change_subtext();
+  _visual_api.reset(new VisualApiImpl{*this, _themes, session, system});
+  change_visual();
   if (_realtime && !_oculus.enabled) {
     _window.setVisible(true);
     _window.setActive();
@@ -464,11 +418,11 @@ void Director::set_program(const trance_pb::Program& program)
 
 bool Director::update()
 {
-  ++_switch_themes;
+  _visual_api->update();
   if (_old_visual) {
     _old_visual.reset(nullptr);
   }
-  _visual->update();
+  _visual->update(*_visual_api);
 
   bool to_oculus = _realtime && _oculus.enabled;
   if (to_oculus) {
@@ -489,7 +443,7 @@ bool Director::update()
       }
     }
     _oculus.started = status.HmdPresent && !status.DisplayLost;
-    if (!status.IsVisible && _switch_themes % 1000 == 0) {
+    if (!status.IsVisible && random_chance(1024)) {
       std::cerr << "Lost focus (move the HMD?)" << std::endl;
     }
   }
@@ -506,7 +460,7 @@ void Director::render() const
     glBindFramebuffer(GL_FRAMEBUFFER, to_window ? 0 : _render_fbo);
     glClear(GL_COLOR_BUFFER_BIT);
     _oculus.rendering_right = false;
-    _visual->render();
+    _visual->render(*_visual_api);
   } else if (to_oculus) {
     if (_oculus.started) {
       auto timing = ovr_GetPredictedDisplayTime(_oculus.session, 0);
@@ -529,7 +483,7 @@ void Director::render() const
         _oculus.rendering_right = eye == ovrEye_Right;
         const auto& view = _oculus.layer.Viewport[eye];
         glViewport(view.Pos.x, view.Pos.y, view.Size.w, view.Size.h);
-        _visual->render();
+        _visual->render(*_visual_api);
       }
 
       result = ovr_CommitTextureSwapChain(_oculus.session, _oculus.texture_chain);
@@ -550,7 +504,7 @@ void Director::render() const
     for (int eye = 0; eye < 2; ++eye) {
       _oculus.rendering_right = eye == ovrEye_Right;
       glViewport(_oculus.rendering_right * view_width(), 0, view_width(), _height);
-      _visual->render();
+      _visual->render(*_visual_api);
     }
   }
 
@@ -594,33 +548,81 @@ const uint8_t* Director::get_screen_data() const
   return _screen_data.get();
 }
 
-Image Director::get_image(bool alternate) const
+const trance_pb::Program& Director::program() const
 {
-  return _themes.get_image(alternate);
+  return *_program;
 }
 
-const std::string& Director::get_text(bool alternate) const
+bool Director::vr_enabled() const
 {
-  return _themes.get_text(alternate, true);
+  return _oculus.enabled;
 }
 
-void Director::maybe_upload_next() const
+uint32_t Director::view_width() const
 {
-  _themes.maybe_upload_next();
+  return _oculus.enabled ? _width / 2 : _width;
 }
 
-void Director::render_animation_or_image(Anim type, const Image& image, float alpha,
-                                         float multiplier, float zoom) const
+sf::Vector2f Director::resolution() const
 {
-  Image anim =
-      _themes.get_animation(type == Anim::ANIM_ALTERNATE,
-                            std::size_t((120.f / _program->global_fps()) * _switch_themes / 8));
+  return {float(_width), float(_height)};
+}
 
-  if (type != Anim::NONE && anim) {
-    render_image(anim, alpha, multiplier, zoom);
-  } else {
-    render_image(image, alpha, multiplier, zoom);
+sf::Vector2f Director::off3d(float multiplier, bool text) const
+{
+  float x = !_oculus.enabled || !multiplier
+      ? 0.f
+      : !_oculus.rendering_right ? _width / (8.f * multiplier) : _width / -(8.f * multiplier);
+  x *= (text ? _system.oculus_text_depth() : _system.oculus_image_depth());
+  return {x, 0};
+}
+
+bool Director::change_visual()
+{
+  if (_old_visual) {
+    return false;
   }
+  _visual.swap(_old_visual);
+
+  uint32_t total = 0;
+  for (const auto& type : _program->visual_type()) {
+    total += type.random_weight();
+  }
+  auto r = random(total);
+  total = 0;
+  trance_pb::Program_VisualType t;
+  for (const auto& type : _program->visual_type()) {
+    if (r < (total += type.random_weight())) {
+      t = type.type();
+      break;
+    }
+  }
+
+  if (t == trance_pb::Program_VisualType_ACCELERATE) {
+    _visual.reset(new AccelerateVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_SLOW_FLASH) {
+    _visual.reset(new SlowFlashVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_SUB_TEXT) {
+    _visual.reset(new SubTextVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_FLASH_TEXT) {
+    _visual.reset(new FlashTextVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_PARALLEL) {
+    _visual.reset(new ParallelVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_SUPER_PARALLEL) {
+    _visual.reset(new SuperParallelVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_ANIMATION) {
+    _visual.reset(new AnimationVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_SUPER_FAST) {
+    _visual.reset(new SuperFastVisual{*_visual_api});
+  }
+  return true;
 }
 
 void Director::render_image(const Image& image, float alpha, float multiplier, float zoom) const
@@ -682,89 +684,108 @@ void Director::render_image(const Image& image, float alpha, float multiplier, f
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void Director::render_text(const std::string& text, float multiplier) const
+void Director::render_text(const std::string& text, const Font& font, const sf::Color& colour,
+                           const sf::Vector2f& offset, float scale) const
 {
-  if (_current_font.empty() || text.empty()) {
-    return;
-  }
-  auto cache_key = _current_font + "/\t/\t/" + text;
-  auto it = _text_size_cache.find(cache_key);
-  if (it == _text_size_cache.end()) {
-    return;
-  }
-  auto main_size = it->second;
-  auto shadow_size = main_size + FontCache::char_size_lock;
-  render_raw_text(text, _fonts.get_font(_current_font, shadow_size),
-                  colour2sf(_program->shadow_text_colour()), off3d(1.f + multiplier, true),
-                  std::exp((4.f - multiplier) / 16.f));
-  render_raw_text(text, _fonts.get_font(_current_font, main_size),
-                  colour2sf(_program->main_text_colour()), off3d(multiplier, true),
-                  std::exp((4.f - multiplier) / 16.f));
-}
-
-void Director::render_subtext(float alpha, float multiplier) const
-{
-  if (_current_subfont.empty() || _subtext.empty()) {
+  if (text.empty()) {
     return;
   }
 
-  static const uint32_t char_size = 100;
-  std::size_t n = 0;
-  const auto& font = _fonts.get_font(_current_subfont, char_size);
-
-  auto make_text = [&] {
-    std::string t;
-    do {
-      t += " " + _subtext[n];
-      n = (n + 1) % _subtext.size();
-    } while (get_text_size(t, font).x < _width);
-    return t;
+  struct vertex {
+    float x;
+    float y;
+    float u;
+    float v;
   };
+  static std::vector<vertex> vertices;
+  vertices.clear();
 
-  float offx3d = off3d(multiplier, true).x;
-  auto text = make_text();
-  auto d = get_text_size(text, font);
-  if (d.y <= 0) {
-    return;
-  }
-  auto colour = colour2sf(_program->shadow_text_colour());
-  colour.a = uint8_t(colour.a * alpha);
-  render_raw_text(text, font, colour, sf::Vector2f{offx3d, 0});
-  auto offset = d.y + 4;
-  for (int i = 1; d.y / 2 + i * offset < _height; ++i) {
-    text = make_text();
-    render_raw_text(text, font, colour, sf::Vector2f{offx3d, i * offset});
+  auto hspace = font.font->getGlyph(' ', font.key.char_size, false).advance;
+  auto vspace = font.font->getLineSpacing(font.key.char_size);
+  float x = 0.f;
+  float y = 0.f;
+  const sf::Texture& texture = font.font->getTexture(font.key.char_size);
 
-    text = make_text();
-    render_raw_text(text, font, colour, -sf::Vector2f{offx3d, i * offset});
+  float xmin = 256.f;
+  float ymin = 256.f;
+  float xmax = -256.f;
+  float ymax = -256.f;
+
+  uint32_t prev = 0;
+  for (std::size_t i = 0; i < text.length(); ++i) {
+    uint32_t current = text[i];
+    x += font.font->getKerning(prev, current, font.key.char_size);
+    prev = current;
+
+    switch (current) {
+    case L' ':
+      x += hspace;
+      continue;
+    case L'\t':
+      x += hspace * 4;
+      continue;
+    case L'\n':
+      y += vspace;
+      x = 0;
+      continue;
+    case L'\v':
+      y += vspace * 4;
+      continue;
+    }
+
+    const auto& g = font.font->getGlyph(current, font.key.char_size, false);
+    float x1 = (x + g.bounds.left) / _width;
+    float y1 = (y + g.bounds.top) / _height;
+    float x2 = (x + g.bounds.left + g.bounds.width) / _width;
+    float y2 = (y + g.bounds.top + g.bounds.height) / _height;
+    float u1 = float(g.textureRect.left) / texture.getSize().x;
+    float v1 = float(g.textureRect.top) / texture.getSize().y;
+    float u2 = float(g.textureRect.left + g.textureRect.width) / texture.getSize().x;
+    float v2 = float(g.textureRect.top + g.textureRect.height) / texture.getSize().y;
+
+    vertices.push_back({x1, y1, u1, v1});
+    vertices.push_back({x2, y1, u2, v1});
+    vertices.push_back({x2, y2, u2, v2});
+    vertices.push_back({x1, y2, u1, v2});
+    xmin = std::min(xmin, std::min(x1, x2));
+    xmax = std::max(xmax, std::max(x1, x2));
+    ymin = std::min(ymin, std::min(y1, y2));
+    ymax = std::max(ymax, std::max(y1, y2));
+    x += g.advance;
   }
+  for (auto& v : vertices) {
+    v.x -= xmin + (xmax - xmin) / 2;
+    v.y -= ymin + (ymax - ymin) / 2;
+    v.x *= scale;
+    v.y *= scale;
+    v.x += offset.x / _width;
+    v.y += offset.y / _height;
+  }
+
+  glEnable(GL_BLEND);
+  glDisable(GL_TEXTURE_2D);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glDisable(GL_DEPTH_TEST);
+  glDisable(GL_CULL_FACE);
+  glUseProgram(_text_program);
+
+  glActiveTexture(GL_TEXTURE0);
+  sf::Texture::bind(&texture);
+  glUniform4f(glGetUniformLocation(_text_program, "colour"), colour.r / 255.f, colour.g / 255.f,
+              colour.b / 255.f, colour.a / 255.f);
+  const char* data = reinterpret_cast<const char*>(vertices.data());
+
+  GLuint ploc = glGetAttribLocation(_image_program, "position");
+  glEnableVertexAttribArray(ploc);
+  glVertexAttribPointer(ploc, 2, GL_FLOAT, false, sizeof(vertex), data);
+
+  GLuint tloc = glGetAttribLocation(_image_program, "texcoord");
+  glEnableVertexAttribArray(tloc);
+  glVertexAttribPointer(tloc, 2, GL_FLOAT, false, sizeof(vertex), data + 8);
+  glDrawArrays(GL_QUADS, 0, (GLsizei) vertices.size());
 }
 
-void Director::render_small_subtext(float alpha, float multiplier) const
-{
-  if (_current_subfont.empty() || _small_subtext.empty()) {
-    return;
-  }
-  static const uint32_t border_x = 400;
-  static const uint32_t border_y = 200;
-  static const uint32_t char_size = 100;
-
-  std::size_t n = 0;
-  const auto& font = _fonts.get_font(_current_subfont, char_size);
-
-  float offx3d = off3d(multiplier, true).x;
-  auto d = get_text_size(_small_subtext, font);
-  if (d.y <= 0) {
-    return;
-  }
-  auto colour = colour2sf(_program->shadow_text_colour());
-  colour.a = uint8_t(colour.a * alpha);
-  render_raw_text(_small_subtext, font, colour,
-                  sf::Vector2f{offx3d + _small_subtext_x * (_width - border_x) / 2,
-                               _small_subtext_y * (_height - border_y) / 2});
-}
-
-void Director::render_spiral() const
+void Director::render_spiral(float spiral, uint32_t spiral_width, uint32_t spiral_type) const
 {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -773,14 +794,14 @@ void Director::render_spiral() const
   glDisable(GL_CULL_FACE);
 
   glUseProgram(_spiral_program);
-  glUniform1f(glGetUniformLocation(_spiral_program, "time"), _spiral);
+  glUniform1f(glGetUniformLocation(_spiral_program, "time"), spiral);
   glUniform2f(glGetUniformLocation(_spiral_program, "resolution"), float(view_width()),
               float(_height));
 
   float offset = off3d(0.f, false).x + (_oculus.rendering_right ? float(view_width()) : 0.f);
   glUniform1f(glGetUniformLocation(_spiral_program, "offset"), _oculus.enabled ? offset : 0.f);
-  glUniform1f(glGetUniformLocation(_spiral_program, "width"), float(_spiral_width));
-  glUniform1f(glGetUniformLocation(_spiral_program, "spiral_type"), float(_spiral_type));
+  glUniform1f(glGetUniformLocation(_spiral_program, "width"), float(spiral_width));
+  glUniform1f(glGetUniformLocation(_spiral_program, "spiral_type"), float(spiral_type));
   glUniform4f(glGetUniformLocation(_spiral_program, "acolour"), _program->spiral_colour_a().r(),
               _program->spiral_colour_a().g(), _program->spiral_colour_a().b(),
               _program->spiral_colour_a().a());
@@ -795,142 +816,6 @@ void Director::render_spiral() const
   glDrawArrays(GL_TRIANGLES, 0, 6);
   glDisableVertexAttribArray(loc);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
-void Director::rotate_spiral(float amount)
-{
-  if (!_program->reverse_spiral_direction()) {
-    amount *= -1;
-  }
-  _spiral += amount / (32 * sqrt(float(_spiral_width)));
-  while (_spiral > 1.f) {
-    _spiral -= 1.f;
-  }
-  while (_spiral < 0.f) {
-    _spiral += 1.f;
-  }
-}
-
-void Director::change_spiral()
-{
-  if (random_chance(4)) {
-    return;
-  }
-  _spiral_type = random(spiral_type_max);
-  _spiral_width = 360 / (1 + random(6));
-}
-
-void Director::change_font(bool force)
-{
-  if (force || random_chance(4)) {
-    _current_font = _themes.get_font(false);
-  }
-}
-
-void Director::change_subtext(bool alternate)
-{
-  static const uint32_t count = 16;
-  _subtext.clear();
-  for (uint32_t i = 0; i < 16; ++i) {
-    auto s = _themes.get_text(alternate, false);
-    for (auto& c : s) {
-      if (c == '\n') {
-        c = ' ';
-      }
-    }
-    if (!s.empty()) {
-      _subtext.push_back(s);
-    }
-  }
-}
-
-void Director::change_small_subtext(bool force, bool alternate)
-{
-  if (force || _small_subtext.empty()) {
-    _small_subtext = _themes.get_text(alternate, false);
-    std::replace(_small_subtext.begin(), _small_subtext.end(), '\n', ' ');
-    float x = _small_subtext_x;
-    float y = _small_subtext_y;
-    while (std::abs(x - _small_subtext_x) < .25f) {
-      x = (random_chance() ? 1 : -1) * (16 + random(80)) / 128.f;
-    }
-    while (std::abs(y - _small_subtext_y) < .25f) {
-      if (_oculus.enabled) {
-        y = (random_chance() ? 1 : -1) * (2 + random(64)) / 128.f;
-      } else {
-        y = (random_chance() ? 1 : -1) * (16 + random(80)) / 128.f;
-      }
-    }
-    _small_subtext_x = x;
-    _small_subtext_y = y;
-  } else {
-    _small_subtext.clear();
-  }
-}
-
-bool Director::change_themes()
-{
-  if (_switch_themes < 2048 || random_chance(4)) {
-    return false;
-  }
-  if (_themes.change_themes()) {
-    _switch_themes = 0;
-    if (_current_font.empty()) {
-      change_font(true);
-    }
-    return true;
-  }
-  return false;
-}
-
-bool Director::change_visual(uint32_t chance)
-{
-  // Like !random_chance(chance), but scaled to speed.
-  if (_old_visual || (chance && random(chance * _program->global_fps()) >= 120)) {
-    return false;
-  }
-  _current_subfont = _themes.get_font(false);
-  _visual.swap(_old_visual);
-
-  uint32_t total = 0;
-  for (const auto& type : _program->visual_type()) {
-    total += type.random_weight();
-  }
-  auto r = random(total);
-  total = 0;
-  trance_pb::Program_VisualType t;
-  for (const auto& type : _program->visual_type()) {
-    if (r < (total += type.random_weight())) {
-      t = type.type();
-      break;
-    }
-  }
-
-  if (t == trance_pb::Program_VisualType_ACCELERATE) {
-    _visual.reset(new AccelerateVisual{*this});
-  }
-  if (t == trance_pb::Program_VisualType_SLOW_FLASH) {
-    _visual.reset(new SlowFlashVisual{*this});
-  }
-  if (t == trance_pb::Program_VisualType_SUB_TEXT) {
-    _visual.reset(new SubTextVisual{*this});
-  }
-  if (t == trance_pb::Program_VisualType_FLASH_TEXT) {
-    _visual.reset(new FlashTextVisual{*this});
-  }
-  if (t == trance_pb::Program_VisualType_PARALLEL) {
-    _visual.reset(new ParallelVisual{*this});
-  }
-  if (t == trance_pb::Program_VisualType_SUPER_PARALLEL) {
-    _visual.reset(new SuperParallelVisual{*this});
-  }
-  if (t == trance_pb::Program_VisualType_ANIMATION) {
-    _visual.reset(new AnimationVisual{*this});
-  }
-  if (t == trance_pb::Program_VisualType_SUPER_FAST) {
-    _visual.reset(new SuperFastVisual{*this});
-  }
-  return true;
 }
 
 bool Director::init_framebuffer(uint32_t& fbo, uint32_t& fb_tex, uint32_t width,
@@ -1044,209 +929,10 @@ bool Director::init_oculus_rift()
   return true;
 }
 
-sf::Vector2f Director::off3d(float multiplier, bool text) const
-{
-  float x = !_oculus.enabled || !multiplier
-      ? 0.f
-      : !_oculus.rendering_right ? _width / (8.f * multiplier) : _width / -(8.f * multiplier);
-  x *= (text ? _system.oculus_text_depth() : _system.oculus_image_depth());
-  return {x, 0};
-}
-
-uint32_t Director::view_width() const
-{
-  return _oculus.enabled ? _width / 2 : _width;
-}
-
 void Director::render_texture(float l, float t, float r, float b, bool flip_h, bool flip_v) const
 {
   glUniform2f(glGetUniformLocation(_image_program, "min_coord"), l / _width, t / _height);
   glUniform2f(glGetUniformLocation(_image_program, "max_coord"), r / _width, b / _height);
   glUniform2f(glGetUniformLocation(_image_program, "flip"), flip_h ? 1.f : 0.f, flip_v ? 1.f : 0.f);
   glDrawArrays(GL_TRIANGLES, 0, 6);
-}
-
-void Director::render_raw_text(const std::string& text, const Font& font, const sf::Color& colour,
-                               const sf::Vector2f& offset, float scale) const
-{
-  if (text.empty()) {
-    return;
-  }
-
-  struct vertex {
-    float x;
-    float y;
-    float u;
-    float v;
-  };
-  static std::vector<vertex> vertices;
-  vertices.clear();
-
-  auto hspace = font.font->getGlyph(' ', font.key.char_size, false).advance;
-  auto vspace = font.font->getLineSpacing(font.key.char_size);
-  float x = 0.f;
-  float y = 0.f;
-  const sf::Texture& texture = font.font->getTexture(font.key.char_size);
-
-  float xmin = 256.f;
-  float ymin = 256.f;
-  float xmax = -256.f;
-  float ymax = -256.f;
-
-  uint32_t prev = 0;
-  for (std::size_t i = 0; i < text.length(); ++i) {
-    uint32_t current = text[i];
-    x += font.font->getKerning(prev, current, font.key.char_size);
-    prev = current;
-
-    switch (current) {
-    case L' ':
-      x += hspace;
-      continue;
-    case L'\t':
-      x += hspace * 4;
-      continue;
-    case L'\n':
-      y += vspace;
-      x = 0;
-      continue;
-    case L'\v':
-      y += vspace * 4;
-      continue;
-    }
-
-    const auto& g = font.font->getGlyph(current, font.key.char_size, false);
-    float x1 = (x + g.bounds.left) / _width;
-    float y1 = (y + g.bounds.top) / _height;
-    float x2 = (x + g.bounds.left + g.bounds.width) / _width;
-    float y2 = (y + g.bounds.top + g.bounds.height) / _height;
-    float u1 = float(g.textureRect.left) / texture.getSize().x;
-    float v1 = float(g.textureRect.top) / texture.getSize().y;
-    float u2 = float(g.textureRect.left + g.textureRect.width) / texture.getSize().x;
-    float v2 = float(g.textureRect.top + g.textureRect.height) / texture.getSize().y;
-
-    vertices.push_back({x1, y1, u1, v1});
-    vertices.push_back({x2, y1, u2, v1});
-    vertices.push_back({x2, y2, u2, v2});
-    vertices.push_back({x1, y2, u1, v2});
-    xmin = std::min(xmin, std::min(x1, x2));
-    xmax = std::max(xmax, std::max(x1, x2));
-    ymin = std::min(ymin, std::min(y1, y2));
-    ymax = std::max(ymax, std::max(y1, y2));
-    x += g.advance;
-  }
-  for (auto& v : vertices) {
-    v.x -= xmin + (xmax - xmin) / 2;
-    v.y -= ymin + (ymax - ymin) / 2;
-    v.x *= scale;
-    v.y *= scale;
-    v.x += offset.x / _width;
-    v.y += offset.y / _height;
-  }
-
-  glEnable(GL_BLEND);
-  glDisable(GL_TEXTURE_2D);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glDisable(GL_DEPTH_TEST);
-  glDisable(GL_CULL_FACE);
-  glUseProgram(_text_program);
-
-  glActiveTexture(GL_TEXTURE0);
-  sf::Texture::bind(&texture);
-  glUniform4f(glGetUniformLocation(_text_program, "colour"), colour.r / 255.f, colour.g / 255.f,
-              colour.b / 255.f, colour.a / 255.f);
-  const char* data = reinterpret_cast<const char*>(vertices.data());
-
-  GLuint ploc = glGetAttribLocation(_image_program, "position");
-  glEnableVertexAttribArray(ploc);
-  glVertexAttribPointer(ploc, 2, GL_FLOAT, false, sizeof(vertex), data);
-
-  GLuint tloc = glGetAttribLocation(_image_program, "texcoord");
-  glEnableVertexAttribArray(tloc);
-  glVertexAttribPointer(tloc, 2, GL_FLOAT, false, sizeof(vertex), data + 8);
-  glDrawArrays(GL_QUADS, 0, (GLsizei) vertices.size());
-}
-
-uint32_t Director::get_cached_text_size(const FontCache& cache, const std::string& text,
-                                        const std::string& font) const
-{
-  static const uint32_t minimum_size = 2 * FontCache::char_size_lock;
-  static const uint32_t increment = FontCache::char_size_lock;
-  static const uint32_t maximum_size = 40 * FontCache::char_size_lock;
-  static const uint32_t border_x = 250;
-  static const uint32_t border_y = 150;
-
-  uint32_t size = minimum_size;
-  auto target_x = view_width() - border_x;
-  auto target_y = std::min(_height / 3, _height - border_y);
-  sf::Vector2f last_result;
-  while (size < maximum_size) {
-    const auto& loaded_font = cache.get_font(font, size);
-    auto result = get_text_size(text, loaded_font);
-    if (result.x > target_x || result.y > target_y || result == last_result) {
-      break;
-    }
-    last_result = result;
-    size *= 2;
-  }
-  size /= 2;
-  last_result = sf::Vector2f{};
-  while (size < maximum_size) {
-    const auto& loaded_font = cache.get_font(font, size + increment);
-    auto result = get_text_size(text, loaded_font);
-    if (result.x > target_x || result.y > target_y || result == last_result) {
-      break;
-    }
-    last_result = result;
-    size += increment;
-  }
-  return size;
-};
-
-sf::Vector2f Director::get_text_size(const std::string& text, const Font& font) const
-{
-  auto hspace = font.font->getGlyph(' ', font.key.char_size, false).advance;
-  auto vspace = font.font->getLineSpacing(font.key.char_size);
-  float x = 0.f;
-  float y = 0.f;
-  float xmin = 0.f;
-  float ymin = 0.f;
-  float xmax = 0.f;
-  float ymax = 0.f;
-
-  uint32_t prev = 0;
-  for (std::size_t i = 0; i < text.length(); ++i) {
-    uint32_t current = text[i];
-    x += font.font->getKerning(prev, current, font.key.char_size);
-    prev = current;
-
-    switch (current) {
-    case L' ':
-      x += hspace;
-      continue;
-    case L'\t':
-      x += hspace * 4;
-      continue;
-    case L'\n':
-      y += vspace;
-      x = 0;
-      continue;
-    case L'\v':
-      y += vspace * 4;
-      continue;
-    }
-
-    const auto& g = font.font->getGlyph(current, font.key.char_size, false);
-    float x1 = x + g.bounds.left;
-    float y1 = y + g.bounds.top;
-    float x2 = x + g.bounds.left + g.bounds.width;
-    float y2 = y + g.bounds.top + g.bounds.height;
-    xmin = std::min(xmin, std::min(x1, x2));
-    xmax = std::max(xmax, std::max(x1, x2));
-    ymin = std::min(ymin, std::min(y1, y2));
-    ymax = std::max(ymax, std::max(y1, y2));
-    x += g.advance;
-  }
-
-  return {xmax - xmin, ymax - ymin};
 }
