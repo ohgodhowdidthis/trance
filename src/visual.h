@@ -1,10 +1,13 @@
 #ifndef TRANCE_VISUAL_H
 #define TRANCE_VISUAL_H
 #include <cstddef>
+#include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 #include "image.h"
 
+class Cycler;
 class VisualControl;
 class VisualRender;
 
@@ -14,6 +17,7 @@ class VisualRender;
 class Visual
 {
 public:
+  virtual ~Visual() = default;
   virtual void update(VisualControl& api) = 0;
   virtual void render(VisualRender& api) const = 0;
 };
@@ -68,19 +72,9 @@ public:
   void render(VisualRender& api) const override;
 
 private:
-  static const uint32_t max_speed = 64;
-  static const uint32_t min_speed = 8;
-  static const uint32_t cycle_length = 16;
-  static const uint32_t set_length = 4;
-
-  bool _flash;
-  bool _anim;
-
+  std::shared_ptr<Cycler> _cycler;
+  std::function<void(VisualRender& api)> _render;
   Image _current;
-  uint32_t _change_timer;
-
-  uint32_t _image_count;
-  uint32_t _cycle_count;
 };
 
 class FlashTextVisual : public Visual

@@ -2,8 +2,7 @@
 #include "director.h"
 #include "util.h"
 #include "visual_api.h"
-// TODO: some sort of unification of this logic, especially timers, calls to
-// maybe_upload_next, etc.
+#include "visual_cyclers.h"
 
 AccelerateVisual::AccelerateVisual(VisualControl& api)
 : _current{api.get_image()}
@@ -147,66 +146,71 @@ void SubTextVisual::render(VisualRender& api) const
 }
 
 SlowFlashVisual::SlowFlashVisual(VisualControl& api)
-: _flash{false}
-, _anim{false}
-, _current{api.get_image()}
-, _change_timer{max_speed}
-, _image_count{cycle_length}
-, _cycle_count{set_length}
 {
   api.change_text(VisualControl::SPLIT_LINE);
+
+  auto slow_loop = new ActionCycler{64, [&] {
+                                      _current = api.get_image();
+                                      api.change_text(VisualControl::SPLIT_LINE);
+                                    }};
+  auto slow_oneshot = new ActionCycler{[&] {
+    api.change_spiral();
+    api.change_font();
+  }};
+  auto slow_repeat = new RepeatCycler{16, slow_loop};
+  auto slow_main = new OneShotCycler{{slow_oneshot, slow_repeat}};
+  auto slow_subtext = new ActionCycler{16, [&] { api.change_small_subtext(true); }};
+  auto slow_spiral = new ActionCycler{[&] { api.rotate_spiral(2.f); }};
+  auto slow_upload = new ActionCycler{64, 32, [&] { api.maybe_upload_next(); }};
+  auto slow_cycler = new ParallelCycler{{slow_main, slow_subtext, slow_spiral, slow_upload}};
+
+  auto fast_image = new ActionCycler{8, [&] { _current = api.get_image(true); }};
+  auto fast_text =
+      new ActionCycler{16, 8, [&] { api.change_text(VisualControl::SPLIT_WORD, true); }};
+  auto fast_loop = new ParallelCycler{{fast_image, fast_text}};
+  auto fast_oneshot = new ActionCycler{[&] {
+    api.change_spiral();
+    api.change_font();
+  }};
+  auto fast_main = new OneShotCycler{{fast_oneshot, new RepeatCycler{32, fast_loop}}};
+  auto fast_subtext = new ActionCycler{4, 0, [&] { api.change_small_subtext(true, true); }};
+  auto fast_spiral = new ActionCycler{[&] { api.rotate_spiral(4.f); }};
+  auto fast_cycler = new ParallelCycler{{fast_main, fast_subtext, fast_spiral}};
+
+  _cycler.reset(new RepeatCycler{2, new SequenceCycler{{slow_cycler, fast_cycler}}});
+  _render = [=](VisualRender& api) {
+    auto extra =
+        slow_loop->active() ? 6.f + 2.f * slow_main->progress() : 4.f + 4.f * fast_main->progress();
+    auto zoom =
+        slow_loop->active() ? 1.5f * slow_loop->progress() : 1.5f * .25f * fast_image->progress();
+    api.render_animation_or_image(slow_loop->active() && slow_repeat->index() % 2
+                                      ? VisualRender::Anim::ANIM
+                                      : VisualRender::Anim::NONE,
+                                  _current, 1, 8.f + extra, zoom);
+    api.render_spiral();
+    api.render_small_subtext(1.f / 5);
+    if (slow_loop->active() && slow_loop->frame() >= slow_loop->length() / 2) {
+      api.render_text(4.f);
+    }
+    if (fast_cycler->active() && fast_text->frame() >= fast_text->length() / 2) {
+      api.render_text(11.f - 4.f * fast_main->progress());
+    }
+  };
 }
 
 void SlowFlashVisual::update(VisualControl& api)
 {
-  api.rotate_spiral(_flash ? 4.f : 2.f);
-
-  if (_change_timer % 16 == 0 || (_flash && _change_timer % 4 == 0)) {
-    api.change_small_subtext(true, _flash);
-  }
-  if (--_change_timer) {
-    if (!_flash && _change_timer == max_speed / 2) {
-      api.maybe_upload_next();
-    }
-    return;
-  }
-
-  if (!--_image_count) {
-    _flash = !_flash;
-    _image_count = _flash ? 2 * cycle_length : cycle_length;
-    api.change_spiral();
-    api.change_font();
-    if (!--_cycle_count) {
-      _cycle_count = set_length;
-      api.change_themes();
-      // 1/2 chance after 2 * (16 * 64 + 64 * 4) = 2560 frames.
-      // Average length 2 * 2560 = 5120 frames.
-      api.change_visual(2);
-    }
-  }
-
-  _change_timer = _flash ? min_speed : max_speed;
-  _anim = !_anim;
-  _current = api.get_image(_flash);
-  if (!_flash || _image_count % 2) {
-    api.change_text(_flash ? VisualControl::SPLIT_WORD : VisualControl::SPLIT_LINE, _flash);
+  _cycler->advance();
+  if (_cycler->complete()) {
+    api.change_themes();
+    // 1/2 chance after 2 * (16 * 64 + 32 * 8) frames.
+    api.change_visual(2);
   }
 }
 
 void SlowFlashVisual::render(VisualRender& api) const
 {
-  float extra = 8.f - 8.f * _image_count / (4 * cycle_length);
-  auto zoom = 1.5f *
-      (1.f -
-       (_flash ? float(max_speed - min_speed + _change_timer) : float(_change_timer)) / max_speed);
-  api.render_animation_or_image(
-      _anim && !_flash ? VisualRender::Anim::ANIM : VisualRender::Anim::NONE, _current, 1,
-      8.f + extra, zoom);
-  api.render_spiral();
-  api.render_small_subtext(1.f / 5);
-  if ((!_flash && _change_timer < max_speed / 2) || (_flash && _image_count % 2)) {
-    api.render_text(_flash ? 3.f + 8.f * (_image_count / (4.f * cycle_length)) : 4.f);
-  }
+  _render(api);
 }
 
 FlashTextVisual::FlashTextVisual(VisualControl& api)
