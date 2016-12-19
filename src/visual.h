@@ -51,16 +51,10 @@ public:
   void render(VisualRender& api) const override;
 
 private:
-  static const uint32_t speed = 48;
-  static const uint32_t sub_speed = 12;
-  static const uint32_t cycles = 32;
-
+  std::shared_ptr<Cycler> _cycler;
+  std::function<void(VisualRender& api)> _render;
   Image _current;
-  bool _text_on;
   bool _alternate;
-  uint32_t _change_timer;
-  uint32_t _sub_timer;
-  uint32_t _cycle;
   uint32_t _sub_speed_multiplier;
 };
 

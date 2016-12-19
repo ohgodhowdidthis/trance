@@ -82,73 +82,63 @@ void AccelerateVisual::render(VisualRender& api) const
 
 SubTextVisual::SubTextVisual(VisualControl& api)
 : _current{api.get_image()}
-, _text_on{true}
 , _alternate{false}
-, _change_timer{speed}
-, _sub_timer{sub_speed}
-, _cycle{cycles}
-, _sub_speed_multiplier{1}
+, _sub_speed_multiplier{0}
 {
   api.change_text(VisualControl::SPLIT_WORD);
-}
 
-void SubTextVisual::update(VisualControl& api)
-{
-  api.rotate_spiral(4.f);
-
-  if (!--_sub_timer) {
-    _sub_timer = sub_speed * _sub_speed_multiplier;
-    api.change_subtext(_alternate);
-  }
-
-  if (--_change_timer) {
-    if (_change_timer % 4 == 0) {
-      api.change_text(VisualControl::SPLIT_ONCE_ONLY);
-    }
-    if (_change_timer == speed / 2) {
-      api.maybe_upload_next();
-    }
-    return;
-  }
-  _change_timer = speed;
-
-  if (!--_cycle) {
-    _cycle = cycles;
+  auto oneshot = new ActionCycler{[&] {
     if (!api.change_themes()) {
       _alternate = !_alternate;
     }
     api.change_font();
+    api.change_spiral();
+    ++_sub_speed_multiplier;
+  }};
+  auto maybe_upload_next = new ActionCycler{48, 24, [&] { api.maybe_upload_next(); }};
+  auto image = new ActionCycler{48, [&] { _current = api.get_image(_alternate); }};
+
+  auto text_reset = new ActionCycler{4, [&] { api.change_text(VisualControl::SPLIT_WORD, _alternate); }};
+  auto text = new ActionCycler{4, [&] { api.change_text(VisualControl::SPLIT_ONCE_ONLY); }};
+  auto text_loop = new SequenceCycler{{text_reset, new RepeatCycler{23, text}}};
+
+  auto sub0 = new ActionCycler{12, [&] { if (_sub_speed_multiplier == 1) { api.change_subtext(_alternate); }}};
+  auto sub1 = new ActionCycler{24, [&] { if (_sub_speed_multiplier == 2) { api.change_subtext(_alternate); }}};
+  auto sub2 = new ActionCycler{48, [&] { if (_sub_speed_multiplier >= 3) { api.change_subtext(_alternate); }}};
+
+  auto loop = new ParallelCycler{{image, maybe_upload_next, text_loop, sub0, sub1, sub2}};
+  auto main = new RepeatCycler{16, loop};
+
+  auto spiral = new ActionCycler{[&] { api.rotate_spiral(4.f); }};
+  _cycler.reset(new ParallelCycler{{spiral, new OneShotCycler{{oneshot, main}}}});
+
+  _render = [=](VisualRender& api) {
+    api.render_animation_or_image(
+        _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, {}, 1, 10.f);
+    api.render_image(_current, .8f, 8.f, 1.f + image->progress());
+    api.render_subtext(1.f / 4);
+    api.render_spiral();
+    api.render_text();
+  };
+}
+
+void SubTextVisual::update(VisualControl& api)
+{
+  _cycler->advance();
+  if (_cycler->complete()) {
     // 1/3 chance after 32 * 48 = 1536 frames.
     // Average length 3 * 1536 = 4608 frames.
-    if (api.change_visual(3)) {
-      api.change_spiral();
-    }
-    ++_sub_speed_multiplier;
-  }
-
-  _current = api.get_image(_alternate);
-  _text_on = !_text_on;
-  if (_text_on) {
-    api.change_text(VisualControl::SPLIT_WORD, _alternate);
+    api.change_visual(3);
   }
 }
 
 void SubTextVisual::render(VisualRender& api) const
 {
-  api.render_animation_or_image(
-      _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, {}, 1, 10.f);
-  api.render_image(_current, .8f, 8.f, 2.f - float(_change_timer) / speed);
-  api.render_subtext(1.f / 4);
-  api.render_spiral();
-  if (_text_on) {
-    api.render_text();
-  }
+  _render(api);
 }
 
 SlowFlashVisual::SlowFlashVisual(VisualControl& api)
 {
-  api.change_text(VisualControl::SPLIT_LINE);
-
   auto slow_loop = new ActionCycler{64, [&] {
                                       _current = api.get_image();
                                       api.change_text(VisualControl::SPLIT_LINE);
@@ -177,7 +167,10 @@ SlowFlashVisual::SlowFlashVisual(VisualControl& api)
   auto fast_spiral = new ActionCycler{[&] { api.rotate_spiral(4.f); }};
   auto fast_cycler = new ParallelCycler{{fast_main, fast_subtext, fast_spiral}};
 
-  _cycler.reset(new RepeatCycler{2, new SequenceCycler{{slow_cycler, fast_cycler}}});
+  auto oneshot = new ActionCycler{[&] { api.change_themes(); }};
+  auto main_repeat = new RepeatCycler{2, new SequenceCycler{{slow_cycler, fast_cycler}}};
+  _cycler.reset(new OneShotCycler{{oneshot, main_repeat}});
+
   _render = [=](VisualRender& api) {
     auto extra =
         slow_loop->active() ? 6.f + 2.f * slow_main->progress() : 4.f + 4.f * fast_main->progress();
@@ -203,7 +196,8 @@ void SlowFlashVisual::update(VisualControl& api)
   _cycler->advance();
   if (_cycler->complete()) {
     api.change_themes();
-    // 1/2 chance after 2 * (16 * 64 + 32 * 8) frames.
+    // 1/2 chance after 2 * (16 * 64 + 32 * 8) = 2560 frames.
+    // Average length 2 * 2560 = 5120 frames.
     api.change_visual(2);
   }
 }
