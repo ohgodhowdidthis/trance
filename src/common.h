@@ -40,4 +40,10 @@ inline std::string format_time(uint64_t seconds, bool precise)
   return result;
 };
 
+template <typename T>
+inline void hash_combine(size_t& seed, const T& v)
+{
+  seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
 #endif

@@ -1,4 +1,5 @@
 #include "launch.h"
+#include <deque>
 #include "../common.h"
 #include "../session.h"
 #include "main.h"
@@ -22,95 +23,109 @@ namespace
     TimeBounds after_looping;
   };
 
+  // A stack frame of a node in the play graph.
+  struct NodeEntry {
+    bool operator==(const NodeEntry& node) const
+    {
+      return name == node.name && subroutine_count == node.subroutine_count;
+    }
+    std::string name;
+    int subroutine_count;
+  };
+  // A node in the play graph.
+  using Node = std::vector<NodeEntry>;
+  struct NodeHash {
+    size_t operator()(const Node& node) const
+    {
+      size_t hash = 0;
+      for (const auto& entry : node) {
+        hash_combine(hash, entry.name);
+        hash_combine(hash, entry.subroutine_count);
+      }
+      return hash;
+    }
+  };
+  // A directed edge in the play graph.
+  struct Edge {
+    size_t target_index;
+    bool infinite_loop;
+    uint64_t time_seconds;
+  };
+
   PlayTime calculate_play_time(const trance_pb::Session& session,
                                const std::unordered_map<std::string, std::string>& variables)
   {
-    PlayTime result;
-    struct PlayStackEntry {
-      bool operator==(const PlayStackEntry& entry) const
-      {
-        return name == entry.name && subroutine_count == entry.subroutine_count;
+    Node first_node{{session.first_playlist_item(), 0}};
+    std::unordered_map<Node, size_t, NodeHash> index_map;
+    std::unordered_map<size_t, std::vector<Edge>> adjacencies;
+
+    // Search starting from the first item to build the play graph. (It must be connected.)
+    index_map[first_node] = 0;
+    std::deque<Node> queue{first_node};
+
+    auto handle_outgoing = [&](const Node& source, const Node& next, bool infinite_loop,
+                               size_t time_seconds) {
+      auto jt = index_map.find(next);
+      if (jt == index_map.end()) {
+        queue.push_back(next);
+        jt = index_map.emplace(next, index_map.size()).first;
       }
-      std::string name;
-      int subroutine_count;
-    };
-    struct LoopSearchEntry {
-      std::vector<PlayStackEntry> playlist_stack;
-      uint64_t seconds;
+      adjacencies[index_map[source]].push_back({jt->second, infinite_loop, time_seconds});
     };
 
-    std::vector<std::vector<LoopSearchEntry>> queue;
-    std::unordered_map<std::string, TimeBounds> loop_times;
-
-    queue.push_back({{{{session.first_playlist_item(), 0}}, 0}});
     while (!queue.empty()) {
-      auto entry = queue.front();
-      queue.erase(queue.begin());
+      const auto node = queue.front();
+      queue.pop_front();
 
-      bool looped = false;
-      for (auto it = entry.begin(); it != std::prev(entry.end()); ++it) {
-        if (it->playlist_stack == entry.back().playlist_stack) {
-          looped = true;
-          auto initial_sequence = it->seconds;
-          auto after_looping = entry.back().seconds - it->seconds;
-          result.initial_sequence.max_seconds =
-              std::max(result.initial_sequence.max_seconds, initial_sequence);
-          result.initial_sequence.min_seconds =
-              std::min(result.initial_sequence.min_seconds, initial_sequence);
-          result.after_looping.max_seconds =
-              std::max(result.after_looping.max_seconds, after_looping);
-          result.after_looping.min_seconds =
-              std::min(result.after_looping.min_seconds, after_looping);
-          break;
-        }
-      }
-      if (looped) {
-        continue;
-      }
-
-      auto it = session.playlist().find(entry.back().playlist_stack.back().name);
+      auto it = session.playlist().find(node.back().name);
       if (it == session.playlist().end()) {
         continue;
       }
 
-      if (it->second.has_subroutine() && entry.back().playlist_stack.size() < MAXIMUM_STACK &&
-          entry.back().playlist_stack.back().subroutine_count <
-              it->second.subroutine().playlist_item_name_size()) {
-        queue.emplace_back(entry);
-        queue.back().emplace_back(entry.back());
-        ++queue.back().back().playlist_stack.back().subroutine_count;
-        queue.back().back().playlist_stack.push_back(
-            {it->second.subroutine().playlist_item_name(
-                 entry.back().playlist_stack.back().subroutine_count),
-             0});
+      // Determine the outgoing edges.
+      // Continuing a subplaylist.
+      if (it->second.has_subroutine() && node.size() < MAXIMUM_STACK &&
+          node.back().subroutine_count < it->second.subroutine().playlist_item_name_size()) {
+        auto next = node;
+        auto next_name = it->second.subroutine().playlist_item_name(next.back().subroutine_count);
+        ++next.back().subroutine_count;
+        next.push_back({next_name, 0});
+        bool infinite_loop = false;
+        for (const auto& entry : node) {
+          if (entry.name == next_name) {
+            infinite_loop = true;
+          }
+        }
+        handle_outgoing(node, infinite_loop ? node : next, infinite_loop, 0);
         continue;
       }
 
       bool any_next = false;
-      for (const auto& next : it->second.next_item()) {
-        if (!is_enabled(next, variables)) {
+      auto time_seconds = it->second.has_standard() ? it->second.standard().play_time_seconds() : 0;
+      // Continuing a next item.
+      for (const auto& next_item : it->second.next_item()) {
+        if (!is_enabled(next_item, variables)) {
           continue;
         }
-        queue.emplace_back(entry);
-        queue.back().emplace_back(entry.back());
-        queue.back().back().playlist_stack.back().name = next.playlist_item_name();
-        if (it->second.has_standard()) {
-          queue.back().back().seconds += it->second.standard().play_time_seconds();
-        }
+        auto next = node;
+        next.back().name = next_item.playlist_item_name();
+        handle_outgoing(node, next, false, time_seconds);
         any_next = true;
       }
-      if (!any_next && entry.back().playlist_stack.size() > 1) {
-        queue.emplace_back(entry);
-        queue.back().emplace_back(entry.back());
-        queue.back().back().playlist_stack.pop_back();
-        if (it->second.has_standard()) {
-          queue.back().back().seconds += it->second.standard().play_time_seconds();
-        }
+      // Finishing a playlist.
+      if (!any_next && node.size() > 1) {
+        auto next = node;
+        next.pop_back();
+        handle_outgoing(node, next, false, time_seconds);
       } else if (!any_next) {
-        queue.emplace_back(entry);
-        queue.back().emplace_back(entry.back());
+        handle_outgoing(node, node, false, 0);
       }
     }
+
+    // TODO: run Tarjan's strongly-connected components algorithm; take condensation (replacing
+    // edges with minimum / maximum distance inside component if possible); search on this to
+    // produce playime (min-max runtime plus total looping content somehow?).
+    PlayTime result = {};
     return result;
   }
 }
