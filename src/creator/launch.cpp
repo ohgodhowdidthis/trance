@@ -52,6 +52,12 @@ namespace
     uint64_t time_seconds;
   };
 
+  struct TarjanData {
+    size_t index;
+    size_t lowlink;
+    bool on_stack;
+  };
+
   PlayTime calculate_play_time(const trance_pb::Session& session,
                                const std::unordered_map<std::string, std::string>& variables)
   {
@@ -59,7 +65,7 @@ namespace
     std::unordered_map<Node, size_t, NodeHash> index_map;
     std::unordered_map<size_t, std::vector<Edge>> adjacencies;
 
-    // Search starting from the first item to build the play graph. (It must be connected.)
+    // Search starting from the first item to build the play graph.
     index_map[first_node] = 0;
     std::deque<Node> queue{first_node};
 
@@ -109,6 +115,7 @@ namespace
         }
         auto next = node;
         next.back().name = next_item.playlist_item_name();
+        next.back().subroutine_count = 0;
         handle_outgoing(node, next, false, time_seconds);
         any_next = true;
       }
@@ -122,9 +129,49 @@ namespace
       }
     }
 
-    // TODO: run Tarjan's strongly-connected components algorithm; take condensation (replacing
-    // edges with minimum / maximum distance inside component if possible); search on this to
-    // produce playime (min-max runtime plus total looping content somehow?).
+    // Run Tarjan's strongly-connected components starting at the first node (guaranteed to cover
+    // the whole graph since we built it from a search starting here).
+    size_t tarjan_index = 0;
+    std::unordered_map<size_t, TarjanData> tarjan_data;
+    std::vector<size_t> tarjan_stack;
+    std::vector<std::unordered_set<size_t>> strong_components;
+
+    std::function<void(size_t)> run_tarjan = [&](size_t node_index) {
+      tarjan_data[node_index] = {tarjan_index, tarjan_index, true};
+      tarjan_stack.push_back(node_index);
+      ++tarjan_index;
+
+      for (const auto& edge : adjacencies[node_index]) {
+        auto it = tarjan_data.find(edge.target_index);
+        if (it == tarjan_data.end()) {
+          run_tarjan(edge.target_index);
+          tarjan_data[node_index].lowlink =
+              std::min(tarjan_data[node_index].lowlink, tarjan_data[edge.target_index].lowlink);
+        } else if (it->second.on_stack) {
+          tarjan_data[node_index].lowlink =
+              std::min(tarjan_data[node_index].lowlink, tarjan_data[edge.target_index].index);
+        }
+      }
+
+      if (tarjan_data[node_index].lowlink == tarjan_data[node_index].index) {
+        strong_components.emplace_back();
+        auto it = tarjan_stack.end();
+        while (it != tarjan_stack.begin()) {
+          auto index = *--it;
+          strong_components.back().insert(index);
+          tarjan_data[index].on_stack = false;
+          tarjan_stack.erase(it);
+          if (index == node_index) {
+            break;
+          }
+        }
+      }
+    };
+    run_tarjan(0);
+
+    // TODO: take condensation (replacing edges with minimum / maximum distance inside component
+    // if possible); search on this to produce playime (min-max runtime plus total looping content
+    // somehow?).
     PlayTime result = {};
     return result;
   }
