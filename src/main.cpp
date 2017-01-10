@@ -281,6 +281,7 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
         // Trigger the next item of a standard playlist item.
         last_playlist_switch = clock_time();
         stack.back().item = &session.playlist().find(next)->second;
+        stack.back().subroutine_step = 0;
         if (realtime) {
           audio->TriggerEvents(*entry.item);
         }
