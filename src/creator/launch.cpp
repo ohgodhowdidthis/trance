@@ -19,8 +19,8 @@ namespace
     uint64_t max_seconds = 0;
   };
   struct PlayTime {
-    TimeBounds initial_sequence;
-    TimeBounds after_looping;
+    TimeBounds main_content;
+    TimeBounds loop_content;
   };
 
   // A stack frame of a node in the play graph.
@@ -48,8 +48,13 @@ namespace
   // A directed edge in the play graph.
   struct Edge {
     size_t target_index;
-    bool infinite_loop;
     uint64_t time_seconds;
+  };
+  // A path in the final exhaustive search.
+  struct SearchPath {
+    size_t current_index;
+    uint64_t main_content;
+    uint64_t loop_content;
   };
 
   struct TarjanData {
@@ -69,14 +74,13 @@ namespace
     index_map[first_node] = 0;
     std::deque<Node> queue{first_node};
 
-    auto handle_outgoing = [&](const Node& source, const Node& next, bool infinite_loop,
-                               size_t time_seconds) {
+    auto handle_outgoing = [&](const Node& source, const Node& next, size_t time_seconds) {
       auto jt = index_map.find(next);
       if (jt == index_map.end()) {
         queue.push_back(next);
         jt = index_map.emplace(next, index_map.size()).first;
       }
-      adjacencies[index_map[source]].push_back({jt->second, infinite_loop, time_seconds});
+      adjacencies[index_map[source]].push_back({jt->second, time_seconds});
     };
 
     while (!queue.empty()) {
@@ -95,14 +99,16 @@ namespace
         auto next = node;
         auto next_name = it->second.subroutine().playlist_item_name(next.back().subroutine_count);
         ++next.back().subroutine_count;
+
         next.push_back({next_name, 0});
-        bool infinite_loop = false;
-        for (const auto& entry : node) {
-          if (entry.name == next_name) {
-            infinite_loop = true;
+        // Break infinite loops.
+        for (auto it = next.begin(); it != next.end(); ++it) {
+          if (*it == *std::prev(next.end())) {
+            next.erase(std::next(it), next.end());
+            break;
           }
         }
-        handle_outgoing(node, infinite_loop ? node : next, infinite_loop, 0);
+        handle_outgoing(node, next, 0);
         continue;
       }
 
@@ -116,16 +122,16 @@ namespace
         auto next = node;
         next.back().name = next_item.playlist_item_name();
         next.back().subroutine_count = 0;
-        handle_outgoing(node, next, false, time_seconds);
+        handle_outgoing(node, next, time_seconds);
         any_next = true;
       }
       // Finishing a playlist.
       if (!any_next && node.size() > 1) {
         auto next = node;
         next.pop_back();
-        handle_outgoing(node, next, false, time_seconds);
+        handle_outgoing(node, next, time_seconds);
       } else if (!any_next) {
-        handle_outgoing(node, node, false, 0);
+        handle_outgoing(node, node, 0);
       }
     }
 
@@ -169,10 +175,98 @@ namespace
     };
     run_tarjan(0);
 
-    // TODO: take condensation (replacing edges with minimum / maximum distance inside component
-    // if possible); search on this to produce playime (min-max runtime plus total looping content
-    // somehow?).
+    // We now take a sort of modified condensation, which runs Dijkstra on each node within its
+    // connected component to replace its edges with direct jumps to the sinks. This gives a DAG but
+    // preserves the minimum distance across components.
+    auto dijkstra = [&](size_t node, const std::unordered_set<size_t>& component) {
+      std::unordered_map<size_t, size_t> distance_map;
+      auto unvisited = component;
+      distance_map[node] = 0;
+
+      while (!unvisited.empty()) {
+        // Could use priority queue.
+        bool first = true;
+        auto lowest_it = unvisited.begin();
+        uint64_t lowest_distance = 0;
+        for (auto it = lowest_it, end = unvisited.end(); it != end; ++it) {
+          auto jt = distance_map.find(*it);
+          if (first || (jt != distance_map.end() && jt->second < lowest_distance)) {
+            lowest_distance = jt->second;
+            lowest_it = it;
+          }
+          first = false;
+        }
+        auto current = *lowest_it;
+        unvisited.erase(lowest_it);
+
+        for (const auto& edge : adjacencies[current]) {
+          auto distance = lowest_distance + edge.time_seconds;
+          auto it = distance_map.find(edge.target_index);
+          if (it == distance_map.end() || distance < it->second) {
+            distance_map[edge.target_index] = distance;
+          }
+        }
+      }
+
+      std::vector<Edge> result;
+      for (const auto& pair : distance_map) {
+        if (component.find(pair.first) == component.end()) {
+          result.push_back({pair.first, pair.second});
+        }
+      }
+      return result;
+    };
+
+    std::unordered_map<size_t, uint64_t> loop_lengths;
+    for (const auto& component : strong_components) {
+      std::uint64_t loop_length = 0;
+      for (size_t node : component) {
+        // All edges must have the same length! Make sure it has an edge though
+        // to exclude the one-element case.
+        for (const auto& edge : adjacencies[node]) {
+          if (component.find(edge.target_index) != component.end()) {
+            loop_length += edge.time_seconds;
+            break;
+          }
+        }
+      }
+      for (size_t node : component) {
+        loop_lengths[node] = loop_length;
+      }
+      std::unordered_map<size_t, std::vector<Edge>> new_adjacencies;
+      for (size_t node : component) {
+        new_adjacencies[node] = dijkstra(node, component);
+      }
+      for (size_t node : component) {
+        adjacencies[node] = new_adjacencies[node];
+      }
+    }
+
+    // Finally, do an exhaustive search on the transformed graph. This bit could still be pretty
+    // explosive if there are many possible paths even through the condensed graph...
     PlayTime result = {};
+    std::deque<SearchPath> search_queue;
+    search_queue.push_back({0, 0, loop_lengths[0]});
+    while (!search_queue.empty()) {
+      auto path = search_queue.front();
+      search_queue.pop_front();
+
+      const auto& edges = adjacencies[path.current_index];
+      if (edges.empty()) {
+        result.main_content.min_seconds =
+            std::min(result.main_content.min_seconds, path.main_content);
+        result.main_content.max_seconds =
+            std::max(result.main_content.max_seconds, path.main_content);
+        result.loop_content.min_seconds =
+            std::min(result.loop_content.min_seconds, path.loop_content);
+        result.loop_content.max_seconds =
+            std::max(result.loop_content.max_seconds, path.loop_content);
+      }
+      for (const auto& edge : edges) {
+        search_queue.push_back({edge.target_index, path.main_content + edge.time_seconds,
+                                path.loop_content + loop_lengths[edge.target_index]});
+      }
+    }
     return result;
   }
 }
@@ -358,8 +452,7 @@ void LaunchFrame::RefreshTimeEstimate()
     return format_time(bounds.min_seconds, false) + " to " + format_time(bounds.max_seconds, false);
   };
 
-  auto initial_sequence = format(play_time.initial_sequence);
-  auto after_looping = format(play_time.after_looping);
-  _text->SetLabel("Main sequence: " + initial_sequence + ".\nLooping sequence: " + after_looping +
-                  ".");
+  auto main_content = format(play_time.main_content);
+  auto loop_content = format(play_time.loop_content);
+  _text->SetLabel("Main sequence: " + main_content + ".\nLooping content: " + loop_content + ".");
 }
