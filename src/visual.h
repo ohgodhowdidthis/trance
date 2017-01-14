@@ -95,19 +95,12 @@ public:
   void render(VisualRender& api) const override;
 
 private:
-  static const uint32_t length = 32;
-  static const uint32_t cycles = 64;
-
-  Image _image;
-  Image _alternate;
   uint32_t _anim_cycle;
   uint32_t _alternate_anim_cycle;
-  uint32_t _length;
-  uint32_t _alternate_length;
-  bool _switch_alt;
-  bool _text_on;
-  uint32_t _timer;
-  uint32_t _cycle;
+  std::shared_ptr<Cycler> _cycler;
+  std::function<void(VisualRender& api)> _render;
+  Image _image;
+  Image _alternate;
 };
 
 class SuperParallelVisual : public Visual
