@@ -79,16 +79,12 @@ public:
   void render(VisualRender& api) const override;
 
 private:
-  static const uint32_t length = 64;
-  static const uint32_t font_length = 64;
-  static const uint32_t cycles = 8;
-
-  bool _animated;
+  const bool _animated;
+  bool _alternate;
+  std::shared_ptr<Cycler> _cycler;
+  std::function<void(VisualRender& api)> _render;
   Image _start;
   Image _end;
-  uint32_t _timer;
-  uint32_t _cycle;
-  uint32_t _font_timer;
 };
 
 class ParallelVisual : public Visual
