@@ -80,10 +80,7 @@ void AccelerateVisual::render(VisualRender& api) const
   }
 }
 
-SubTextVisual::SubTextVisual(VisualControl& api)
-: _current{api.get_image()}
-, _alternate{false}
-, _sub_speed_multiplier{0}
+SubTextVisual::SubTextVisual(VisualControl& api) : _alternate{false}, _sub_speed_multiplier{0}
 {
   api.change_text(VisualControl::SPLIT_WORD);
 
@@ -98,13 +95,26 @@ SubTextVisual::SubTextVisual(VisualControl& api)
   auto maybe_upload_next = new ActionCycler{48, 24, [&] { api.maybe_upload_next(); }};
   auto image = new ActionCycler{48, [&] { _current = api.get_image(_alternate); }};
 
-  auto text_reset = new ActionCycler{4, [&] { api.change_text(VisualControl::SPLIT_WORD, _alternate); }};
+  auto text_reset =
+      new ActionCycler{4, [&] { api.change_text(VisualControl::SPLIT_WORD, _alternate); }};
   auto text = new ActionCycler{4, [&] { api.change_text(VisualControl::SPLIT_ONCE_ONLY); }};
   auto text_loop = new SequenceCycler{{text_reset, new RepeatCycler{23, text}}};
 
-  auto sub0 = new ActionCycler{12, [&] { if (_sub_speed_multiplier == 1) { api.change_subtext(_alternate); }}};
-  auto sub1 = new ActionCycler{24, [&] { if (_sub_speed_multiplier == 2) { api.change_subtext(_alternate); }}};
-  auto sub2 = new ActionCycler{48, [&] { if (_sub_speed_multiplier >= 3) { api.change_subtext(_alternate); }}};
+  auto sub0 = new ActionCycler{12, [&] {
+                                 if (_sub_speed_multiplier == 1) {
+                                   api.change_subtext(_alternate);
+                                 }
+                               }};
+  auto sub1 = new ActionCycler{24, [&] {
+                                 if (_sub_speed_multiplier == 2) {
+                                   api.change_subtext(_alternate);
+                                 }
+                               }};
+  auto sub2 = new ActionCycler{48, [&] {
+                                 if (_sub_speed_multiplier >= 3) {
+                                   api.change_subtext(_alternate);
+                                 }
+                               }};
 
   auto loop = new ParallelCycler{{image, maybe_upload_next, text_loop, sub0, sub1, sub2}};
   auto main = new RepeatCycler{16, loop};
@@ -195,7 +205,6 @@ void SlowFlashVisual::update(VisualControl& api)
 {
   _cycler->advance();
   if (_cycler->complete()) {
-    api.change_themes();
     // 1/2 chance after 2 * (16 * 64 + 32 * 8) = 2560 frames.
     // Average length 2 * 2560 = 5120 frames.
     api.change_visual(2);
@@ -208,71 +217,68 @@ void SlowFlashVisual::render(VisualRender& api) const
 }
 
 FlashTextVisual::FlashTextVisual(VisualControl& api)
-: _animated{random_chance()}
-, _start{api.get_image()}
-, _end{api.get_image()}
-, _timer{length}
-, _font_timer{font_length}
-, _cycle{cycles}
+: _animated{random_chance()}, _end{api.get_image(true)}, _alternate{true}
 {
+  auto image = new ActionCycler{64, [&] {
+                                  _start = _end;
+                                  _end = api.get_image(_alternate);
+                                }};
+
+  auto alternate = new ActionCycler{[&] {
+    _alternate = !_alternate;
+    api.change_text(VisualControl::SPLIT_LINE, _alternate);
+  }};
+  auto image_repeat = new RepeatCycler{2, image};
+  auto main_oneshot = new OneShotCycler{{alternate, image_repeat}};
+  auto main_repeat = new RepeatCycler{8, main_oneshot};
+
+  auto spiral = new ActionCycler{[&] { api.rotate_spiral(2.5f); }};
+  auto font = new ActionCycler{64, [&] { api.change_font(true); }};
+  auto small_subtext = new ActionCycler{16, [&] {}};
+  auto upload = new ActionCycler{64, 32, [&] { api.maybe_upload_next(); }};
+
+  auto parallel = new ParallelCycler{{spiral, font, small_subtext, upload, main_repeat}};
+  auto oneshot = new ActionCycler{[&] {
+    api.change_themes();
+    api.change_spiral();
+  }};
+
+  _cycler.reset(new OneShotCycler{{parallel, oneshot}});
+
+  _render = [=](VisualRender& api) {
+    auto progress = image->progress();
+    auto anim =
+        main_repeat->index() % 2 ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM;
+
+    api.render_animation_or_image(
+        !_animated || !image_repeat->index() ? VisualRender::Anim::NONE : anim, _start, 1.f,
+        40.f - 32.f * progress, (_animated ? 1.5f : 1.f) * (1.f + progress));
+
+    api.render_animation_or_image(
+        !_animated || image_repeat->index() ? VisualRender::Anim::NONE : anim, _end,
+        image->progress(), 8.f + 32.f * progress, (_animated ? 1.5f : 1.f) * progress);
+
+    api.render_spiral();
+    api.render_small_subtext(1.f / 5);
+    if ((image_repeat->index())) {
+      api.render_text(7.f - 4.f * image->progress());
+    }
+  };
 }
 
 void FlashTextVisual::update(VisualControl& api)
 {
-  api.rotate_spiral(2.5f);
-
-  if (!--_font_timer) {
-    api.change_font(true);
-    _font_timer = font_length;
-  }
-
-  if (_timer == length / 2 && _cycle % 2 == 0) {
-    api.change_text(VisualControl::SPLIT_LINE, (_cycle / 2) % 2);
-  }
-
-  if (!--_timer) {
-    if (!--_cycle) {
-      _cycle = cycles;
-      api.change_themes();
-      // 1/8 chance after 64 * 8 = 512 frames.
-      // Average length 8 * 512 = 4096 frames.
-      api.change_visual(8);
-    }
-
-    _start = _end;
-    _end = api.get_image((_cycle / 2) % 2);
-    _timer = length;
-  }
-  if (_timer % 16 == 0) {
-    api.change_small_subtext();
-  }
-
-  if (_timer == length / 2) {
-    api.maybe_upload_next();
+  _cycler->advance();
+  if (_cycler->complete()) {
+    // 1/4 chance after 64 * 16 = 1024 frames.
+    // Average length 4 * 1024 = 4096 frames.
+    api.change_visual(3);
   }
 }
 
 void FlashTextVisual::render(VisualRender& api) const
 {
-  float extra = 32.f * _timer / length;
-  float zoom = float(_timer) / length;
-  api.render_animation_or_image(
-      !_animated || _cycle % 2
-          ? VisualRender::Anim::NONE
-          : (_cycle / 2) % 2 ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM,
-      _start, 1, 8.f + extra, (_animated ? 1.5f : 1.f) * (2.f - zoom));
-
-  api.render_animation_or_image(
-      !_animated || _cycle % 2 == 0
-          ? VisualRender::Anim::NONE
-          : (_cycle / 2) % 2 ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM,
-      _end, 1.f - float(_timer) / length, 40.f - extra, (_animated ? 1.5f : 1.f) * (1.f - zoom));
-
-  api.render_spiral();
-  api.render_small_subtext(1.f / 5);
-  if (_cycle % 2) {
-    api.render_text(3.f + 4.f * _timer / length);
-  }
+  _render(api);
 }
 
 ParallelVisual::ParallelVisual(VisualControl& api)
