@@ -111,15 +111,9 @@ public:
   void render(VisualRender& api) const override;
 
 private:
-  static const std::size_t image_count = 3;
-  static const uint32_t length = 32;
-  static const uint32_t cycles = 32;
-
+  std::shared_ptr<Cycler> _cycler;
+  std::function<void(VisualRender& api)> _render;
   std::vector<Image> _images;
-  std::vector<uint32_t> _lengths;
-  uint32_t _timer;
-  uint32_t _font_timer;
-  uint32_t _cycle;
 };
 
 class AnimationVisual : public Visual

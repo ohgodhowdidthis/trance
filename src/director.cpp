@@ -598,6 +598,7 @@ bool Director::change_visual()
     }
   }
 
+  // TODO: if it's the same as the last choice, don't reset!
   if (t == trance_pb::Program_VisualType_ACCELERATE) {
     _visual.reset(new AccelerateVisual{*_visual_api});
   }
