@@ -4,86 +4,80 @@
 #include "visual_api.h"
 #include "visual_cyclers.h"
 
-AccelerateVisual::AccelerateVisual(VisualControl& api)
-: _current{api.get_image()}
-, _text_on{true}
-, _image_count{0}
-, _change_timer{max_speed}
-, _change_speed{max_speed}
-, _change_speed_timer{0}
-, _text_timer{text_time}
+AccelerateVisual::AccelerateVisual(VisualControl& api) : _text_on{false}
 {
-  api.change_text(VisualControl::SPLIT_LINE);
+  std::vector<Cycler*> main_image;
+  std::vector<Cycler*> main_text;
+  std::vector<Cycler*> main_sequence;
+
+  for (uint32_t image_length = 48; image_length >= 4; --image_length) {
+    auto image_count = 64 / (image_length - 3);
+    float spiral_speed = 1 + float(48 - image_length) / 16;
+    bool alternate = (image_length / 12) % 2 == 0;
+    bool text_word = image_length <= 8;
+    bool text_on = image_length < 6;
+
+    auto spiral = new ActionCycler{[&, spiral_speed] { api.rotate_spiral(spiral_speed); }};
+    main_image.push_back(
+        new ActionCycler{image_length, [&, alternate] { _current = api.get_image(alternate); }});
+
+    auto text_action = [&, alternate, text_word, text_on] {
+      if ((_text_on = !_text_on) || text_on) {
+        api.change_text(text_word ? VisualControl::SPLIT_WORD : VisualControl::SPLIT_LINE,
+                        alternate);
+      }
+    };
+    main_text.push_back(new ActionCycler{text_on ? image_length : 4, text_action});
+    auto upload = image_length > 24
+        ? new ActionCycler{image_length, image_length / 2, [&] { api.maybe_upload_next(); }}
+        : new ActionCycler{image_length};
+
+    auto parallel = new ParallelCycler{{main_image.back(), spiral, upload}};
+    auto oneshot = new OneShotCycler{{parallel, main_text.back()}};
+    main_sequence.push_back(new RepeatCycler{image_count, oneshot});
+  }
+  auto main = new SequenceCycler{main_sequence};
+
+  auto oneshot = new ActionCycler{[&] {
+    api.change_font();
+    api.change_spiral();
+    api.change_themes();
+  }};
+  _cycler.reset(new OneShotCycler{{oneshot, main}});
+
+  _render = [=](VisualRender& api) {
+    api.render_image(_current, 1.f, 8.f + 48.f * main->progress(),
+                     .5f * main_image[main->index()]->progress());
+    api.render_animation_or_image(((48 - main->index()) / 12) % 2 == 0
+                                      ? VisualRender::Anim::ANIM_ALTERNATE
+                                      : VisualRender::Anim::ANIM,
+                                  {}, .2f, 6.f);
+
+    api.render_spiral();
+    if (_text_on && main_text[main->index()]->active()) {
+      api.render_text();
+    }
+  };
 }
 
 void AccelerateVisual::update(VisualControl& api)
 {
-  unsigned long long d = max_speed - _change_speed;
-  unsigned long long m = max_speed;
-
-  float spiral_d = 1 + float(d) / 8;
-  api.rotate_spiral(spiral_d);
-
-  if (_text_timer) {
-    --_text_timer;
+  _cycler->advance();
+  if (_cycler->complete()) {
+    // Frames is a little bit more than 3000 per cycle.
+    // 1/2 chance after ~3000.
+    // Average length 2 * 3000 = ~6000 frames.
+    api.change_visual(2);
   }
-  if (_change_timer) {
-    --_change_timer;
-    if (_change_timer == _change_speed / 2 && _change_speed > max_speed / 2) {
-      api.maybe_upload_next();
-    }
-    return;
-  }
-
-  ++_image_count;
-  _change_timer = _change_speed;
-  _current = api.get_image((_image_count / 32) % 2);
-  _text_on = !_text_on;
-  if (_text_on) {
-    api.change_text(_change_speed < 8 ? VisualControl::SPLIT_WORD : VisualControl::SPLIT_LINE,
-                    (_image_count / 32) % 2);
-  }
-  _text_timer = text_time;
-
-  if (_change_speed_timer) {
-    _change_speed_timer -= 1;
-    return;
-  }
-
-  bool changed = false;
-  _change_speed_timer = uint32_t(d * d * d * d * d * d / (m * m * m * m * m));
-  if (_change_speed != min_speed) {
-    --_change_speed;
-    return;
-  }
-
-  api.change_spiral();
-  api.change_font();
-  // Frames is something like:
-  // 46 + sum(3 <= k < 48, (1 + floor(k^6/48^5))(48 - k)).
-  // 1/2 chance after ~2850.
-  // 1/2 random weight.
-  // Average length 2 * 2850 = 5700 frames.
-  api.change_visual(2);
 }
 
 void AccelerateVisual::render(VisualRender& api) const
 {
-  auto z = float(_change_timer) / (2 * _change_speed);
-  api.render_image(_current, 1, 8.f + 48.f - _change_speed, .5f - z);
-  api.render_animation_or_image(
-      (_image_count / 32) % 2 ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, {},
-      .2f, 6.f);
-  api.render_spiral();
-  if (_change_speed == min_speed || (_text_on && _text_timer)) {
-    api.render_text();
-  }
+  _render(api);
 }
 
 SubTextVisual::SubTextVisual(VisualControl& api) : _alternate{false}, _sub_speed_multiplier{0}
 {
-  api.change_text(VisualControl::SPLIT_WORD);
-
   auto oneshot = new ActionCycler{[&] {
     if (!api.change_themes()) {
       _alternate = !_alternate;
@@ -477,7 +471,9 @@ SuperFastVisual::SuperFastVisual(VisualControl& api)
   auto length = new ActionCycler{2048};
   auto rapid = new ActionCycler{8, [&] {
                                   if (_animation_timer) {
-                                    --_animation_timer;
+                                    if (--_animation_timer == 4) {
+                                      api.maybe_upload_next();
+                                    }
                                   } else if (_cooldown_timer) {
                                     --_cooldown_timer;
                                   }
