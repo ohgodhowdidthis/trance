@@ -30,17 +30,10 @@ public:
   void render(VisualRender& api) const override;
 
 private:
-  static const uint32_t max_speed = 48;
-  static const uint32_t min_speed = 4;
-  static const uint32_t text_time = 4;
-
-  Image _current;
+  std::shared_ptr<Cycler> _cycler;
+  std::function<void(VisualRender& api)> _render;
   bool _text_on;
-  uint32_t _image_count;
-  uint32_t _change_timer;
-  uint32_t _change_speed;
-  uint32_t _change_speed_timer;
-  uint32_t _text_timer;
+  Image _current;
 };
 
 class SubTextVisual : public Visual
