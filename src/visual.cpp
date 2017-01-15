@@ -472,61 +472,63 @@ void AnimationVisual::render(VisualRender& api) const
 }
 
 SuperFastVisual::SuperFastVisual(VisualControl& api)
-: _current{api.get_image()}
-, _start_timer{0}
-, _animation_timer{anim_length + random(anim_length)}
-, _alternate{false}
-, _timer{length}
+: _alternate{false}, _cooldown_timer{0}, _animation_timer{0}
 {
-  api.change_text(VisualControl::SPLIT_WORD);
+  auto length = new ActionCycler{2048};
+  auto rapid = new ActionCycler{8, [&] {
+                                  if (_animation_timer) {
+                                    --_animation_timer;
+                                  } else if (_cooldown_timer) {
+                                    --_cooldown_timer;
+                                  }
+                                  if (!_animation_timer && !_cooldown_timer && random_chance(16)) {
+                                    _alternate = !_alternate;
+                                    _animation_timer = 8 + random(9);
+                                    _cooldown_timer = 8;
+                                  }
+                                  if (!_animation_timer) {
+                                    _current = api.get_image(_alternate);
+                                    api.change_text(VisualControl::SPLIT_WORD, _alternate);
+                                  }
+                                }};
+  auto spiral = new ActionCycler{[&] { api.rotate_spiral(3.f); }};
+
+  auto parallel = new ParallelCycler{{length, spiral, rapid}};
+  auto oneshot = new ActionCycler{[&] {
+    api.change_spiral();
+    api.change_font();
+    api.change_themes();
+  }};
+
+  _cycler.reset(new OneShotCycler{{oneshot, parallel}});
+
+  _render = [=](VisualRender& api) {
+    if (_animation_timer) {
+      auto anim_progress = float(8 * (16 - _animation_timer) + rapid->frame()) / 128;
+      api.render_animation_or_image(
+          _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, _current, 1.f,
+          4.f + 16.f * anim_progress, 4.f * anim_progress);
+    } else {
+      api.render_image(_current, 1.f, 8.f + 12.f * rapid->progress(), rapid->progress());
+      if (rapid->frame() >= rapid->length() - 2) {
+        api.render_text(5.f);
+      }
+    }
+    api.render_spiral();
+  };
 }
 
 void SuperFastVisual::update(VisualControl& api)
 {
-  api.rotate_spiral(3.f);
-  if (_animation_timer) {
-    --_animation_timer;
-    return;
+  _cycler->advance();
+  if (_cycler->complete()) {
+    // 1/2 chance after 2048 frames.
+    // Average length 2 * 2048 = 4096 frames.
+    api.change_visual(2);
   }
-  if (_timer % image_length == 0) {
-    _current = api.get_image(_alternate);
-    api.change_text(VisualControl::SPLIT_WORD, _alternate);
-  }
-  if (!_start_timer && random_chance(128)) {
-    _alternate = !_alternate;
-    _animation_timer = anim_length + random(anim_length);
-    _start_timer = nonanim_length;
-  }
-  if (_start_timer) {
-    --_start_timer;
-  }
-  if (--_timer) {
-    return;
-  }
-
-  api.change_spiral();
-  api.change_font();
-  api.change_themes();
-  _timer = length;
-  // Roughly 1024 + ~ 1024 * (128 + 128 / 2) / 256 (ignoring the _start_timer).
-  // 1/2 chance after ~1792 frames.
-  // Average length 2 * 1792 = 3584 frames.
-  api.change_visual(2);
 }
 
 void SuperFastVisual::render(VisualRender& api) const
 {
-  if (_animation_timer) {
-    api.render_animation_or_image(
-        _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, _current, 1.f,
-        20.f - 8.f * float(_animation_timer) / anim_length,
-        4.f - 2.f * float(_animation_timer) / anim_length);
-  } else {
-    api.render_image(_current, 1.f, 20.f - 12.f * float(_timer % image_length) / image_length,
-                     1.f - float(_timer % image_length) / image_length);
-    if (_timer % image_length < 2) {
-      api.render_text(5.f);
-    }
-  }
-  api.render_spiral();
+  _render(api);
 }
