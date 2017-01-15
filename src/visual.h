@@ -130,15 +130,10 @@ public:
   void render(VisualRender& api) const override;
 
 private:
-  static const uint32_t length = 256;
-  static const uint32_t cycles = 4;
-  static const uint32_t image_length = 16;
-  static const uint32_t animation_length = 128;
-
+  std::shared_ptr<Cycler> _cycler;
+  std::function<void(VisualRender& api)> _render;
   Image _animation_backup;
   Image _current;
-  uint32_t _timer;
-  uint32_t _cycle;
 };
 
 class SuperFastVisual : public Visual
