@@ -138,16 +138,12 @@ public:
   void render(VisualRender& api) const override;
 
 private:
-  static const uint32_t length = 1024;
-  static const uint32_t anim_length = 64;
-  static const uint32_t nonanim_length = 64;
-  static const uint32_t image_length = 8;
-
-  Image _current;
-  uint32_t _start_timer;
-  uint32_t _animation_timer;
   bool _alternate;
-  uint32_t _timer;
+  uint32_t _cooldown_timer;
+  uint32_t _animation_timer;
+  std::shared_ptr<Cycler> _cycler;
+  std::function<void(VisualRender& api)> _render;
+  Image _current;
 };
 
 #endif
