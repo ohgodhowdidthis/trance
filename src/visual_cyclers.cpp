@@ -67,12 +67,12 @@ void ActionCycler::reset()
   _position = 0;
 }
 
-void ActionCycler::advance()
+void ActionCycler::advance(bool trigger_actions)
 {
   if (complete()) {
     reset();
   }
-  if (_position == _action_frame) {
+  if (trigger_actions && _position == _action_frame) {
     _action();
   }
   if (_length) {
@@ -115,12 +115,12 @@ void OneShotCycler::reset()
   calculate_active();
 }
 
-void OneShotCycler::advance()
+void OneShotCycler::advance(bool trigger_actions)
 {
   bool any_advance = false;
   for (auto& cycle : _subcycles) {
     if (!cycle->complete()) {
-      cycle->advance();
+      cycle->advance(trigger_actions);
       any_advance = true;
     }
   }
@@ -128,7 +128,7 @@ void OneShotCycler::advance()
     reset();
     for (auto& cycle : _subcycles) {
       if (!cycle->complete()) {
-        cycle->advance();
+        cycle->advance(trigger_actions);
       }
     }
   }
@@ -203,13 +203,13 @@ void ParallelCycler::reset()
   _position = 0;
 }
 
-void ParallelCycler::advance()
+void ParallelCycler::advance(bool trigger_actions)
 {
   if (complete()) {
     _position = 0;
   }
   for (auto& cycler : _subcycles) {
-    cycler->advance();
+    cycler->advance(trigger_actions);
   }
   ++_position;
 }
@@ -272,11 +272,11 @@ void SequenceCycler::reset()
   calculate_active();
 }
 
-void SequenceCycler::advance()
+void SequenceCycler::advance(bool trigger_actions)
 {
   for (auto& cycler : _subcycles) {
     if (!cycler->complete()) {
-      cycler->advance();
+      cycler->advance(trigger_actions);
       calculate_active();
       return;
     }
@@ -284,7 +284,7 @@ void SequenceCycler::advance()
   reset();
   for (auto& cycler : _subcycles) {
     if (!cycler->complete()) {
-      cycler->advance();
+      cycler->advance(trigger_actions);
       calculate_active();
       return;
     }
@@ -342,16 +342,59 @@ void RepeatCycler::reset()
   _subcycle->reset();
 }
 
-void RepeatCycler::advance()
+void RepeatCycler::advance(bool trigger_actions)
 {
   if (_subcycle->complete()) {
     _index = (1 + _index) % _repetitions;
   }
-  _subcycle->advance();
+  _subcycle->advance(trigger_actions);
 }
 
 void RepeatCycler::activate(bool active)
 {
   Cycler::activate(active);
   _subcycle->activate(active);
+}
+
+OffsetCycler::OffsetCycler(uint32_t offset, Cycler* subcycle)
+: _subcycle{subcycle}, _offset{offset}, _position{0}
+{
+  advance_to_offset();
+}
+
+uint32_t OffsetCycler::length() const
+{
+  return _subcycle->length();
+}
+
+uint32_t OffsetCycler::position() const
+{
+  return _position;
+}
+
+void OffsetCycler::reset()
+{
+  _position = 0;
+  _subcycle->reset();
+  advance_to_offset();
+}
+
+void OffsetCycler::advance(bool trigger_actions)
+{
+  ++_position;
+  _subcycle->advance(trigger_actions);
+}
+
+void OffsetCycler::activate(bool active)
+{
+  Cycler::activate(active);
+  _subcycle->activate(active);
+}
+
+void OffsetCycler::advance_to_offset()
+{
+  auto frames = length() - _offset % length();
+  for (uint32_t i = 0; i < frames; ++i) {
+    _subcycle->advance(false);
+  }
 }
