@@ -4,6 +4,26 @@
 #include "visual_api.h"
 #include "visual_cyclers.h"
 
+void Visual::set_cycler(Cycler* cycler)
+{
+  _cycler.reset(cycler);
+}
+
+void Visual::set_render(const std::function<void(VisualRender& api)>& function)
+{
+  _render = function;
+}
+
+Cycler* Visual::cycler()
+{
+  return _cycler.get();
+}
+
+void Visual::render(VisualRender& api) const
+{
+  _render(api);
+}
+
 AccelerateVisual::AccelerateVisual(VisualControl& api) : _text_on{false}
 {
   std::vector<Cycler*> main_image;
@@ -43,9 +63,9 @@ AccelerateVisual::AccelerateVisual(VisualControl& api) : _text_on{false}
     api.change_spiral();
     api.change_themes();
   }};
-  _cycler.reset(new OneShotCycler{{oneshot, main}});
 
-  _render = [=](VisualRender& api) {
+  set_cycler(new OneShotCycler{{oneshot, main}});
+  set_render([=](VisualRender& api) {
     api.render_image(_current, 1.f, 8.f + 48.f * main->progress(),
                      .5f * main_image[main->index()]->progress());
     api.render_animation_or_image(((48 - main->index()) / 12) % 2 == 0
@@ -57,23 +77,7 @@ AccelerateVisual::AccelerateVisual(VisualControl& api) : _text_on{false}
     if (_text_on && main_text[main->index()]->active()) {
       api.render_text();
     }
-  };
-}
-
-void AccelerateVisual::update(VisualControl& api)
-{
-  _cycler->advance();
-  if (_cycler->complete()) {
-    // Frames is a little bit more than 3000 per cycle.
-    // 1/2 chance after ~3000.
-    // Average length 2 * 3000 = ~6000 frames.
-    api.change_visual(2);
-  }
-}
-
-void AccelerateVisual::render(VisualRender& api) const
-{
-  _render(api);
+  });
 }
 
 SubTextVisual::SubTextVisual(VisualControl& api) : _alternate{false}, _sub_speed_multiplier{0}
@@ -114,31 +118,16 @@ SubTextVisual::SubTextVisual(VisualControl& api) : _alternate{false}, _sub_speed
   auto main = new RepeatCycler{16, loop};
 
   auto spiral = new ActionCycler{[&] { api.rotate_spiral(4.f); }};
-  _cycler.reset(new ParallelCycler{{spiral, new OneShotCycler{{oneshot, main}}}});
+  set_cycler(new ParallelCycler{{spiral, new OneShotCycler{{oneshot, main}}}});
 
-  _render = [=](VisualRender& api) {
+  set_render([=](VisualRender& api) {
     api.render_animation_or_image(
         _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, {}, 1, 10.f);
     api.render_image(_current, .8f, 8.f, 1.f + image->progress());
     api.render_subtext(1.f / 4);
     api.render_spiral();
     api.render_text();
-  };
-}
-
-void SubTextVisual::update(VisualControl& api)
-{
-  _cycler->advance();
-  if (_cycler->complete()) {
-    // 1/3 chance after 32 * 48 = 1536 frames.
-    // Average length 3 * 1536 = 4608 frames.
-    api.change_visual(3);
-  }
-}
-
-void SubTextVisual::render(VisualRender& api) const
-{
-  _render(api);
+  });
 }
 
 SlowFlashVisual::SlowFlashVisual(VisualControl& api)
@@ -173,9 +162,9 @@ SlowFlashVisual::SlowFlashVisual(VisualControl& api)
 
   auto oneshot = new ActionCycler{[&] { api.change_themes(); }};
   auto main_repeat = new RepeatCycler{2, new SequenceCycler{{slow_cycler, fast_cycler}}};
-  _cycler.reset(new OneShotCycler{{oneshot, main_repeat}});
+  set_cycler(new OneShotCycler{{oneshot, main_repeat}});
 
-  _render = [=](VisualRender& api) {
+  set_render([=](VisualRender& api) {
     auto extra =
         slow_loop->active() ? 6.f + 2.f * slow_main->progress() : 4.f + 4.f * fast_main->progress();
     auto zoom =
@@ -192,22 +181,7 @@ SlowFlashVisual::SlowFlashVisual(VisualControl& api)
     if (fast_cycler->active() && fast_text->frame() >= fast_text->length() / 2) {
       api.render_text(11.f - 4.f * fast_main->progress());
     }
-  };
-}
-
-void SlowFlashVisual::update(VisualControl& api)
-{
-  _cycler->advance();
-  if (_cycler->complete()) {
-    // 1/2 chance after 2 * (16 * 64 + 32 * 8) = 2560 frames.
-    // Average length 2 * 2560 = 5120 frames.
-    api.change_visual(2);
-  }
-}
-
-void SlowFlashVisual::render(VisualRender& api) const
-{
-  _render(api);
+  });
 }
 
 FlashTextVisual::FlashTextVisual(VisualControl& api)
@@ -237,9 +211,9 @@ FlashTextVisual::FlashTextVisual(VisualControl& api)
     api.change_spiral();
   }};
 
-  _cycler.reset(new OneShotCycler{{parallel, oneshot}});
+  set_cycler(new OneShotCycler{{parallel, oneshot}});
 
-  _render = [=](VisualRender& api) {
+  set_render([=](VisualRender& api) {
     auto progress = image->progress();
     auto anim =
         main_repeat->index() % 2 ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM;
@@ -257,22 +231,7 @@ FlashTextVisual::FlashTextVisual(VisualControl& api)
     if ((image_repeat->index())) {
       api.render_text(7.f - 4.f * image->progress());
     }
-  };
-}
-
-void FlashTextVisual::update(VisualControl& api)
-{
-  _cycler->advance();
-  if (_cycler->complete()) {
-    // 1/4 chance after 64 * 16 = 1024 frames.
-    // Average length 4 * 1024 = 4096 frames.
-    api.change_visual(3);
-  }
-}
-
-void FlashTextVisual::render(VisualRender& api) const
-{
-  _render(api);
+  });
 }
 
 ParallelVisual::ParallelVisual(VisualControl& api)
@@ -306,16 +265,17 @@ ParallelVisual::ParallelVisual(VisualControl& api)
     api.change_themes();
   }};
 
-  _cycler.reset(new OneShotCycler{{oneshot, parallel}});
+  auto whole = new OneShotCycler{{oneshot, parallel}};
+  set_cycler(whole);
 
-  _render = [=](VisualRender& api) {
+  set_render([=](VisualRender& api) {
     auto anim = _anim_cycle % 3 == 2 ? VisualRender::Anim::ANIM : VisualRender::Anim::NONE;
-    api.render_animation_or_image(anim, _image, 1, 40.f - 32.f * _cycler->progress(),
+    api.render_animation_or_image(anim, _image, 1, 40.f - 32.f * whole->progress(),
                                   image->progress());
 
     auto alt_anim = _alternate_anim_cycle % 3 == 1 ? VisualRender::Anim::ANIM_ALTERNATE
                                                    : VisualRender::Anim::NONE;
-    api.render_animation_or_image(alt_anim, _alternate, .5f, 8 + 32.f * _cycler->progress(),
+    api.render_animation_or_image(alt_anim, _alternate, .5f, 8 + 32.f * whole->progress(),
                                   1.5f * image_alt->progress());
 
     api.render_spiral();
@@ -323,22 +283,7 @@ ParallelVisual::ParallelVisual(VisualControl& api)
     if (counter->index() == 1 || counter->index() == 2) {
       api.render_text();
     }
-  };
-}
-
-void ParallelVisual::update(VisualControl& api)
-{
-  _cycler->advance();
-  if (_cycler->complete()) {
-    // 1/2 chance after 32 * 64 = 2048 frames.
-    // Average length 2 * 2048 = 4096 frames.
-    api.change_visual(2);
-  }
-}
-
-void ParallelVisual::render(VisualRender& api) const
-{
-  _render(api);
+  });
 }
 
 SuperParallelVisual::SuperParallelVisual(VisualControl& api)
@@ -368,9 +313,10 @@ SuperParallelVisual::SuperParallelVisual(VisualControl& api)
     api.change_themes();
   }};
 
-  _cycler.reset(new OneShotCycler{{oneshot, parallel}});
+  auto main = new OneShotCycler{{oneshot, parallel}};
+  set_cycler(main);
 
-  _render = [=](VisualRender& api) {
+  set_render([=](VisualRender& api) {
     bool is_single =
         std::any_of(single.begin(), single.end(), [](Cycler* cycler) { return cycler->active(); });
 
@@ -380,7 +326,7 @@ SuperParallelVisual::SuperParallelVisual(VisualControl& api)
           : repeat->index() % 2 ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM;
       if (!is_single || single[i]->active()) {
         api.render_animation_or_image(anim, _images[i], is_single ? 1.f : 1.f / (1 + i),
-                                      8.f + 4.f * i + 16.f * _cycler->progress(),
+                                      8.f + 4.f * i + 16.f * main->progress(),
                                       4.f * progress[i]->progress());
       }
     }
@@ -388,22 +334,7 @@ SuperParallelVisual::SuperParallelVisual(VisualControl& api)
     if (text->frame() < text->length() / 2) {
       api.render_text(5.f);
     }
-  };
-}
-
-void SuperParallelVisual::update(VisualControl& api)
-{
-  _cycler->advance();
-  if (_cycler->complete()) {
-    // 1/4 chance after 12 * 96 = 1152 frames.
-    // Average length 4 * 1152 = 4608 frames.
-    api.change_visual(4);
-  }
-}
-
-void SuperParallelVisual::render(VisualRender& api) const
-{
-  _render(api);
+  });
 }
 
 AnimationVisual::AnimationVisual(VisualControl& api)
@@ -434,9 +365,9 @@ AnimationVisual::AnimationVisual(VisualControl& api)
     api.change_themes();
   }};
 
-  _cycler.reset(new OneShotCycler{{oneshot, repeat}});
+  set_cycler(new OneShotCycler{{oneshot, repeat}});
 
-  _render = [=](VisualRender& api) {
+  set_render([=](VisualRender& api) {
     auto which_anim =
         text_alt->active() ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM;
     api.render_animation_or_image(which_anim, _animation_backup, 1.f,
@@ -447,22 +378,7 @@ AnimationVisual::AnimationVisual(VisualControl& api)
     if (!text_counter->index()) {
       api.render_text(5.f);
     }
-  };
-}
-
-void AnimationVisual::update(VisualControl& api)
-{
-  _cycler->advance();
-  if (_cycler->complete()) {
-    // 1/4 chance after 128 * 8 = 1024 frames.
-    // Average length 4 * 1024 = 4096 frames.
-    api.change_visual(4);
-  }
-}
-
-void AnimationVisual::render(VisualRender& api) const
-{
-  _render(api);
+  });
 }
 
 SuperFastVisual::SuperFastVisual(VisualControl& api)
@@ -496,9 +412,9 @@ SuperFastVisual::SuperFastVisual(VisualControl& api)
     api.change_themes();
   }};
 
-  _cycler.reset(new OneShotCycler{{oneshot, parallel}});
+  set_cycler(new OneShotCycler{{oneshot, parallel}});
 
-  _render = [=](VisualRender& api) {
+  set_render([=](VisualRender& api) {
     if (_animation_timer) {
       auto anim_progress = float(8 * (16 - _animation_timer) + rapid->frame()) / 128;
       api.render_animation_or_image(
@@ -511,20 +427,5 @@ SuperFastVisual::SuperFastVisual(VisualControl& api)
       }
     }
     api.render_spiral();
-  };
-}
-
-void SuperFastVisual::update(VisualControl& api)
-{
-  _cycler->advance();
-  if (_cycler->complete()) {
-    // 1/2 chance after 2048 frames.
-    // Average length 2 * 2048 = 4096 frames.
-    api.change_visual(2);
-  }
-}
-
-void SuperFastVisual::render(VisualRender& api) const
-{
-  _render(api);
+  });
 }

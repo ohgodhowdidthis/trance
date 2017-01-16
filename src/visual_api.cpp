@@ -131,6 +131,9 @@ void VisualApiImpl::change_font(bool force)
   if (force || random_chance(4)) {
     _current_font = _themes.get_font(false);
   }
+  if (force || random_chance(4)) {
+    _current_subfont = _themes.get_font(false);
+  }
 }
 
 void VisualApiImpl::change_text(SplitType split_type, bool alternate)
@@ -202,17 +205,6 @@ bool VisualApiImpl::change_themes()
     if (_current_font.empty()) {
       change_font(true);
     }
-    return true;
-  }
-  return false;
-}
-
-bool VisualApiImpl::change_visual(uint32_t chance)
-{
-  // Like !random_chance(chance), but scaled to current speed.
-  if (chance && random(chance * _director.program().global_fps()) < 120 &&
-      _director.change_visual()) {
-    _current_subfont = _themes.get_font(false);
     return true;
   }
   return false;

@@ -36,7 +36,6 @@ public:
   virtual void change_subtext(bool alternate = false) = 0;
   virtual void change_small_subtext(bool force = false, bool alternate = false) = 0;
   virtual bool change_themes() = 0;
-  virtual bool change_visual(uint32_t chance) = 0;
 };
 
 class VisualRender
@@ -76,7 +75,6 @@ public:
   void change_subtext(bool alternate = false) override;
   void change_small_subtext(bool force = false, bool alternate = false) override;
   bool change_themes() override;
-  bool change_visual(uint32_t chance) override;
 
   void render_animation_or_image(Anim type, const Image& image, float alpha, float multiplier = 8.f,
                                  float zoom = 0.f) const override;
