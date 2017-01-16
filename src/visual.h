@@ -18,20 +18,24 @@ class Visual
 {
 public:
   virtual ~Visual() = default;
-  virtual void update(VisualControl& api) = 0;
-  virtual void render(VisualRender& api) const = 0;
+  Cycler* cycler();
+  void render(VisualRender& api) const;
+
+protected:
+  void set_cycler(Cycler* cycler);
+  void set_render(const std::function<void(VisualRender& api)>& function);
+
+private:
+  std::shared_ptr<Cycler> _cycler;
+  std::function<void(VisualRender& api)> _render;
 };
 
 class AccelerateVisual : public Visual
 {
 public:
   AccelerateVisual(VisualControl& api);
-  void update(VisualControl& api) override;
-  void render(VisualRender& api) const override;
 
 private:
-  std::shared_ptr<Cycler> _cycler;
-  std::function<void(VisualRender& api)> _render;
   bool _text_on;
   Image _current;
 };
@@ -40,12 +44,8 @@ class SubTextVisual : public Visual
 {
 public:
   SubTextVisual(VisualControl& api);
-  void update(VisualControl& api) override;
-  void render(VisualRender& api) const override;
 
 private:
-  std::shared_ptr<Cycler> _cycler;
-  std::function<void(VisualRender& api)> _render;
   Image _current;
   bool _alternate;
   uint32_t _sub_speed_multiplier;
@@ -55,12 +55,8 @@ class SlowFlashVisual : public Visual
 {
 public:
   SlowFlashVisual(VisualControl& api);
-  void update(VisualControl& api) override;
-  void render(VisualRender& api) const override;
 
 private:
-  std::shared_ptr<Cycler> _cycler;
-  std::function<void(VisualRender& api)> _render;
   Image _current;
 };
 
@@ -68,14 +64,10 @@ class FlashTextVisual : public Visual
 {
 public:
   FlashTextVisual(VisualControl& api);
-  void update(VisualControl& api) override;
-  void render(VisualRender& api) const override;
 
 private:
   const bool _animated;
   bool _alternate;
-  std::shared_ptr<Cycler> _cycler;
-  std::function<void(VisualRender& api)> _render;
   Image _start;
   Image _end;
 };
@@ -84,14 +76,10 @@ class ParallelVisual : public Visual
 {
 public:
   ParallelVisual(VisualControl& api);
-  void update(VisualControl& api) override;
-  void render(VisualRender& api) const override;
 
 private:
   uint32_t _anim_cycle;
   uint32_t _alternate_anim_cycle;
-  std::shared_ptr<Cycler> _cycler;
-  std::function<void(VisualRender& api)> _render;
   Image _image;
   Image _alternate;
 };
@@ -100,12 +88,8 @@ class SuperParallelVisual : public Visual
 {
 public:
   SuperParallelVisual(VisualControl& api);
-  void update(VisualControl& api) override;
-  void render(VisualRender& api) const override;
 
 private:
-  std::shared_ptr<Cycler> _cycler;
-  std::function<void(VisualRender& api)> _render;
   std::vector<Image> _images;
 };
 
@@ -113,12 +97,8 @@ class AnimationVisual : public Visual
 {
 public:
   AnimationVisual(VisualControl& api);
-  void update(VisualControl& api) override;
-  void render(VisualRender& api) const override;
 
 private:
-  std::shared_ptr<Cycler> _cycler;
-  std::function<void(VisualRender& api)> _render;
   Image _animation_backup;
   Image _current;
 };
@@ -127,15 +107,11 @@ class SuperFastVisual : public Visual
 {
 public:
   SuperFastVisual(VisualControl& api);
-  void update(VisualControl& api) override;
-  void render(VisualRender& api) const override;
 
 private:
   bool _alternate;
   uint32_t _cooldown_timer;
   uint32_t _animation_timer;
-  std::shared_ptr<Cycler> _cycler;
-  std::function<void(VisualRender& api)> _render;
   Image _current;
 };
 

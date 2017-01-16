@@ -7,6 +7,7 @@
 #include "util.h"
 #include "visual.h"
 #include "visual_api.h"
+#include "visual_cyclers.h"
 
 #pragma warning(push, 0)
 extern "C" {
@@ -396,7 +397,7 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   _visual_api.reset(new VisualApiImpl{*this, _themes, session, system});
-  change_visual();
+  change_visual(0);
   if (_realtime && !_oculus.enabled) {
     _window.setVisible(true);
     _window.setActive();
@@ -422,7 +423,11 @@ bool Director::update()
   if (_old_visual) {
     _old_visual.reset(nullptr);
   }
-  _visual->update(*_visual_api);
+
+  _visual->cycler()->advance();
+  if (_visual->cycler()->complete()) {
+    change_visual(_visual->cycler()->length());
+  }
 
   bool to_oculus = _realtime && _oculus.enabled;
   if (to_oculus) {
@@ -575,55 +580,6 @@ sf::Vector2f Director::off3d(float multiplier, bool text) const
       : !_oculus.rendering_right ? _width / (8.f * multiplier) : _width / -(8.f * multiplier);
   x *= (text ? _system.oculus_text_depth() : _system.oculus_image_depth());
   return {x, 0};
-}
-
-bool Director::change_visual()
-{
-  if (_old_visual) {
-    return false;
-  }
-  _visual.swap(_old_visual);
-
-  uint32_t total = 0;
-  for (const auto& type : _program->visual_type()) {
-    total += type.random_weight();
-  }
-  auto r = random(total);
-  total = 0;
-  trance_pb::Program_VisualType t;
-  for (const auto& type : _program->visual_type()) {
-    if (r < (total += type.random_weight())) {
-      t = type.type();
-      break;
-    }
-  }
-
-  // TODO: if it's the same as the last choice, don't reset!
-  if (t == trance_pb::Program_VisualType_ACCELERATE) {
-    _visual.reset(new AccelerateVisual{*_visual_api});
-  }
-  if (t == trance_pb::Program_VisualType_SLOW_FLASH) {
-    _visual.reset(new SlowFlashVisual{*_visual_api});
-  }
-  if (t == trance_pb::Program_VisualType_SUB_TEXT) {
-    _visual.reset(new SubTextVisual{*_visual_api});
-  }
-  if (t == trance_pb::Program_VisualType_FLASH_TEXT) {
-    _visual.reset(new FlashTextVisual{*_visual_api});
-  }
-  if (t == trance_pb::Program_VisualType_PARALLEL) {
-    _visual.reset(new ParallelVisual{*_visual_api});
-  }
-  if (t == trance_pb::Program_VisualType_SUPER_PARALLEL) {
-    _visual.reset(new SuperParallelVisual{*_visual_api});
-  }
-  if (t == trance_pb::Program_VisualType_ANIMATION) {
-    _visual.reset(new AnimationVisual{*_visual_api});
-  }
-  if (t == trance_pb::Program_VisualType_SUPER_FAST) {
-    _visual.reset(new SuperFastVisual{*_visual_api});
-  }
-  return true;
 }
 
 void Director::render_image(const Image& image, float alpha, float multiplier, float zoom) const
@@ -928,6 +884,57 @@ bool Director::init_oculus_rift()
   _height = fh;
   _window.setSize(sf::Vector2u(0, 0));
   return true;
+}
+
+void Director::change_visual(uint32_t length)
+{
+  // Like !random_chance(chance), but scaled to current speed and cycle length.
+  // Roughly 1/2 chance for a cycle of length 2048.
+  auto fps = program().global_fps();
+  if (length && random((2 * fps * length) / 2048) >= 120) {
+    return;
+  }
+  _visual.swap(_old_visual);
+
+  uint32_t total = 0;
+  for (const auto& type : _program->visual_type()) {
+    total += type.random_weight();
+  }
+  auto r = random(total);
+  total = 0;
+  trance_pb::Program_VisualType t;
+  for (const auto& type : _program->visual_type()) {
+    if (r < (total += type.random_weight())) {
+      t = type.type();
+      break;
+    }
+  }
+
+  // TODO: if it's the same as the last choice, don't reset!
+  if (t == trance_pb::Program_VisualType_ACCELERATE) {
+    _visual.reset(new AccelerateVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_SLOW_FLASH) {
+    _visual.reset(new SlowFlashVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_SUB_TEXT) {
+    _visual.reset(new SubTextVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_FLASH_TEXT) {
+    _visual.reset(new FlashTextVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_PARALLEL) {
+    _visual.reset(new ParallelVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_SUPER_PARALLEL) {
+    _visual.reset(new SuperParallelVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_ANIMATION) {
+    _visual.reset(new AnimationVisual{*_visual_api});
+  }
+  if (t == trance_pb::Program_VisualType_SUPER_FAST) {
+    _visual.reset(new SuperFastVisual{*_visual_api});
+  }
 }
 
 void Director::render_texture(float l, float t, float r, float b, bool flip_h, bool flip_v) const
