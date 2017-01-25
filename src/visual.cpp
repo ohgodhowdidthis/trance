@@ -31,30 +31,34 @@ AccelerateVisual::AccelerateVisual(VisualControl& api) : _text_on{false}
   std::vector<Cycler*> main_sequence;
 
   for (uint32_t image_length = 48; image_length >= 4; --image_length) {
-    auto image_count = 64 / (image_length - 3);
+    bool last = image_length == 4;
+    uint64_t d = 48 - image_length;
+    auto image_count = 1 + (d * d * d * d * d * d) / (48 * 48 * 48 * 48 * 48);
+    if (last) {
+      image_count *= 2;
+    }
     float spiral_speed = 1 + float(48 - image_length) / 16;
     bool alternate = (image_length / 12) % 2 == 0;
     bool text_word = image_length <= 8;
-    bool text_on = image_length < 6;
 
     auto spiral = new ActionCycler{[&, spiral_speed] { api.rotate_spiral(spiral_speed); }};
     main_image.push_back(
         new ActionCycler{image_length, [&, alternate] { _current = api.get_image(alternate); }});
 
-    auto text_action = [&, alternate, text_word, text_on] {
-      if ((_text_on = !_text_on) || text_on) {
+    auto text_action = [&, alternate, text_word] {
+      if (_text_on = !_text_on) {
         api.change_text(text_word ? VisualControl::SPLIT_WORD : VisualControl::SPLIT_LINE,
                         alternate);
       }
     };
-    main_text.push_back(new ActionCycler{text_on ? image_length : 4, text_action});
+    main_text.push_back(new ActionCycler{4, text_action});
     auto upload = image_length > 24
         ? new ActionCycler{image_length, image_length / 2, [&] { api.maybe_upload_next(); }}
         : new ActionCycler{image_length};
 
     auto parallel = new ParallelCycler{{main_image.back(), spiral, upload}};
     auto oneshot = new OneShotCycler{{parallel, main_text.back()}};
-    main_sequence.push_back(new RepeatCycler{image_count, oneshot});
+    main_sequence.push_back(new RepeatCycler{uint32_t(image_count), oneshot});
   }
   auto main = new SequenceCycler{main_sequence};
 
@@ -74,7 +78,7 @@ AccelerateVisual::AccelerateVisual(VisualControl& api) : _text_on{false}
                                   {}, .2f, 6.f);
 
     api.render_spiral();
-    if (_text_on && main_text[main->index()]->active()) {
+    if ((_text_on && main_text[main->index()]->active()) || 1 + main->index() == main_text.size()) {
       api.render_text();
     }
   });
