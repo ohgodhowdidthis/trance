@@ -62,7 +62,7 @@ class VisualApiImpl : public VisualControl, public VisualRender
 {
 public:
   VisualApiImpl(Director& director, ThemeBank& themes, const trance_pb::Session& session,
-                const trance_pb::System& system);
+                const trance_pb::System& system, uint32_t char_size);
   void update();
 
   Image get_image(bool alternate = false) const override;
@@ -86,10 +86,6 @@ public:
   void render_spiral() const override;
 
 private:
-  uint32_t get_cached_text_size(const FontCache& cache, const std::string& text,
-                                const std::string& font) const;
-  sf::Vector2f get_text_size(const std::string& text, const Font& font) const;
-
   Director& _director;
   ThemeBank& _themes;
   FontCache _font_cache;
@@ -106,7 +102,6 @@ private:
   float _small_subtext_y;
 
   std::vector<std::string> _current_text;
-  std::unordered_map<std::string, uint32_t> _text_size_cache;
 };
 
 #endif
