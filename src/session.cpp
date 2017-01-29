@@ -441,7 +441,7 @@ trance_pb::System get_default_system()
   system.set_oculus_image_depth(1.f);
   system.set_oculus_text_depth(1.f);
   system.set_image_cache_size(64);
-  system.set_font_cache_size(16);
+  system.set_font_cache_size(8);
 
   auto& export_settings = *system.mutable_last_export_settings();
   export_settings.set_width(1280);

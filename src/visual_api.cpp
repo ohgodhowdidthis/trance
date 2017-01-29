@@ -39,10 +39,11 @@ namespace
 }
 
 VisualApiImpl::VisualApiImpl(Director& director, ThemeBank& themes,
-                             const trance_pb::Session& session, const trance_pb::System& system)
+                             const trance_pb::Session& session, const trance_pb::System& system,
+                             uint32_t char_size)
 : _director{director}
 , _themes{themes}
-, _font_cache{_themes.get_root_path(), system.font_cache_size()}
+, _font_cache{_themes.get_root_path(), session, char_size, system.font_cache_size()}
 , _switch_themes{0}
 , _spiral{0}
 , _spiral_type{0}
@@ -50,39 +51,6 @@ VisualApiImpl::VisualApiImpl(Director& director, ThemeBank& themes,
 , _small_subtext_x{0}
 , _small_subtext_y{0}
 {
-  std::cout << "\ncaching text sizes" << std::endl;
-  std::vector<std::string> fonts;
-  for (const auto& pair : session.theme_map()) {
-    for (const auto& font : pair.second.font_path()) {
-      fonts.push_back(font);
-    }
-  }
-  for (const auto& font : fonts) {
-    FontCache temp_cache{_themes.get_root_path(), 8 * system.font_cache_size()};
-    auto cache_text_size = [&](const std::string& text) {
-      auto cache_key = font + "/\t/\t/" + text;
-      auto cache_it = _text_size_cache.find(cache_key);
-      if (cache_it == _text_size_cache.end()) {
-        _text_size_cache[cache_key] = get_cached_text_size(temp_cache, text, font);
-        std::cout << "-";
-      }
-    };
-
-    for (const auto& pair : session.theme_map()) {
-      if (!std::count(pair.second.font_path().begin(), pair.second.font_path().end(), font)) {
-        continue;
-      }
-      for (const auto& text : pair.second.text_line()) {
-        for (const auto& line : SplitText(text, false)) {
-          cache_text_size(line);
-        }
-        for (const auto& word : SplitText(text, true)) {
-          cache_text_size(word);
-        }
-      }
-    }
-  }
-
   change_font(true);
   change_spiral();
   change_subtext();
@@ -178,15 +146,11 @@ void VisualApiImpl::change_small_subtext(bool force, bool alternate)
     std::replace(_small_subtext.begin(), _small_subtext.end(), '\n', ' ');
     float x = _small_subtext_x;
     float y = _small_subtext_y;
-    while (std::abs(x - _small_subtext_x) < .25f) {
-      x = (random_chance() ? 1 : -1) * (16 + random(80)) / 128.f;
+    while (std::abs(x - _small_subtext_x) < 1.f / 8) {
+      x = (random_chance() ? 1 : -1) * random(64) / 128.f;
     }
-    while (std::abs(y - _small_subtext_y) < .25f) {
-      if (_director.vr_enabled()) {
-        y = (random_chance() ? 1 : -1) * (2 + random(64)) / 128.f;
-      } else {
-        y = (random_chance() ? 1 : -1) * (16 + random(80)) / 128.f;
-      }
+    while (std::abs(y - _small_subtext_y) < 1.f / 4) {
+      y = (random_chance() ? 1 : -1) * (16 + random(112)) / 128.f;
     }
     _small_subtext_x = x;
     _small_subtext_y = y;
@@ -218,16 +182,16 @@ void VisualApiImpl::render_animation_or_image(Anim type, const Image& image, flo
       std::size_t((120.f / _director.program().global_fps()) * _switch_themes / 8));
 
   if (type != Anim::NONE && anim) {
-    render_image(anim, alpha, multiplier, zoom);
+    render_image(anim, alpha, 0, zoom / 2);
   } else {
-    render_image(image, alpha, multiplier, zoom);
+    render_image(image, alpha, 0, zoom / 2);
   }
 }
 
 void VisualApiImpl::render_image(const Image& image, float alpha, float multiplier,
                                  float zoom) const
 {
-  _director.render_image(image, alpha, multiplier, zoom);
+  _director.render_image(image, alpha, 0, zoom / 2);
 }
 
 void VisualApiImpl::render_text(float multiplier) const
@@ -236,22 +200,21 @@ void VisualApiImpl::render_text(float multiplier) const
     return;
   }
   const auto& text = _current_text.front();
+  const auto& program = _director.program();
+  const auto& font = _font_cache.get_font(_current_font);
 
-  auto cache_key = _current_font + "/\t/\t/" + text;
-  auto it = _text_size_cache.find(cache_key);
-  if (it == _text_size_cache.end()) {
+  auto size = _director.text_size(font, text);
+  if (!size.x || !size.y) {
     return;
   }
-  auto main_size = it->second;
-  auto shadow_size = main_size + FontCache::char_size_lock;
-  const auto& program = _director.program();
-  _director.render_text(text, _font_cache.get_font(_current_font, shadow_size),
-                        colour2sf(program.shadow_text_colour()),
-                        _director.off3d(1.f + multiplier, true),
-                        std::exp((4.f - multiplier) / 16.f));
-  _director.render_text(text, _font_cache.get_font(_current_font, main_size),
-                        colour2sf(program.main_text_colour()), _director.off3d(multiplier, true),
-                        std::exp((4.f - multiplier) / 16.f));
+  auto target_x = 3.f / 4.f;
+  auto target_y = 1.f / 3.f;
+  auto scale = std::min(target_x / size.x, target_y / size.y);
+
+  auto shadow_colour = colour2sf(_director.program().shadow_text_colour());
+  auto main_colour = colour2sf(_director.program().main_text_colour());
+  _director.render_text(font, text, shadow_colour, 1.2f * scale, {}, 0, 0);
+  _director.render_text(font, text, main_colour, scale, {}, 0, 0);
 }
 
 void VisualApiImpl::render_subtext(float alpha, float multiplier) const
@@ -259,36 +222,45 @@ void VisualApiImpl::render_subtext(float alpha, float multiplier) const
   if (_current_subfont.empty() || _subtext.empty()) {
     return;
   }
+  const auto& program = _director.program();
+  const auto& font = _font_cache.get_font(_current_subfont);
+  auto target_y = 1.f / 16.f;
 
-  static const uint32_t char_size = 100;
-  std::size_t n = 0;
-  const auto& font = _font_cache.get_font(_current_subfont, char_size);
-
+  sf::Vector2f size;
+  std::string text;
+  size_t n = 0;
   auto make_text = [&] {
-    std::string t;
+    text.clear();
+    size_t iterations = 0;
     do {
-      t += " " + _subtext[n];
+      text += " " + _subtext[n];
       n = (n + 1) % _subtext.size();
-    } while (get_text_size(t, font).x < _director.resolution().x);
-    return t;
+      size = _director.text_size(font, text);
+      ++iterations;
+    } while (size.x * target_y / size.y < 1.f && iterations < 64);
   };
 
-  float offx3d = _director.off3d(multiplier, true).x;
-  auto text = make_text();
-  auto d = get_text_size(text, font);
-  if (d.y <= 0) {
+  make_text();
+  if (!size.x || !size.y) {
     return;
   }
+  auto scale = target_y / size.y;
+
   auto colour = colour2sf(_director.program().shadow_text_colour());
   colour.a = uint8_t(colour.a * alpha);
-  _director.render_text(text, font, colour, sf::Vector2f{offx3d, 0});
-  auto offset = d.y + 4;
-  for (int i = 1; d.y / 2 + i * offset < _director.resolution().y; ++i) {
-    text = make_text();
-    _director.render_text(text, font, colour, sf::Vector2f{offx3d, i * offset});
+  _director.render_text(font, text, colour, scale, {}, 0, 0);
 
-    text = make_text();
-    _director.render_text(text, font, colour, -sf::Vector2f{offx3d, i * offset});
+  auto offset = 2 * target_y + 1.f / 512;
+  for (int i = 1; (i - 1) * 2 * target_y < 1.f; ++i) {
+    make_text();
+    if (size.x && size.y) {
+      _director.render_text(font, text, colour, scale, sf::Vector2f{0, i * offset}, 0, 0);
+    }
+
+    make_text();
+    if (size.x && size.y) {
+      _director.render_text(font, text, colour, scale, -sf::Vector2f{0, i * offset}, 0, 0);
+    }
   }
 }
 
@@ -297,112 +269,23 @@ void VisualApiImpl::render_small_subtext(float alpha, float multiplier) const
   if (_current_subfont.empty() || _small_subtext.empty()) {
     return;
   }
-  static const uint32_t border_x = 400;
-  static const uint32_t border_y = 200;
-  static const uint32_t char_size = 100;
+  const auto& program = _director.program();
+  const auto& font = _font_cache.get_font(_current_subfont);
 
-  std::size_t n = 0;
-  const auto& font = _font_cache.get_font(_current_subfont, char_size);
-
-  float offx3d = _director.off3d(multiplier, true).x;
-  auto d = get_text_size(_small_subtext, font);
-  if (d.y <= 0) {
+  auto size = _director.text_size(font, _small_subtext);
+  if (!size.x || !size.y) {
     return;
   }
+  auto target_y = 1.f / 8.f;
+  auto scale = target_y / size.y;
+
   auto colour = colour2sf(_director.program().shadow_text_colour());
   colour.a = uint8_t(colour.a * alpha);
-  _director.render_text(
-      _small_subtext, font, colour,
-      sf::Vector2f{offx3d + _small_subtext_x * (_director.resolution().x - border_x) / 2,
-                   _small_subtext_y * (_director.resolution().y - border_y) / 2});
+  _director.render_text(font, _small_subtext, colour, scale,
+                        {_small_subtext_x / 2, _small_subtext_y / 2}, 0, 0);
 }
 
 void VisualApiImpl::render_spiral() const
 {
   _director.render_spiral(_spiral, _spiral_width, _spiral_type);
-}
-
-uint32_t VisualApiImpl::get_cached_text_size(const FontCache& cache, const std::string& text,
-                                             const std::string& font) const
-{
-  static const uint32_t minimum_size = 2 * FontCache::char_size_lock;
-  static const uint32_t increment = FontCache::char_size_lock;
-  static const uint32_t maximum_size = 40 * FontCache::char_size_lock;
-  static const uint32_t border_x = 250;
-  static const uint32_t border_y = 150;
-
-  uint32_t size = minimum_size;
-  auto res = _director.resolution();
-  auto target_x = _director.view_width() - border_x;
-  auto target_y = std::min(res.y / 3, res.y - border_y);
-  sf::Vector2f last_result;
-  while (size < maximum_size) {
-    const auto& loaded_font = cache.get_font(font, size);
-    auto result = get_text_size(text, loaded_font);
-    if (result.x > target_x || result.y > target_y || result == last_result) {
-      break;
-    }
-    last_result = result;
-    size *= 2;
-  }
-  size /= 2;
-  last_result = sf::Vector2f{};
-  while (size < maximum_size) {
-    const auto& loaded_font = cache.get_font(font, size + increment);
-    auto result = get_text_size(text, loaded_font);
-    if (result.x > target_x || result.y > target_y || result == last_result) {
-      break;
-    }
-    last_result = result;
-    size += increment;
-  }
-  return size;
-};
-
-sf::Vector2f VisualApiImpl::get_text_size(const std::string& text, const Font& font) const
-{
-  auto hspace = font.font->getGlyph(' ', font.key.char_size, false).advance;
-  auto vspace = font.font->getLineSpacing(font.key.char_size);
-  float x = 0.f;
-  float y = 0.f;
-  float xmin = 0.f;
-  float ymin = 0.f;
-  float xmax = 0.f;
-  float ymax = 0.f;
-
-  uint32_t prev = 0;
-  for (std::size_t i = 0; i < text.length(); ++i) {
-    uint32_t current = text[i];
-    x += font.font->getKerning(prev, current, font.key.char_size);
-    prev = current;
-
-    switch (current) {
-    case L' ':
-      x += hspace;
-      continue;
-    case L'\t':
-      x += hspace * 4;
-      continue;
-    case L'\n':
-      y += vspace;
-      x = 0;
-      continue;
-    case L'\v':
-      y += vspace * 4;
-      continue;
-    }
-
-    const auto& g = font.font->getGlyph(current, font.key.char_size, false);
-    float x1 = x + g.bounds.left;
-    float y1 = y + g.bounds.top;
-    float x2 = x + g.bounds.left + g.bounds.width;
-    float y2 = y + g.bounds.top + g.bounds.height;
-    xmin = std::min(xmin, std::min(x1, x2));
-    xmax = std::max(xmax, std::max(x1, x2));
-    ymin = std::min(ymin, std::min(y1, y2));
-    ymax = std::max(ymax, std::max(y1, y2));
-    x += g.advance;
-  }
-
-  return {xmax - xmin, ymax - ymin};
 }

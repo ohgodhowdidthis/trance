@@ -3,32 +3,6 @@
 
 namespace {
 
-const std::string text_vertex = R"(
-uniform vec4 colour;
-attribute vec2 position;
-attribute vec2 texcoord;
-varying vec2 vtexcoord;
-varying vec4 vcolour;
-
-void main()
-{
-  gl_Position = vec4(2.0 * position.x, -2.0 * position.y, 0.0, 1.0);
-  vtexcoord = texcoord;
-  vcolour = colour;
-}
-)";
-
-const std::string text_fragment = R"(
-uniform sampler2D texture;
-varying vec2 vtexcoord;
-varying vec4 vcolour;
-
-void main()
-{
-  gl_FragColor = vcolour * texture2D(texture, vtexcoord);
-}
-)";
-
 const std::string new_vertex = R"(
 // Distance to near plane. Controls the field of view. Since the near plane extends across
 // (-1, -1) to (+1, +1) in the XY-plane, we have FoV = 2 * arctan(1 / near_plane). Should
@@ -40,21 +14,21 @@ uniform float near_plane;
 uniform float far_plane;
 // Unitless eye offset relative to near plane.
 uniform float eye_offset;
-// Alpha value.
-uniform float alpha;
+// Colour / alpha value.
+uniform vec4 colour;
 
-// Virtual position of vertex (in [-1 - |eye|, 1 + |eye|] X [-1, 1] X [0, 1]).
+// Virtual position of vertex (in [-1 - |eye|, 1 + |eye|] X [-1, 1] X [0, 1] X [0, 1]).
 // X- and Y-coordinates need to be scaled by (texture_size / window_size) to maintain correct
 // aspect ratio. Z-coordinate is the zoom amount; W-coordinate is the zoom origin (same as zoom
-// value will perfectly correct and show image at original size but zoomed depth in VR).
+// value will perfectly correct and show image at original size but _closer_ in VR).
 attribute vec4 virtual_position;
 // Texture coordinate for this vertex.
 attribute vec2 texture_coord;
 
 // Output texture coordinate.
 varying vec2 out_texture_coord;
-// Output alpha value.
-varying float out_alpha;
+// Output colour / alpha value.
+varying vec4 out_colour;
 
 // Applies perspective projection onto unit square.
 mat4 m_perspective = mat4(
@@ -70,15 +44,11 @@ mat4 m_virtual = mat4(
     0., 0., far_plane - near_plane, 0.,
     -eye_offset, 0., -far_plane, 1.);
 
-// Avoids the very edge of images.
-const float texture_epsilon = 1. / 256;
-
 void main()
 {
   gl_Position = m_perspective * m_virtual * vec4(virtual_position.xyz, 1.);
-  out_texture_coord =
-      texture_coord * (1. - texture_epsilon) + texture_epsilon / 2.;
-  out_alpha = alpha;
+  out_texture_coord = texture_coord;
+  out_colour = colour;
 }
 )";
 
@@ -88,11 +58,11 @@ uniform sampler2D texture;
 // Input texture coordinate.
 varying vec2 out_texture_coord;
 // Input alpha value.
-varying float out_alpha;
+varying vec4 out_colour;
 
 void main()
 {
-  gl_FragColor = vec4(texture2D(texture, out_texture_coord).rgb, out_alpha);
+  gl_FragColor = out_colour * texture2D(texture, out_texture_coord);
 }
 )";
 

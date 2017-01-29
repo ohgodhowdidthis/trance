@@ -24,7 +24,7 @@ namespace trance_pb
   class System;
 }
 
-struct Font;
+class Font;
 class Image;
 class ThemeBank;
 class Visual;
@@ -45,20 +45,19 @@ public:
   const uint8_t* get_screen_data() const;
 
   const trance_pb::Program& program() const;
-  bool vr_enabled() const;
-  uint32_t view_width() const;
-  sf::Vector2f resolution() const;
-  sf::Vector2f off3d(float multiplier, bool text) const;
 
-  void render_image(const Image& image, float alpha, float multiplier, float zoom) const;
   void render_spiral(float spiral, uint32_t spiral_width, uint32_t spiral_type) const;
-  void render_text(const std::string& text, const Font& font, const sf::Color& colour,
-                   const sf::Vector2f& offset = {}, float scale = 1.f) const;
+  void render_image(const Image& image, float alpha, float zoom_origin, float zoom) const;
+
+  sf::Vector2f text_size(const Font& font, const std::string& text) const;
+  void render_text(const Font& font, const std::string& text, const sf::Color& colour, float scale,
+                   const sf::Vector2f& offset, float zoom_origin, float zoom) const;
 
 private:
   bool init_framebuffer(uint32_t& fbo, uint32_t& fb_tex, uint32_t width, uint32_t height) const;
   bool init_oculus_rift();
   void change_visual(uint32_t length);
+  uint32_t view_width() const;
   float eye_offset() const;
 
   sf::RenderWindow& _window;
@@ -92,7 +91,6 @@ private:
 
   GLuint _new_program;
   GLuint _spiral_program;
-  GLuint _text_program;
   GLuint _yuv_program;
   GLuint _quad_buffer;
 
