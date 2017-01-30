@@ -36,10 +36,11 @@ message System
   // Whether to enable oculus rift support, if possible.
   bool enable_oculus_rift = 2;
 
-  // Intensity of depth effects in oculus rift on various visual elements
-  // (default is 1.0).
-  float oculus_image_depth = 3;
-  float oculus_text_depth = 4;
+  // Draw depth, between 0 and 1. Affects intensity of zoom effect, and depth in VR.
+  message DrawDepth {
+    float draw_depth = 1;
+  }
+  DrawDepth draw_depth = 11;
 
   // Number of images to keep in memory at a time. Uses up both RAM and video
   // memory.

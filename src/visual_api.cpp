@@ -40,10 +40,11 @@ namespace
 
 VisualApiImpl::VisualApiImpl(Director& director, ThemeBank& themes,
                              const trance_pb::Session& session, const trance_pb::System& system,
-                             uint32_t char_size)
+                             uint32_t height_pixels)
 : _director{director}
 , _themes{themes}
-, _font_cache{_themes.get_root_path(), session, char_size, system.font_cache_size()}
+, _font_cache{_themes.get_root_path(), session, height_pixels / 3, height_pixels / 12,
+              system.font_cache_size()}
 , _switch_themes{0}
 , _spiral{0}
 , _spiral_type{0}
@@ -175,26 +176,27 @@ bool VisualApiImpl::change_themes()
 }
 
 void VisualApiImpl::render_animation_or_image(Anim type, const Image& image, float alpha,
-                                              float multiplier, float zoom) const
+                                              float zoom_origin, float zoom) const
 {
   Image anim = _themes.get_animation(
       type == Anim::ANIM_ALTERNATE,
       std::size_t((120.f / _director.program().global_fps()) * _switch_themes / 8));
 
   if (type != Anim::NONE && anim) {
-    render_image(anim, alpha, 0, zoom / 2);
+    render_image(anim, alpha, zoom_origin, zoom);
   } else {
-    render_image(image, alpha, 0, zoom / 2);
+    render_image(image, alpha, zoom_origin, zoom);
   }
 }
 
-void VisualApiImpl::render_image(const Image& image, float alpha, float multiplier,
+void VisualApiImpl::render_image(const Image& image, float alpha, float zoom_origin,
                                  float zoom) const
 {
-  _director.render_image(image, alpha, 0, zoom / 2);
+  _director.render_image(image, alpha, zoom_origin, zoom_intensity(zoom_origin, zoom));
 }
 
-void VisualApiImpl::render_text(float multiplier) const
+void VisualApiImpl::render_text(float zoom_origin, float zoom, float shadow_zoom_origin,
+                                float shadow_zoom) const
 {
   if (_current_font.empty() || _current_text.empty() || _current_text.front().empty()) {
     return;
@@ -203,28 +205,30 @@ void VisualApiImpl::render_text(float multiplier) const
   const auto& program = _director.program();
   const auto& font = _font_cache.get_font(_current_font);
 
-  auto size = _director.text_size(font, text);
+  auto size = _director.text_size(font, text, true);
   if (!size.x || !size.y) {
     return;
   }
-  auto target_x = 3.f / 4.f;
+  auto target_x = _director.vr_enabled() ? 3.f / 8.f : 5.f / 8.f;
   auto target_y = 1.f / 3.f;
   auto scale = std::min(target_x / size.x, target_y / size.y);
 
   auto shadow_colour = colour2sf(_director.program().shadow_text_colour());
   auto main_colour = colour2sf(_director.program().main_text_colour());
-  _director.render_text(font, text, shadow_colour, 1.2f * scale, {}, 0, 0);
-  _director.render_text(font, text, main_colour, scale, {}, 0, 0);
+  _director.render_text(font, text, true, shadow_colour, 1.2f * scale, {}, shadow_zoom_origin,
+                        zoom_intensity(shadow_zoom_origin, shadow_zoom));
+  _director.render_text(font, text, true, main_colour, scale, {}, zoom_origin,
+                        zoom_intensity(zoom_origin, zoom));
 }
 
-void VisualApiImpl::render_subtext(float alpha, float multiplier) const
+void VisualApiImpl::render_subtext(float alpha, float zoom_origin) const
 {
   if (_current_subfont.empty() || _subtext.empty()) {
     return;
   }
   const auto& program = _director.program();
   const auto& font = _font_cache.get_font(_current_subfont);
-  auto target_y = 1.f / 16.f;
+  auto target_y = _director.vr_enabled() ? 1.f / 32.f : 1.f / 16.f;
 
   sf::Vector2f size;
   std::string text;
@@ -235,7 +239,7 @@ void VisualApiImpl::render_subtext(float alpha, float multiplier) const
     do {
       text += " " + _subtext[n];
       n = (n + 1) % _subtext.size();
-      size = _director.text_size(font, text);
+      size = _director.text_size(font, text, false);
       ++iterations;
     } while (size.x * target_y / size.y < 1.f && iterations < 64);
   };
@@ -248,23 +252,25 @@ void VisualApiImpl::render_subtext(float alpha, float multiplier) const
 
   auto colour = colour2sf(_director.program().shadow_text_colour());
   colour.a = uint8_t(colour.a * alpha);
-  _director.render_text(font, text, colour, scale, {}, 0, 0);
+  _director.render_text(font, text, false, colour, scale, {}, 0, 0);
 
   auto offset = 2 * target_y + 1.f / 512;
   for (int i = 1; (i - 1) * 2 * target_y < 1.f; ++i) {
     make_text();
     if (size.x && size.y) {
-      _director.render_text(font, text, colour, scale, sf::Vector2f{0, i * offset}, 0, 0);
+      _director.render_text(font, text, false, colour, scale, sf::Vector2f{0, i * offset},
+                            zoom_origin, zoom_intensity(zoom_origin, zoom_origin));
     }
 
     make_text();
     if (size.x && size.y) {
-      _director.render_text(font, text, colour, scale, -sf::Vector2f{0, i * offset}, 0, 0);
+      _director.render_text(font, text, false, colour, scale, -sf::Vector2f{0, i * offset},
+                            zoom_origin, zoom_intensity(zoom_origin, zoom_origin));
     }
   }
 }
 
-void VisualApiImpl::render_small_subtext(float alpha, float multiplier) const
+void VisualApiImpl::render_small_subtext(float alpha, float zoom_origin) const
 {
   if (_current_subfont.empty() || _small_subtext.empty()) {
     return;
@@ -272,20 +278,26 @@ void VisualApiImpl::render_small_subtext(float alpha, float multiplier) const
   const auto& program = _director.program();
   const auto& font = _font_cache.get_font(_current_subfont);
 
-  auto size = _director.text_size(font, _small_subtext);
+  auto size = _director.text_size(font, _small_subtext, false);
   if (!size.x || !size.y) {
     return;
   }
-  auto target_y = 1.f / 8.f;
+  auto target_y = _director.vr_enabled() ? 1.f / 24.f : 1.f / 8.f;
   auto scale = target_y / size.y;
 
   auto colour = colour2sf(_director.program().shadow_text_colour());
   colour.a = uint8_t(colour.a * alpha);
-  _director.render_text(font, _small_subtext, colour, scale,
-                        {_small_subtext_x / 2, _small_subtext_y / 2}, 0, 0);
+  _director.render_text(font, _small_subtext, false, colour, scale,
+                        {_small_subtext_x / 2, _small_subtext_y / 2}, zoom_origin,
+                        zoom_intensity(zoom_origin, zoom_origin));
 }
 
 void VisualApiImpl::render_spiral() const
 {
   _director.render_spiral(_spiral, _spiral_width, _spiral_type);
+}
+
+float VisualApiImpl::zoom_intensity(float zoom_origin, float zoom) const
+{
+  return zoom_origin + (zoom - zoom_origin) * _director.program().zoom_intensity();
 }
