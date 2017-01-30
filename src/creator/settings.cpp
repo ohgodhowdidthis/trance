@@ -17,12 +17,12 @@ namespace
 {
   int f2v(float f)
   {
-    return int(f * 4);
+    return int(f * 8);
   }
 
   float v2f(int v)
   {
-    return float(v) / 4;
+    return float(v) / 8;
   }
 
   const std::string VSYNC_TOOLTIP =
@@ -37,15 +37,15 @@ namespace
   const std::string FONT_CACHE_SIZE_TOOLTIP =
       "Number of fonts to load into memory at once. Increasing the font cache "
       "size prevents pauses when loading fonts, but uses up both RAM and video "
-      "memory. Each size of each font counts as a separate entry in the cache.";
+      "memory.";
 
   const std::string OCULUS_RIFT_TOOLTIP =
       "Attempt to enable the Oculus Rift support. Requires the Oculus Runtime "
       "0.8.0.0-beta or compatible version.";
 
-  const std::string IMAGE_DEPTH_TOOLTIP =
-      "How intense depth-based effects are on images in the Oculus Rift. The "
-      "default value is 4.";
+  const std::string DRAW_DEPTH_TOOLTIP =
+      "Controls the depth of the view. This affects the intensity of the zoom "
+      "effect and the 3D effect in Oculus Rift. The default value is 4.";
 
   const std::string TEXT_DEPTH_TOOLTIP =
       "How intense depth-based effects are on text in the Oculus Rift. The "
@@ -66,24 +66,16 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   auto sizer = new wxBoxSizer{wxVERTICAL};
   auto top = new wxBoxSizer{wxHORIZONTAL};
   auto bottom = new wxBoxSizer{wxHORIZONTAL};
-  auto left = new wxStaticBoxSizer{wxVERTICAL, panel, "General"};
-  auto right = new wxStaticBoxSizer{wxVERTICAL, panel, "Oculus Rift"};
+  auto left = new wxStaticBoxSizer{wxVERTICAL, panel, "Memory"};
+  auto right = new wxStaticBoxSizer{wxVERTICAL, panel, "Rendering"};
 
   _enable_vsync = new wxCheckBox{panel, wxID_ANY, "Enable VSync"};
   _image_cache_size = new wxSpinCtrl{panel, wxID_ANY};
   _font_cache_size = new wxSpinCtrl{panel, wxID_ANY};
   _enable_oculus_rift = new wxCheckBox{panel, wxID_ANY, "Enable Oculus Rift"};
-  _image_depth = new wxSlider{panel,
-                              wxID_ANY,
-                              f2v(_system.oculus_image_depth()),
-                              0,
-                              8,
-                              wxDefaultPosition,
-                              wxDefaultSize,
-                              wxSL_HORIZONTAL | wxSL_AUTOTICKS | wxSL_VALUE_LABEL};
-  _text_depth = new wxSlider{panel,
+  _draw_depth = new wxSlider{panel,
                              wxID_ANY,
-                             f2v(_system.oculus_text_depth()),
+                             f2v(_system.draw_depth().draw_depth()),
                              0,
                              8,
                              wxDefaultPosition,
@@ -103,10 +95,7 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   _font_cache_size->SetValue(_system.font_cache_size());
   _enable_oculus_rift->SetToolTip(OCULUS_RIFT_TOOLTIP);
   _enable_oculus_rift->SetValue(_system.enable_oculus_rift());
-  _image_depth->SetToolTip(IMAGE_DEPTH_TOOLTIP);
-  _image_depth->Enable(_system.enable_oculus_rift());
-  _text_depth->SetToolTip(TEXT_DEPTH_TOOLTIP);
-  _text_depth->Enable(_system.enable_oculus_rift());
+  _draw_depth->SetToolTip(DRAW_DEPTH_TOOLTIP);
   _button_apply->Enable(false);
 
   sizer->Add(top, 1, wxEXPAND, 0);
@@ -115,7 +104,6 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   top->Add(right, 1, wxALL | wxEXPAND, DEFAULT_BORDER);
 
   wxStaticText* label = nullptr;
-  left->Add(_enable_vsync, 0, wxALL, DEFAULT_BORDER);
   label = new wxStaticText{panel, wxID_ANY, "Image cache size:"};
   label->SetToolTip(IMAGE_CACHE_SIZE_TOOLTIP);
   left->Add(label, 0, wxALL, DEFAULT_BORDER);
@@ -125,14 +113,11 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   left->Add(label, 0, wxALL, DEFAULT_BORDER);
   left->Add(_font_cache_size, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
   right->Add(_enable_oculus_rift, 0, wxALL, DEFAULT_BORDER);
-  label = new wxStaticText{panel, wxID_ANY, "Image depth intensity:"};
-  label->SetToolTip(IMAGE_DEPTH_TOOLTIP);
+  right->Add(_enable_vsync, 0, wxALL, DEFAULT_BORDER);
+  label = new wxStaticText{panel, wxID_ANY, "Draw depth:"};
+  label->SetToolTip(DRAW_DEPTH_TOOLTIP);
   right->Add(label, 0, wxALL, DEFAULT_BORDER);
-  right->Add(_image_depth, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
-  label = new wxStaticText{panel, wxID_ANY, "Text depth intensity:"};
-  label->SetToolTip(TEXT_DEPTH_TOOLTIP);
-  right->Add(label, 0, wxALL, DEFAULT_BORDER);
-  right->Add(_text_depth, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+  right->Add(_draw_depth, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
 
   bottom->Add(button_ok, 1, wxALL, DEFAULT_BORDER);
   bottom->Add(button_cancel, 1, wxALL, DEFAULT_BORDER);
@@ -163,8 +148,6 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
 
 void SettingsFrame::Changed()
 {
-  _image_depth->Enable(_enable_oculus_rift->GetValue());
-  _text_depth->Enable(_enable_oculus_rift->GetValue());
   _button_apply->Enable(true);
 }
 
@@ -174,8 +157,7 @@ void SettingsFrame::Apply()
   _system.set_enable_oculus_rift(_enable_oculus_rift->GetValue());
   _system.set_image_cache_size(_image_cache_size->GetValue());
   _system.set_font_cache_size(_font_cache_size->GetValue());
-  _system.set_oculus_image_depth(v2f(_image_depth->GetValue()));
-  _system.set_oculus_text_depth(v2f(_text_depth->GetValue()));
+  _system.mutable_draw_depth()->set_draw_depth(v2f(_draw_depth->GetValue()));
   _parent->SaveSystem(true);
   _button_apply->Enable(false);
 }

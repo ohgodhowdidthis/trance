@@ -31,8 +31,7 @@ private:
   wxCheckBox* _enable_oculus_rift;
   wxSpinCtrl* _image_cache_size;
   wxSpinCtrl* _font_cache_size;
-  wxSlider* _image_depth;
-  wxSlider* _text_depth;
+  wxSlider* _draw_depth;
   wxButton* _button_apply;
 };
 

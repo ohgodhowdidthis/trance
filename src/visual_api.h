@@ -49,12 +49,13 @@ public:
     ANIM_ALTERNATE,
   };
   virtual void render_animation_or_image(Anim type, const Image& image, float alpha,
-                                         float multiplier = 8.f, float zoom = 0.f) const = 0;
+                                         float zoom_origin, float zoom) const = 0;
   virtual void
-  render_image(const Image& image, float alpha, float multiplier = 8.f, float zoom = 0.f) const = 0;
-  virtual void render_text(float multiplier = 4.f) const = 0;
-  virtual void render_subtext(float alpha, float multiplier = 6.f) const = 0;
-  virtual void render_small_subtext(float alpha, float multiplier = 6.f) const = 0;
+  render_image(const Image& image, float alpha, float zoom_origin, float zoom) const = 0;
+  virtual void
+  render_text(float zoom_origin, float zoom, float shadow_zoom_origin, float shadow_zoom) const = 0;
+  virtual void render_subtext(float alpha, float zoom_origin) const = 0;
+  virtual void render_small_subtext(float alpha, float zoom_origin) const = 0;
   virtual void render_spiral() const = 0;
 };
 
@@ -62,7 +63,7 @@ class VisualApiImpl : public VisualControl, public VisualRender
 {
 public:
   VisualApiImpl(Director& director, ThemeBank& themes, const trance_pb::Session& session,
-                const trance_pb::System& system, uint32_t char_size);
+                const trance_pb::System& system, uint32_t height_pixels);
   void update();
 
   Image get_image(bool alternate = false) const override;
@@ -76,16 +77,18 @@ public:
   void change_small_subtext(bool force = false, bool alternate = false) override;
   bool change_themes() override;
 
-  void render_animation_or_image(Anim type, const Image& image, float alpha, float multiplier = 8.f,
-                                 float zoom = 0.f) const override;
-  void render_image(const Image& image, float alpha, float multiplier = 8.f,
-                    float zoom = 0.f) const override;
-  void render_text(float multiplier = 4.f) const override;
-  void render_subtext(float alpha, float multiplier = 6.f) const override;
-  void render_small_subtext(float alpha, float multiplier = 6.f) const override;
+  void render_animation_or_image(Anim type, const Image& image, float alpha, float zoom_origin,
+                                 float zoom) const override;
+  void render_image(const Image& image, float alpha, float zoom_origin, float zoom) const override;
+  void render_text(float zoom_origin, float zoom, float shadow_zoom_origin,
+                   float shadow_zoom) const override;
+  void render_subtext(float alpha, float zoom_origin) const override;
+  void render_small_subtext(float alpha, float zoom_origin) const override;
   void render_spiral() const override;
 
 private:
+  float zoom_intensity(float zoom_origin, float zoom) const;
+
   Director& _director;
   ThemeBank& _themes;
   FontCache _font_cache;

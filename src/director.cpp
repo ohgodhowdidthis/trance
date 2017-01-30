@@ -20,7 +20,6 @@ extern "C" {
 namespace
 {
   const float max_eye_offset = 1.f / 16;
-  const float far_plane_distance = 8.f;
   const uint32_t spiral_type_max = 7;
 }
 #include "shaders.h"
@@ -153,8 +152,7 @@ Director::Director(sf::RenderWindow& window, const trance_pb::Session& session,
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 12, quad_data, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  auto char_size = _height;
-  _visual_api.reset(new VisualApiImpl{*this, _themes, session, system, char_size});
+  _visual_api.reset(new VisualApiImpl{*this, _themes, session, system, _height});
   change_visual(0);
   if (_realtime && !_oculus.enabled) {
     _window.setVisible(true);
@@ -317,6 +315,11 @@ const trance_pb::Program& Director::program() const
   return *_program;
 }
 
+bool Director::vr_enabled() const
+{
+  return _oculus.enabled;
+}
+
 void Director::render_spiral(float spiral, uint32_t spiral_width, uint32_t spiral_type) const
 {
   glEnable(GL_BLEND);
@@ -329,7 +332,7 @@ void Director::render_spiral(float spiral, uint32_t spiral_width, uint32_t spira
 
   glUseProgram(_spiral_program);
   glUniform1f(glGetUniformLocation(_spiral_program, "near_plane"), 1.f);
-  glUniform1f(glGetUniformLocation(_spiral_program, "far_plane"), 1.f + far_plane_distance);
+  glUniform1f(glGetUniformLocation(_spiral_program, "far_plane"), 1.f + far_plane_distance());
   glUniform1f(glGetUniformLocation(_spiral_program, "eye_offset"), eye_offset());
   glUniform1f(glGetUniformLocation(_spiral_program, "aspect_ratio"), aspect_ratio);
   glUniform1f(glGetUniformLocation(_spiral_program, "width"), float(spiral_width));
@@ -432,7 +435,7 @@ void Director::render_image(const Image& image, float alpha, float zoom_origin, 
   glBindTexture(GL_TEXTURE_2D, image.texture());
   glUniform1i(glGetUniformLocation(_new_program, "texture"), 0);
   glUniform1f(glGetUniformLocation(_new_program, "near_plane"), 1.f);
-  glUniform1f(glGetUniformLocation(_new_program, "far_plane"), 1.f + far_plane_distance);
+  glUniform1f(glGetUniformLocation(_new_program, "far_plane"), 1.f + far_plane_distance());
   glUniform1f(glGetUniformLocation(_new_program, "eye_offset"), eye_offset());
   glUniform4f(glGetUniformLocation(_new_program, "colour"), 1.f, 1.f, 1.f, alpha);
 
@@ -456,17 +459,17 @@ void Director::render_image(const Image& image, float alpha, float zoom_origin, 
   glDeleteBuffers(1, &texture_buffer);
 }
 
-sf::Vector2f Director::text_size(const Font& font, const std::string& text) const
+sf::Vector2f Director::text_size(const Font& font, const std::string& text, bool large) const
 {
-  auto size = font.get_size(text);
-  return {size.x / _width, size.y / _height};
+  auto size = font.get_size(text, large);
+  return {size.x / view_width(), size.y / _height};
 }
 
-void Director::render_text(const Font& font, const std::string& text, const sf::Color& colour,
-                           float scale, const sf::Vector2f& offset, float zoom_origin,
-                           float zoom) const
+void Director::render_text(const Font& font, const std::string& text, bool large,
+                           const sf::Color& colour, float scale, const sf::Vector2f& offset,
+                           float zoom_origin, float zoom) const
 {
-  auto vertices = font.get_vertices(text);
+  auto vertices = font.get_vertices(text, large);
 
   GLuint position_buffer;
   glGenBuffers(1, &position_buffer);
@@ -478,7 +481,7 @@ void Director::render_text(const Font& font, const std::string& text, const sf::
 
   for (const auto& vertex : vertices) {
     position_data.insert(position_data.end(),
-                         {offset.x + 2 * scale * vertex.x / _width,
+                         {offset.x + 2 * scale * vertex.x / view_width(),
                           offset.y - 2 * scale * vertex.y / _height, zoom, zoom_origin});
     texture_data.insert(texture_data.end(), {vertex.u, vertex.v});
   }
@@ -501,10 +504,10 @@ void Director::render_text(const Font& font, const std::string& text, const sf::
   glUseProgram(_new_program);
 
   glActiveTexture(GL_TEXTURE0);
-  font.bind_texture();
+  font.bind_texture(large);
   glUniform1i(glGetUniformLocation(_new_program, "texture"), 0);
   glUniform1f(glGetUniformLocation(_new_program, "near_plane"), 1.f);
-  glUniform1f(glGetUniformLocation(_new_program, "far_plane"), 1.f + far_plane_distance);
+  glUniform1f(glGetUniformLocation(_new_program, "far_plane"), 1.f + far_plane_distance());
   glUniform1f(glGetUniformLocation(_new_program, "eye_offset"), eye_offset());
   glUniform4f(glGetUniformLocation(_new_program, "colour"), colour.r / 255.f, colour.g / 255.f,
               colour.b / 255.f, colour.a / 255.f);
@@ -694,6 +697,11 @@ void Director::change_visual(uint32_t length)
 uint32_t Director::view_width() const
 {
   return _oculus.enabled ? _width / 2 : _width;
+}
+
+float Director::far_plane_distance() const
+{
+  return 1.f + _system.draw_depth().draw_depth() * 256.f;
 }
 
 float Director::eye_offset() const
