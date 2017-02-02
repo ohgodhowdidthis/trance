@@ -71,7 +71,7 @@ AccelerateVisual::AccelerateVisual(VisualControl& api) : _text_on{false}
   set_cycler(new OneShotCycler{{oneshot, main}});
   set_render([=](VisualRender& api) {
     auto zoom_origin = .4f * main->progress();
-    auto zoom = zoom_origin + .2f * main_image[main->index()]->progress();
+    auto zoom = zoom_origin + .1f * main_image[main->index()]->progress();
     api.render_image(_current, 1.f, zoom_origin, zoom);
     api.render_animation_or_image(((48 - main->index()) / 12) % 2 == 0
                                       ? VisualRender::Anim::ANIM_ALTERNATE
@@ -128,9 +128,9 @@ SubTextVisual::SubTextVisual(VisualControl& api) : _alternate{false}, _sub_speed
   set_render([=](VisualRender& api) {
     api.render_animation_or_image(
         _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, {}, 1, 0, 0);
-    auto image_zoom = .5f * image->progress();
+    auto image_zoom = .375f * image->progress();
     api.render_image(_current, .8f, 0, image_zoom);
-    api.render_subtext(1.f / 4, 0);
+    api.render_subtext(1.f / 4, image_zoom);
     api.render_spiral();
     api.render_text(.75f, .75f, image_zoom, image_zoom);
   });
@@ -287,8 +287,7 @@ ParallelVisual::ParallelVisual(VisualControl& api)
     api.render_spiral();
     api.render_small_subtext(1.f / 5, .25f);
     if (counter->index() == 1 || counter->index() == 2) {
-      api.render_text(.75f * image_alt->progress(), .75f * image_alt->progress(),
-                      .5f * image->progress(), .5f * image->progress());
+      api.render_text(.75f, .75f, .5f * image->progress(), .5f * image->progress());
     }
   });
 }
@@ -334,7 +333,7 @@ SuperParallelVisual::SuperParallelVisual(VisualControl& api)
       if (!is_single || single[i]->active()) {
         auto zoom_origin = .125f * main->progress();
         api.render_animation_or_image(anim, _images[i], is_single ? 1.f : 1.f / (1 + i),
-                                      zoom_origin, zoom_origin + .75f * progress[i]->progress());
+                                      zoom_origin, zoom_origin + .875f * progress[i]->progress());
       }
     }
     api.render_spiral();
@@ -378,13 +377,13 @@ AnimationVisual::AnimationVisual(VisualControl& api)
   set_render([=](VisualRender& api) {
     auto which_anim =
         text_alt->active() ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM;
-    auto image_zoom = .8f * zoom_timer->progress();
+    auto image_zoom = 1.25f * zoom_timer->progress();
     api.render_animation_or_image(which_anim, _animation_backup, 1.f, 0, image_zoom);
     api.render_image(_current, .2f, .5f, .5f + .25f * image_timer->progress());
     api.render_spiral();
     api.render_small_subtext(1.f / 5, .5f);
     if (!text_counter->index()) {
-      api.render_text(.9f, .9f, image_zoom, image_zoom);
+      api.render_text(.75f, .75f, .5f, .5f);
     }
   });
 }
@@ -429,7 +428,7 @@ SuperFastVisual::SuperFastVisual(VisualControl& api)
           _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, _current, 1.f,
           0.f, anim_progress);
     } else {
-      auto image_zoom = .25f * rapid->progress();
+      auto image_zoom = .1875f * rapid->progress();
       api.render_image(_current, 1.f, 0.f, image_zoom);
       if (rapid->frame() >= rapid->length() - 2) {
         api.render_text(.75f, .75f, image_zoom, image_zoom);
