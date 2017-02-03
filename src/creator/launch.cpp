@@ -179,7 +179,7 @@ namespace
     // connected component to replace its edges with direct jumps to the sinks. This gives a DAG but
     // preserves the minimum distance across components.
     auto dijkstra = [&](size_t node, const std::unordered_set<size_t>& component) {
-      std::unordered_map<size_t, size_t> distance_map;
+      std::unordered_map<size_t, uint64_t> distance_map;
       auto unvisited = component;
       distance_map[node] = 0;
 
