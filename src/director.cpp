@@ -706,7 +706,7 @@ uint32_t Director::view_width() const
 
 float Director::far_plane_distance() const
 {
-  return 1.f + _system.draw_depth().draw_depth() * 256.f;
+  return _system.draw_depth().draw_depth() * 256.f;
 }
 
 float Director::eye_offset() const

@@ -300,9 +300,9 @@ SuperParallelVisual::SuperParallelVisual(VisualControl& api)
 
   for (uint32_t i = 0; i < 3; ++i) {
     _images.push_back(api.get_image(i >= 2));
-    auto set = new ActionCycler{80, [&, i] { _images[i] = api.get_image(i >= 2); }};
+    auto set = new ActionCycler{16, [&, i] { _images[i] = api.get_image(i >= 2); }};
     single.push_back(new ActionCycler{16});
-    progress.push_back(new SequenceCycler{{set, single.back()}});
+    progress.push_back(new SequenceCycler{{set, single.back(), new ActionCycler{64}}});
     main_loops.push_back(new OffsetCycler{i * 32, progress.back()});
   }
 
