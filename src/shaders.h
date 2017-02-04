@@ -245,18 +245,18 @@ uniform vec2 resolution;
 uniform float yuv_mix;
 
 const mat3 map = mat3(
-    0.257, -0.148, 0.439,
-    0.504, -0.291, -0.368,
-    0.098, 0.439, -0.071);
-const vec3 offset = vec3(16.0, 128.0, 128.0) / 255.0;
+    .257, -.148, .439,
+    .504, -.291, -.368,
+    .098, .439, -.071);
+const vec3 offset = vec3(16., 128., 128.) / 255.;
 
 void main(void)
 {
   vec2 coord = gl_FragCoord.xy / resolution;
-  coord.y *= -1;
+  coord.y *= -1.;
   vec3 rgb = texture2D(source, coord).rgb;
-  vec3 yuv = clamp(offset + map * rgb, 0.0, 1.0);
-  gl_FragColor = vec4(mix(rgb, yuv, yuv_mix), 1.0);
+  vec3 yuv = clamp(offset + map * rgb, 0., 1.);
+  gl_FragColor = vec4(mix(rgb, yuv, yuv_mix), 1.);
 }
 )";
 
