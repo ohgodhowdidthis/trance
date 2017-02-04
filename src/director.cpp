@@ -284,6 +284,7 @@ void Director::render() const
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _render_fb_tex);
 
+    glUniform1i(glGetUniformLocation(_new_program, "source"), 0);
     glUniform1f(glGetUniformLocation(_yuv_program, "yuv_mix"), _convert_to_yuv ? 1.f : 0.f);
     glUniform2f(glGetUniformLocation(_yuv_program, "resolution"), float(_width), float(_height));
     auto loc = glGetAttribLocation(_yuv_program, "position");
@@ -523,6 +524,10 @@ void Director::render_text(const Font& font, const std::string& text, bool large
   glVertexAttribPointer(texture_location, 2, GL_FLOAT, false, 0, 0);
 
   glDrawArrays(GL_QUADS, 0, GLsizei(vertices.size()));
+
+  // Font texture must be unbound.
+  glActiveTexture(GL_TEXTURE0);
+  sf::Texture::bind(nullptr);
 
   glDisableVertexAttribArray(position_location);
   glDisableVertexAttribArray(texture_location);
