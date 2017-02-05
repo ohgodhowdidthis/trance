@@ -1,6 +1,5 @@
-#ifndef TRANCE_EXPORT_H
-#define TRANCE_EXPORT_H
-
+#ifndef TRANCE_SRC_TRANCE_MEDIA_EXPORT_H
+#define TRANCE_SRC_TRANCE_MEDIA_EXPORT_H
 #include <cstdint>
 #include <fstream>
 #include <string>

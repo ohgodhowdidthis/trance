@@ -1,12 +1,11 @@
-#ifndef TRANCE_CREATOR_PROGRAM_H
-#define TRANCE_CREATOR_PROGRAM_H
+#ifndef TRANCE_SRC_CREATOR_PROGRAM_H
+#define TRANCE_SRC_CREATOR_PROGRAM_H
+#include <memory>
+#include <unordered_map>
 
 #pragma warning(push, 0)
 #include <wx/notebook.h>
 #pragma warning(pop)
-
-#include <memory>
-#include <unordered_map>
 
 namespace trance_pb
 {

@@ -1,5 +1,5 @@
-#ifndef TRANCE_CREATOR_VARIABLES_H
-#define TRANCE_CREATOR_VARIABLES_H
+#ifndef TRANCE_SRC_CREATOR_VARIABLES_H
+#define TRANCE_SRC_CREATOR_VARIABLES_H
 
 #pragma warning(push, 0)
 #include <wx/notebook.h>

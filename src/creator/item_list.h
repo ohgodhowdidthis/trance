@@ -1,5 +1,7 @@
-#ifndef TRANCE_CREATOR_ITEM_LIST_H
-#define TRANCE_CREATOR_ITEM_LIST_H
+#ifndef TRANCE_SRC_CREATOR_ITEM_LIST_H
+#define TRANCE_SRC_CREATOR_ITEM_LIST_H
+#include <algorithm>
+#include <functional>
 
 #pragma warning(push, 0)
 #include <google/protobuf/map.h>
@@ -9,9 +11,6 @@
 #include <wx/sizer.h>
 #include <wx/window.h>
 #pragma warning(pop)
-
-#include <algorithm>
-#include <functional>
 
 template <typename T>
 class ItemList : public wxPanel

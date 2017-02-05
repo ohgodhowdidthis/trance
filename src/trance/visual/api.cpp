@@ -1,11 +1,12 @@
-#include "visual_api.h"
+#include "api.h"
+#include <common/media/image.h>
+#include <common/util.h>
+#include <trance/director.h>
+#include <trance/theme_bank.h>
 #include <iostream>
-#include "director.h"
-#include "image.h"
-#include "theme.h"
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #pragma warning(pop)
 
 namespace

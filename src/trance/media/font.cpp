@@ -1,10 +1,11 @@
 #include "font.h"
-#include "director.h"
-#include "util.h"
+#include <common/util.h>
 #include <iostream>
+#include <string>
+#include <unordered_set>
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #pragma warning(pop)
 
 Font::Font(const std::string& path, uint32_t large_char_size, uint32_t small_char_size)

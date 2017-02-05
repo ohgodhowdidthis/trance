@@ -1,8 +1,8 @@
 #include "visual.h"
-#include "director.h"
-#include "util.h"
-#include "visual_api.h"
-#include "visual_cyclers.h"
+#include <common/util.h>
+#include <trance/director.h>
+#include <trance/visual/api.h>
+#include <trance/visual/cyclers.h>
 
 void Visual::set_cycler(Cycler* cycler)
 {

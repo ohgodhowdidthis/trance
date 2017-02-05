@@ -1,5 +1,5 @@
-#ifndef TRANCE_CREATOR_LAUNCH_H
-#define TRANCE_CREATOR_LAUNCH_H
+#ifndef TRANCE_SRC_CREATOR_LAUNCH_H
+#define TRANCE_SRC_CREATOR_LAUNCH_H
 #include <functional>
 #include <memory>
 #include <string>

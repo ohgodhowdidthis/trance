@@ -1,8 +1,8 @@
-#ifndef TRANCE_VISUAL_API_H
-#define TRANCE_VISUAL_API_H
+#ifndef TRANCE_SRC_TRANCE_VISUAL_API_H
+#define TRANCE_SRC_TRANCE_VISUAL_API_H
+#include <trance/media/font.h>
 #include <string>
 #include <vector>
-#include "font.h"
 
 class Director;
 class Image;

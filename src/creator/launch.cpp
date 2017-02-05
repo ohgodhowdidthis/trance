@@ -1,8 +1,8 @@
 #include "launch.h"
+#include <common/common.h>
+#include <common/session.h>
+#include <creator/main.h>
 #include <deque>
-#include "../common.h"
-#include "../session.h"
-#include "main.h"
 
 #pragma warning(push, 0)
 #include <wx/button.h>

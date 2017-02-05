@@ -1,5 +1,5 @@
-#ifndef TRANCE_UTIL_H
-#define TRANCE_UTIL_H
+#ifndef TRANCE_SRC_COMMON_UTIL_H
+#define TRANCE_SRC_COMMON_UTIL_H
 #include <cstdint>
 #include <map>
 #include <random>

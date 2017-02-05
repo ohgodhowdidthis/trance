@@ -1,9 +1,5 @@
-#ifndef TRANCE_DIRECTOR_H
-#define TRANCE_DIRECTOR_H
-
-#define NOMINMAX
-#include <windows.h>
-
+#ifndef TRANCE_SRC_TRANCE_DIRECTOR_H
+#define TRANCE_SRC_TRANCE_DIRECTOR_H
 #include <cstddef>
 #include <memory>
 #include <unordered_map>

@@ -1,5 +1,5 @@
-#ifndef TRANCE_SHADERS_H
-#define TRANCE_SHADERS_H
+#ifndef TRANCE_SRC_TRANCE_SHADERS_H
+#define TRANCE_SRC_TRANCE_SHADERS_H
 
 namespace {
 

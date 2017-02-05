@@ -1,98 +1,110 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="src\director.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\export.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\font.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\image.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\main.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\theme.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\visual.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="src\jpgd\jpgd.cpp">
-      <Filter>src\jpgd</Filter>
+      <Filter>jpgd</Filter>
     </ClCompile>
-    <ClCompile Include="src\session.cpp">
-      <Filter>src</Filter>
+    <ClCompile Include="src\common\session.cpp">
+      <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="src\audio.cpp">
-      <Filter>src</Filter>
+    <ClCompile Include="src\trance\main.cpp">
+      <Filter>trance</Filter>
     </ClCompile>
-    <ClCompile Include="src\visual_api.cpp">
-      <Filter>src</Filter>
+    <ClCompile Include="src\trance\visual\cyclers.cpp">
+      <Filter>trance\visual</Filter>
     </ClCompile>
-    <ClCompile Include="src\visual_cyclers.cpp">
-      <Filter>src</Filter>
+    <ClCompile Include="src\trance\visual\visual.cpp">
+      <Filter>trance\visual</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trance\visual\api.cpp">
+      <Filter>trance\visual</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\media\image.cpp">
+      <Filter>common\media</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trance\theme_bank.cpp">
+      <Filter>trance</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trance\media\export.cpp">
+      <Filter>trance\media</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trance\media\font.cpp">
+      <Filter>trance\media</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trance\media\audio.cpp">
+      <Filter>trance\media</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trance\director.cpp">
+      <Filter>trance</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="src">
-      <UniqueIdentifier>{9042966b-70ad-4cea-b183-84fdb0e92164}</UniqueIdentifier>
+    <Filter Include="trance">
+      <UniqueIdentifier>{dcc9a239-d6a6-4b5f-90d2-59f084acdbdc}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\jpgd">
+    <Filter Include="trance\visual">
+      <UniqueIdentifier>{9bc7a0fc-db06-4896-afd7-f07de34f1235}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{54bfd523-ef56-408a-a671-2350874717bf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="jpgd">
       <UniqueIdentifier>{2b35da42-6357-4fba-b924-ad803680551b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="common\media">
+      <UniqueIdentifier>{95fec5e3-1137-4ca7-b3fb-4579b1699260}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="trance\media">
+      <UniqueIdentifier>{ee4fed7c-e6ca-4171-950d-208a59b00cfa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\director.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="src\export.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="src\font.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="src\image.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="src\theme.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="src\util.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="src\visual.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="src\jpgd\jpgd.h">
-      <Filter>src\jpgd</Filter>
+      <Filter>jpgd</Filter>
     </ClInclude>
-    <ClInclude Include="src\session.h">
-      <Filter>src</Filter>
+    <ClInclude Include="src\common\util.h">
+      <Filter>common</Filter>
     </ClInclude>
-    <ClInclude Include="src\common.h">
-      <Filter>src</Filter>
+    <ClInclude Include="src\common\common.h">
+      <Filter>common</Filter>
     </ClInclude>
-    <ClInclude Include="src\audio.h">
-      <Filter>src</Filter>
+    <ClInclude Include="src\common\session.h">
+      <Filter>common</Filter>
     </ClInclude>
-    <ClInclude Include="src\visual_api.h">
-      <Filter>src</Filter>
+    <ClInclude Include="src\trance\director.h">
+      <Filter>trance</Filter>
     </ClInclude>
-    <ClInclude Include="src\visual_cyclers.h">
-      <Filter>src</Filter>
+    <ClInclude Include="src\trance\shaders.h">
+      <Filter>trance</Filter>
     </ClInclude>
-    <ClInclude Include="src\shaders.h">
-      <Filter>src</Filter>
+    <ClInclude Include="src\trance\visual\api.h">
+      <Filter>trance\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trance\visual\cyclers.h">
+      <Filter>trance\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trance\visual\visual.h">
+      <Filter>trance\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\media\image.h">
+      <Filter>common\media</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trance\theme_bank.h">
+      <Filter>trance</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trance\media\audio.h">
+      <Filter>trance\media</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trance\media\export.h">
+      <Filter>trance\media</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trance\media\font.h">
+      <Filter>trance\media</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="src\trance.proto">
-      <Filter>src</Filter>
+    <CustomBuild Include="src\common\trance.proto">
+      <Filter>common</Filter>
     </CustomBuild>
   </ItemGroup>
 </Project>

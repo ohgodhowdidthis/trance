@@ -1,19 +1,19 @@
 ﻿#include "director.h"
+#include <common/session.h>
+#include <common/util.h>
+#include <trance/media/font.h>
+#include <trance/theme_bank.h>
+#include <trance/visual/api.h>
+#include <trance/visual/cyclers.h>
+#include <trance/visual/visual.h>
 #include <algorithm>
 #include <iostream>
-#include "font.h"
-#include "session.h"
-#include "theme.h"
-#include "util.h"
-#include "visual.h"
-#include "visual_api.h"
-#include "visual_cyclers.h"
 
 #pragma warning(push, 0)
 extern "C" {
 #include <GL/glew.h>
 }
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)
 

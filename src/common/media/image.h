@@ -1,6 +1,5 @@
-#ifndef TRANCE_IMAGE_H
-#define TRANCE_IMAGE_H
-
+#ifndef TRANCE_SRC_COMMON_MEDIA_IMAGE_H
+#define TRANCE_SRC_COMMON_MEDIA_IMAGE_H
 #include <memory>
 #include <mutex>
 #include <vector>

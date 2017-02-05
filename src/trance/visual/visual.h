@@ -1,11 +1,10 @@
-#ifndef TRANCE_VISUAL_H
-#define TRANCE_VISUAL_H
+#ifndef TRANCE_SRC_TRANCE_VISUAL_VISUAL_H
+#define TRANCE_SRC_TRANCE_VISUAL_VISUAL_H
+#include <common/media/image.h>
 #include <cstddef>
 #include <functional>
 #include <memory>
-#include <string>
 #include <vector>
-#include "image.h"
 
 class Cycler;
 class VisualControl;

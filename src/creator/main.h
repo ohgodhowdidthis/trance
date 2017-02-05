@@ -1,10 +1,10 @@
-#ifndef TRANCE_CREATOR_MAIN_H
-#define TRANCE_CREATOR_MAIN_H
+#ifndef TRANCE_SRC_CREATOR_MAIN_H
+#define TRANCE_SRC_CREATOR_MAIN_H
 #include <string>
 #include <unordered_map>
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #include <wx/frame.h>
 #pragma warning(pop)
 

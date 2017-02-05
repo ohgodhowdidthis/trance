@@ -1,7 +1,7 @@
-#ifndef TRANCE_CREATOR_EXPORT_H
-#define TRANCE_CREATOR_EXPORT_H
+#ifndef TRANCE_SRC_CREATOR_EXPORT_H
+#define TRANCE_SRC_CREATOR_EXPORT_H
+#include <creator/launch.h>
 #include <memory>
-#include "launch.h"
 
 #pragma warning(push, 0)
 #include <wx/frame.h>

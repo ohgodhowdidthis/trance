@@ -1,12 +1,15 @@
 #include "theme.h"
-#include "../common.h"
-#include "../image.h"
-#include "../session.h"
-#include "item_list.h"
-#include "main.h"
+#include <common/common.h>
+#include <common/media/image.h>
+#include <common/session.h>
+#include <creator/item_list.h>
+#include <creator/main.h>
+#include <algorithm>
+#include <filesystem>
+#include <thread>
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #include <wx/button.h>
 #include <wx/dcclient.h>
 #include <wx/listctrl.h>
@@ -17,10 +20,6 @@
 #include <wx/treelist.h>
 #include <SFML/Graphics.hpp>
 #pragma warning(pop)
-
-#include <algorithm>
-#include <filesystem>
-#include <thread>
 
 namespace
 {
@@ -208,7 +207,9 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
   auto leftright = new wxStaticBoxSizer{wxVERTICAL, leftright_panel, "Preview"};
 
   _item_list = new ItemList<trance_pb::Theme>{
-      splitter, *session.mutable_theme_map(), "theme",
+      splitter,
+      *session.mutable_theme_map(),
+      "theme",
       [&](const std::string& s) {
         _item_selected = s;
         auto it = _session.theme_map().find(_item_selected);

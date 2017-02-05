@@ -1,11 +1,11 @@
 #include "export.h"
-#include "../common.h"
-#include "../session.h"
-#include "../util.h"
-#include "main.h"
+#include <common/common.h>
+#include <common/session.h>
+#include <common/util.h>
+#include <creator/main.h>
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #include <wx/button.h>
 #include <wx/filedlg.h>
 #include <wx/panel.h>

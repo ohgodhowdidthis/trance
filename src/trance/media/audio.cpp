@@ -2,7 +2,7 @@
 #include <iostream>
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #include <SFML/Audio/Music.hpp>
 #pragma warning(pop)
 

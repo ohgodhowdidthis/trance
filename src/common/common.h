@@ -1,6 +1,5 @@
-#ifndef TRANCE_COMMON_H
-#define TRANCE_COMMON_H
-
+#ifndef TRANCE_SRC_COMMON_COMMON_H
+#define TRANCE_SRC_COMMON_COMMON_H
 #include <filesystem>
 #include <string>
 

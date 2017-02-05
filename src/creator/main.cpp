@@ -1,15 +1,15 @@
 #include "main.h"
+#include <common/common.h>
+#include <common/session.h>
+#include <common/util.h>
+#include <creator/export.h>
+#include <creator/launch.h>
+#include <creator/playlist.h>
+#include <creator/program.h>
+#include <creator/settings.h>
+#include <creator/theme.h>
+#include <creator/variables.h>
 #include <filesystem>
-#include "../common.h"
-#include "../session.h"
-#include "../util.h"
-#include "export.h"
-#include "launch.h"
-#include "playlist.h"
-#include "program.h"
-#include "settings.h"
-#include "theme.h"
-#include "variables.h"
 
 #pragma warning(push, 0)
 #include <wx/app.h>
@@ -217,8 +217,9 @@ void CreatorFrame::ExportVideo(const std::string& path)
   auto system_config_path = get_system_config_path(_executable_path);
   auto command_line = trance_exe_path + " \"" + _session_path + "\" \"" + system_config_path +
       "\" --export_path=\"" + path + "\" --export_width=" + std::to_string(settings.width()) +
-      " --export_height=" + std::to_string(settings.height()) + " --export_fps=" +
-      std::to_string(settings.fps()) + " --export_length=" + std::to_string(settings.length());
+      " --export_height=" + std::to_string(settings.height()) +
+      " --export_fps=" + std::to_string(settings.fps()) +
+      " --export_length=" + std::to_string(settings.length());
   if (!frame_by_frame) {
     command_line += " --export_quality=" + std::to_string(settings.quality()) +
         " --export_threads=" + std::to_string(settings.threads());

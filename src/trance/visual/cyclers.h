@@ -1,5 +1,5 @@
-#ifndef TRANCE_VISUAL_CYCLERS_H
-#define TRANCE_VISUAL_CYCLERS_H
+#ifndef TRANCE_SRC_TRANCE_VISUAL_CYCLERS_H
+#define TRANCE_SRC_TRANCE_VISUAL_CYCLERS_H
 #include <cstdint>
 #include <functional>
 #include <memory>

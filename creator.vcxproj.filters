@@ -1,0 +1,101 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="src\jpgd\jpgd.cpp">
+      <Filter>jpgd</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\session.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="src\creator\export.cpp">
+      <Filter>creator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\creator\launch.cpp">
+      <Filter>creator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\creator\main.cpp">
+      <Filter>creator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\creator\playlist.cpp">
+      <Filter>creator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\creator\program.cpp">
+      <Filter>creator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\creator\settings.cpp">
+      <Filter>creator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\creator\theme.cpp">
+      <Filter>creator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\creator\variables.cpp">
+      <Filter>creator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\media\image.cpp">
+      <Filter>common\media</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\jpgd\jpgd.h">
+      <Filter>jpgd</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\common.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\session.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\util.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="src\creator\variables.h">
+      <Filter>creator</Filter>
+    </ClInclude>
+    <ClInclude Include="src\creator\export.h">
+      <Filter>creator</Filter>
+    </ClInclude>
+    <ClInclude Include="src\creator\item_list.h">
+      <Filter>creator</Filter>
+    </ClInclude>
+    <ClInclude Include="src\creator\launch.h">
+      <Filter>creator</Filter>
+    </ClInclude>
+    <ClInclude Include="src\creator\main.h">
+      <Filter>creator</Filter>
+    </ClInclude>
+    <ClInclude Include="src\creator\playlist.h">
+      <Filter>creator</Filter>
+    </ClInclude>
+    <ClInclude Include="src\creator\program.h">
+      <Filter>creator</Filter>
+    </ClInclude>
+    <ClInclude Include="src\creator\settings.h">
+      <Filter>creator</Filter>
+    </ClInclude>
+    <ClInclude Include="src\creator\theme.h">
+      <Filter>creator</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\media\image.h">
+      <Filter>common\media</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="common">
+      <UniqueIdentifier>{e854078b-740e-4a91-b8b1-370a256f39a1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="jpgd">
+      <UniqueIdentifier>{b94e9699-357f-4ed5-81b4-2e7ebd49244c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="creator">
+      <UniqueIdentifier>{d2a9e243-035c-4e03-9587-4b818797c5ed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common\media">
+      <UniqueIdentifier>{4e347072-f457-450c-b506-2e17e7db55e9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\common\trance.proto">
+      <Filter>common</Filter>
+    </None>
+  </ItemGroup>
+</Project>

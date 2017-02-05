@@ -1,5 +1,5 @@
-#ifndef TRANCE_SESSION_H
-#define TRANCE_SESSION_H
+#ifndef TRANCE_SRC_COMMON_SESSION_H
+#define TRANCE_SRC_COMMON_SESSION_H
 #include <string>
 #include <unordered_map>
 #include <vector>

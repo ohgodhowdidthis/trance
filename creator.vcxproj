@@ -84,7 +84,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\src;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;_CRT_SECURE_NO_WARNINGS;_UNICODE;DEBUG;_SCL_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
@@ -106,7 +106,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\src;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;_CRT_SECURE_NO_WARNINGS;_UNICODE;DEBUG;_SCL_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
@@ -130,7 +130,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\src;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;_CRT_SECURE_NO_WARNINGS;_UNICODE;D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
@@ -156,7 +156,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\include;$(SolutionDir)\src;$(SolutionDir)\$(Platform)\$(Configuration)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_MBCS;SFML_STATIC;GLEW_STATIC;_CRT_SECURE_NO_WARNINGS;_UNICODE;D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4800;4005</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
@@ -176,6 +176,8 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\common\media\image.cpp" />
+    <ClCompile Include="src\common\session.cpp" />
     <ClCompile Include="src\creator\export.cpp" />
     <ClCompile Include="src\creator\launch.cpp" />
     <ClCompile Include="src\creator\main.cpp" />
@@ -184,11 +186,13 @@
     <ClCompile Include="src\creator\settings.cpp" />
     <ClCompile Include="src\creator\theme.cpp" />
     <ClCompile Include="src\creator\variables.cpp" />
-    <ClCompile Include="src\image.cpp" />
     <ClCompile Include="src\jpgd\jpgd.cpp" />
-    <ClCompile Include="src\session.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\common\common.h" />
+    <ClInclude Include="src\common\media\image.h" />
+    <ClInclude Include="src\common\session.h" />
+    <ClInclude Include="src\common\util.h" />
     <ClInclude Include="src\creator\export.h" />
     <ClInclude Include="src\creator\item_list.h" />
     <ClInclude Include="src\creator\launch.h" />
@@ -198,6 +202,10 @@
     <ClInclude Include="src\creator\settings.h" />
     <ClInclude Include="src\creator\theme.h" />
     <ClInclude Include="src\creator\variables.h" />
+    <ClInclude Include="src\jpgd\jpgd.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\common\trance.proto" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

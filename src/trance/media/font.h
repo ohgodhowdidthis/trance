@@ -1,6 +1,5 @@
-#ifndef TRANCE_FONT_H
-#define TRANCE_FONT_H
-
+#ifndef TRANCE_SRC_TRANCE_MEDIA_FONT_H
+#define TRANCE_SRC_TRANCE_MEDIA_FONT_H
 #include <list>
 #include <memory>
 #include <string>

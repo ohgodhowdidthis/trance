@@ -1,14 +1,13 @@
 #include "session.h"
-#include "util.h"
-
-#pragma warning(push, 0)
-#include <google/protobuf/text_format.h>
-#include <src/trance.pb.cc>
-#pragma warning(pop)
-
+#include <common/util.h>
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+
+#pragma warning(push, 0)
+#include <common/trance.pb.cc>
+#include <google/protobuf/text_format.h>
+#pragma warning(pop)
 
 namespace
 {

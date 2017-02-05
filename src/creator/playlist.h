@@ -1,12 +1,11 @@
-#ifndef TRANCE_CREATOR_PLAYLIST_H
-#define TRANCE_CREATOR_PLAYLIST_H
+#ifndef TRANCE_SRC_CREATOR_PLAYLIST_H
+#define TRANCE_SRC_CREATOR_PLAYLIST_H
+#include <memory>
+#include <vector>
 
 #pragma warning(push, 0)
 #include <wx/notebook.h>
 #pragma warning(pop)
-
-#include <memory>
-#include <vector>
 
 namespace trance_pb
 {

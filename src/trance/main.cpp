@@ -1,23 +1,23 @@
-#include "audio.h"
-#include "common.h"
-#include "director.h"
-#include "export.h"
-#include "session.h"
-#include "theme.h"
-
-#pragma warning(push, 0)
-#include <gflags/gflags.h>
-#include <libovr/OVR_CAPI.h>
-#include <src/trance.pb.h>
-#include <SFML/Window.hpp>
-#pragma warning(pop)
-
+#include <common/common.h>
+#include <common/session.h>
+#include <common/util.h>
+#include <trance/director.h>
+#include <trance/media/audio.h>
+#include <trance/media/export.h>
+#include <trance/theme_bank.h>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <unordered_map>
+
+#pragma warning(push, 0)
+#include <common/trance.pb.h>
+#include <gflags/gflags.h>
+#include <libovr/OVR_CAPI.h>
+#include <SFML/Window.hpp>
+#pragma warning(pop)
 
 std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
 {

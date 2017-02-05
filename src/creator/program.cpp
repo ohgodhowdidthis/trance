@@ -1,10 +1,10 @@
 #include "program.h"
-#include "../common.h"
-#include "item_list.h"
-#include "main.h"
+#include <common/common.h>
+#include <creator/item_list.h>
+#include <creator/main.h>
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #include <wx/checkbox.h>
 #include <wx/clrpicker.h>
 #include <wx/sizer.h>
@@ -110,7 +110,9 @@ ProgramPage::ProgramPage(wxNotebook* parent, CreatorFrame& creator_frame,
   auto leftright = new wxStaticBoxSizer{wxVERTICAL, leftright_panel, "Visualizer weights"};
 
   _item_list = new ItemList<trance_pb::Program>{
-      splitter, *session.mutable_program_map(), "program",
+      splitter,
+      *session.mutable_program_map(),
+      "program",
       [&](const std::string& s) {
         _item_selected = s;
         RefreshOurData();
@@ -222,10 +224,10 @@ ProgramPage::ProgramPage(wxNotebook* parent, CreatorFrame& creator_frame,
 
   setup_colour(_spiral_colour_a, _spiral_colour_a_alpha, "Spiral colour A:", SPIRAL_COLOUR_TOOLTIP);
   setup_colour(_spiral_colour_b, _spiral_colour_b_alpha, "Spiral colour B:", SPIRAL_COLOUR_TOOLTIP);
-  setup_colour(_main_text_colour, _main_text_colour_alpha, "Text main colour:",
-               TEXT_COLOUR_TOOLTIP);
-  setup_colour(_shadow_text_colour, _shadow_text_colour_alpha, "Text shadow colour:",
-               TEXT_COLOUR_TOOLTIP);
+  setup_colour(_main_text_colour, _main_text_colour_alpha,
+               "Text main colour:", TEXT_COLOUR_TOOLTIP);
+  setup_colour(_shadow_text_colour, _shadow_text_colour_alpha,
+               "Text shadow colour:", TEXT_COLOUR_TOOLTIP);
 
   right_panel->SetSizer(right);
   bottom->Add(bottom_splitter, 1, wxEXPAND, 0);

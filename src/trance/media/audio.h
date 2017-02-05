@@ -1,5 +1,5 @@
-#ifndef TRANCE_AUDIO_H
-#define TRANCE_AUDIO_H
+#ifndef TRANCE_SRC_TRANCE_MEDIA_AUDIO_H
+#define TRANCE_SRC_TRANCE_MEDIA_AUDIO_H
 #include <chrono>
 #include <memory>
 #include <string>

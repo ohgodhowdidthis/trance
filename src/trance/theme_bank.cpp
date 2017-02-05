@@ -1,10 +1,9 @@
-#include "theme.h"
+#include "theme_bank.h"
+#include <common/util.h>
 #include <iostream>
-#include "director.h"
-#include "util.h"
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)

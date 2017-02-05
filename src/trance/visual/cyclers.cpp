@@ -1,4 +1,4 @@
-#include "visual_cyclers.h"
+#include "cyclers.h"
 #include <algorithm>
 
 Cycler::Cycler() : _active{true}

@@ -1,12 +1,12 @@
 #include "variables.h"
+#include <common/common.h>
+#include <common/session.h>
+#include <creator/item_list.h>
+#include <creator/main.h>
 #include <algorithm>
-#include "../common.h"
-#include "../session.h"
-#include "item_list.h"
-#include "main.h"
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #include <wx/button.h>
 #include <wx/choice.h>
 #include <wx/listctrl.h>
@@ -49,7 +49,9 @@ VariablePage::VariablePage(wxNotebook* parent, CreatorFrame& creator_frame,
   auto left_buttons = new wxBoxSizer{wxVERTICAL};
 
   _item_list = new ItemList<trance_pb::Variable>{
-      splitter, *session.mutable_variable_map(), "variable",
+      splitter,
+      *session.mutable_variable_map(),
+      "variable",
       [&](const std::string& s) {
         _item_selected = s;
         RefreshOurData();

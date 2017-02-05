@@ -1,9 +1,9 @@
 #include "settings.h"
-#include "../common.h"
-#include "main.h"
+#include <common/common.h>
+#include <creator/main.h>
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #include <wx/button.h>
 #include <wx/checkbox.h>
 #include <wx/panel.h>

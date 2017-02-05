@@ -1,6 +1,7 @@
-#ifndef TRANCE_THEME_H
-#define TRANCE_THEME_H
-
+#ifndef TRANCE_SRC_TRANCE_THEME_BANK_H
+#define TRANCE_SRC_TRANCE_THEME_BANK_H
+#include <common/media/image.h>
+#include <common/util.h>
 #include <array>
 #include <atomic>
 #include <memory>
@@ -8,8 +9,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "image.h"
-#include "util.h"
 
 #pragma warning(push, 0)
 #include <google/protobuf/repeated_field.h>

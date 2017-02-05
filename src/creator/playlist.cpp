@@ -1,11 +1,11 @@
 #include "playlist.h"
-#include "../common.h"
-#include "../session.h"
-#include "item_list.h"
-#include "main.h"
+#include <common/common.h>
+#include <common/session.h>
+#include <creator/item_list.h>
+#include <creator/main.h>
 
 #pragma warning(push, 0)
-#include <src/trance.pb.h>
+#include <common/trance.pb.h>
 #include <wx/checkbox.h>
 #include <wx/choice.h>
 #include <wx/radiobut.h>
@@ -112,7 +112,9 @@ PlaylistPage::PlaylistPage(wxNotebook* parent, CreatorFrame& creator_frame,
   _audio_events_sizer = new wxStaticBoxSizer{wxVERTICAL, _right_panel, "Audio events"};
 
   _item_list = new ItemList<trance_pb::PlaylistItem>{
-      splitter, *session.mutable_playlist(), "playlist item",
+      splitter,
+      *session.mutable_playlist(),
+      "playlist item",
       [&](const std::string& s) {
         _item_selected = s;
         RefreshOurData();
