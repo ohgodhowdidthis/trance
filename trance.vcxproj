@@ -184,6 +184,9 @@
     <ClCompile Include="src\trance\media\audio.cpp" />
     <ClCompile Include="src\trance\media\export.cpp" />
     <ClCompile Include="src\trance\media\font.cpp" />
+    <ClCompile Include="src\trance\render\oculus.cpp" />
+    <ClCompile Include="src\trance\render\render.cpp" />
+    <ClCompile Include="src\trance\render\video_export.cpp" />
     <ClCompile Include="src\trance\theme_bank.cpp" />
     <ClCompile Include="src\trance\visual\api.cpp" />
     <ClCompile Include="src\trance\visual\cyclers.cpp" />
@@ -199,6 +202,9 @@
     <ClInclude Include="src\trance\media\audio.h" />
     <ClInclude Include="src\trance\media\export.h" />
     <ClInclude Include="src\trance\media\font.h" />
+    <ClInclude Include="src\trance\render\oculus.h" />
+    <ClInclude Include="src\trance\render\render.h" />
+    <ClInclude Include="src\trance\render\video_export.h" />
     <ClInclude Include="src\trance\shaders.h" />
     <ClInclude Include="src\trance\theme_bank.h" />
     <ClInclude Include="src\trance\visual\api.h" />
@@ -212,10 +218,10 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir)src $(SolutionDir)src\common\trance.proto</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir)src $(SolutionDir)src\common\trance.proto</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)\dependencies\$(Platform)\protoc.exe --cpp_out=$(SolutionDir)$(Platform)\$(Configuration) --proto_path=$(SolutionDir)src $(SolutionDir)src\common\trance.proto</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\src\common\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\common\trance.pb.cc;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\src\common\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\common\trance.pb.cc;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\src\common\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\common\trance.pb.cc;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)$(Platform)\$(Configuration)\src\common\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\src\common\trance.pb.cc;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\common\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\common\trance.pb.cc;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Platform)\$(Configuration)\common\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\common\trance.pb.cc;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\common\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\common\trance.pb.cc;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)$(Platform)\$(Configuration)\common\trance.pb.h;$(SolutionDir)$(Platform)\$(Configuration)\common\trance.pb.cc;%(Outputs)</Outputs>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -37,6 +37,15 @@
     <ClCompile Include="src\trance\director.cpp">
       <Filter>trance</Filter>
     </ClCompile>
+    <ClCompile Include="src\trance\render\render.cpp">
+      <Filter>trance\render</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trance\render\video_export.cpp">
+      <Filter>trance\render</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trance\render\oculus.cpp">
+      <Filter>trance\render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="trance">
@@ -56,6 +65,9 @@
     </Filter>
     <Filter Include="trance\media">
       <UniqueIdentifier>{ee4fed7c-e6ca-4171-950d-208a59b00cfa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="trance\render">
+      <UniqueIdentifier>{eab40961-6ff6-4d73-ab6f-5deff8f871a6}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -100,6 +112,15 @@
     </ClInclude>
     <ClInclude Include="src\trance\media\font.h">
       <Filter>trance\media</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trance\render\oculus.h">
+      <Filter>trance\render</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trance\render\render.h">
+      <Filter>trance\render</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trance\render\video_export.h">
+      <Filter>trance\render</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

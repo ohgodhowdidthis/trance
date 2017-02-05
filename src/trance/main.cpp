@@ -4,6 +4,9 @@
 #include <trance/director.h>
 #include <trance/media/audio.h>
 #include <trance/media/export.h>
+#include <trance/render/oculus.h>
+#include <trance/render/render.h>
+#include <trance/render/video_export.h>
 #include <trance/theme_bank.h>
 #include <chrono>
 #include <filesystem>
@@ -15,49 +18,8 @@
 #pragma warning(push, 0)
 #include <common/trance.pb.h>
 #include <gflags/gflags.h>
-#include <libovr/OVR_CAPI.h>
 #include <SFML/Window.hpp>
 #pragma warning(pop)
-
-std::unique_ptr<Exporter> create_exporter(const exporter_settings& settings)
-{
-  std::unique_ptr<Exporter> exporter;
-  if (ext_is(settings.path, "jpg") || ext_is(settings.path, "png") ||
-      ext_is(settings.path, "bmp")) {
-    exporter = std::make_unique<FrameExporter>(settings);
-  }
-  if (ext_is(settings.path, "webm")) {
-    exporter = std::make_unique<WebmExporter>(settings);
-  }
-  if (ext_is(settings.path, "h264")) {
-    exporter = std::make_unique<H264Exporter>(settings);
-  }
-  return exporter && exporter->success() ? std::move(exporter) : std::unique_ptr<Exporter>{};
-}
-
-std::unique_ptr<sf::RenderWindow> create_window(const trance_pb::System& system, uint32_t width,
-                                                uint32_t height, bool visible, bool oculus_rift)
-{
-  auto window = std::make_unique<sf::RenderWindow>();
-  glClearColor(0.f, 0.f, 0.f, 0.f);
-  glClear(GL_COLOR_BUFFER_BIT);
-
-  auto video_mode = sf::VideoMode::getDesktopMode();
-  if (width && height) {
-    video_mode.width = width;
-    video_mode.height = height;
-  }
-  auto style = !visible || oculus_rift
-      ? sf::Style::None
-      : system.windowed() ? sf::Style::Default : sf::Style::Fullscreen;
-  window->create(video_mode, "trance", style);
-
-  window->setVerticalSyncEnabled(system.enable_vsync());
-  window->setFramerateLimit(0);
-  window->setVisible(false);
-  window->setActive(true);
-  return window;
-}
 
 std::string next_playlist_item(const std::unordered_map<std::string, std::string>& variables,
                                const trance_pb::PlaylistItem* item)
@@ -100,10 +62,10 @@ std::thread run_async_thread(std::atomic<bool>& running, ThemeBank& bank)
   }};
 }
 
-void handle_events(std::atomic<bool>& running, sf::RenderWindow* window)
+void handle_events(std::atomic<bool>& running, sf::RenderWindow& window)
 {
   sf::Event event;
-  while (window && window->pollEvent(event)) {
+  while (window.pollEvent(event)) {
     if (event.type == event.Closed ||
         (event.type == event.KeyPressed && event.key.code == sf::Keyboard::Escape)) {
       running = false;
@@ -132,21 +94,6 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
                   const std::unordered_map<std::string, std::string> variables,
                   const exporter_settings& settings)
 {
-  bool realtime = settings.path.empty();
-  auto exporter = create_exporter(settings);
-  if (!realtime && !exporter) {
-    std::cerr << "don't know how to export that format" << std::endl;
-    return;
-  }
-  // Call ovr_Initialize() before getting an OpenGL context.
-  bool oculus_rift = system.enable_oculus_rift();
-  if (oculus_rift) {
-    if (ovr_Initialize(nullptr) != ovrSuccess) {
-      std::cerr << "Oculus initialization failed" << std::endl;
-      oculus_rift = false;
-    }
-  }
-
   struct PlayStackEntry {
     const trance_pb::PlaylistItem* item;
     int subroutine_step;
@@ -170,12 +117,24 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
   std::cout << "loading themes" << std::endl;
   auto theme_bank = std::make_unique<ThemeBank>(root_path, session, system, program());
   std::cout << "\nloaded themes" << std::endl;
-  auto window = create_window(system, realtime ? 0 : settings.width, realtime ? 0 : settings.height,
-                              realtime, oculus_rift);
+
+  std::unique_ptr<Renderer> renderer;
+  bool realtime = settings.path.empty();
+  if (!realtime) {
+    renderer.reset(new VideoExportRenderer(settings, system.enable_oculus_rift()));
+  } else if (system.enable_oculus_rift()) {
+    auto oculus = new OculusRenderer(system);
+    renderer.reset(oculus);
+    if (!oculus->success()) {
+      renderer.reset();
+    }
+  }
+  if (!renderer) {
+    renderer.reset(new ScreenRenderer(system));
+  }
+
   std::cout << "\nloading session" << std::endl;
-  auto director =
-      std::make_unique<Director>(*window, session, system, *theme_bank, program(), realtime,
-                                 oculus_rift, exporter && exporter->requires_yuv_input());
+  Director director{session, system, *theme_bank, program(), *renderer};
   std::cout << "\nloaded session" << std::endl;
 
   std::thread async_thread;
@@ -211,7 +170,7 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
     auto last_playlist_switch = clock_time();
 
     while (running) {
-      handle_events(running, window.get());
+      handle_events(running, renderer->window());
 
       uint32_t frames_this_loop = 0;
       auto t = clock_time();
@@ -265,7 +224,7 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
             }
             std::cout << "\n-> " << name << std::endl;
             theme_bank->set_program(program());
-            director->set_program(program());
+            director.set_program(program());
             ++stack[stack.size() - 2].subroutine_step;
             continue;
           }
@@ -287,7 +246,7 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
         }
         std::cout << "\n-> " << next << std::endl;
         theme_bank->set_program(program());
-        director->set_program(program());
+        director.set_program(program());
       }
       if (theme_bank->swaps_to_match_theme()) {
         theme_bank->change_themes();
@@ -298,19 +257,16 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
       while (frames_this_loop > 0) {
         update = true;
         --frames_this_loop;
-        continue_playing &= director->update();
+        continue_playing &= director.update();
       }
       if (!continue_playing) {
         break;
       }
       if (update || !realtime) {
-        director->render();
+        director.render();
       }
-
       if (realtime) {
         audio->Update();
-      } else {
-        exporter->encode_frame(director->get_screen_data());
       }
     }
   } catch (std::bad_alloc&) {
@@ -321,12 +277,7 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
   if (realtime) {
     async_thread.join();
   }
-  // Destroy oculus HMD before calling ovr_Shutdown().
-  director.reset();
-  window->close();
-  if (oculus_rift) {
-    ovr_Shutdown();
-  }
+  renderer->window().close();
 }
 
 std::unordered_map<std::string, std::string> parse_variables(const std::string& variables)
