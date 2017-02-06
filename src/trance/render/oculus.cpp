@@ -10,11 +10,22 @@
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)
 
+namespace
+{
+  void print_oculus_error()
+  {
+    ovrErrorInfo info;
+    ovr_GetLastErrorInfo(&info);
+    std::cerr << info.ErrorString << std::endl;
+  }
+}
+
 OculusRenderer::OculusRenderer(const trance_pb::System& system)
 : _initialised{false}, _success{false}, _started{false}, _width{0}, _height{0}, _session{nullptr}
 {
   if (ovr_Initialize(nullptr) != ovrSuccess) {
     std::cerr << "Oculus initialization failed" << std::endl;
+    print_oculus_error();
     return;
   }
   _initialised = true;
@@ -30,6 +41,7 @@ OculusRenderer::OculusRenderer(const trance_pb::System& system)
 
   if (ovr_Create(&_session, &_luid) != ovrSuccess) {
     std::cerr << "Oculus session failed" << std::endl;
+    print_oculus_error();
     return;
   }
   auto desc = ovr_GetHmdDesc(_session);
@@ -55,14 +67,13 @@ OculusRenderer::OculusRenderer(const trance_pb::System& system)
   auto result = ovr_CreateTextureSwapChainGL(_session, &texture_chain_desc, &_texture_chain);
   if (result != ovrSuccess) {
     std::cerr << "Oculus texture swap chain failed" << std::endl;
-    ovrErrorInfo info;
-    ovr_GetLastErrorInfo(&info);
-    std::cerr << info.ErrorString << std::endl;
+    print_oculus_error();
   }
   int texture_count = 0;
   result = ovr_GetTextureSwapChainLength(_session, _texture_chain, &texture_count);
   if (result != ovrSuccess) {
     std::cerr << "Oculus texture swap chain length failed" << std::endl;
+    print_oculus_error();
   }
   for (int i = 0; i < texture_count; ++i) {
     GLuint fbo;
@@ -70,6 +81,7 @@ OculusRenderer::OculusRenderer(const trance_pb::System& system)
     result = ovr_GetTextureSwapChainBufferGL(_session, _texture_chain, i, &fb_tex);
     if (result != ovrSuccess) {
       std::cerr << "Oculus texture swap chain buffer failed" << std::endl;
+      print_oculus_error();
     }
 
     glGenFramebuffers(1, &fbo);
