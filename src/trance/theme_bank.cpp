@@ -305,26 +305,28 @@ void ThemeBank::async_update()
 void ThemeBank::advance_theme()
 {
   std::size_t random_theme_index = 0;
-  if (_enabled_theme_weights.empty()) {
+  uint32_t total = 0;
+  for (const auto& pair : _enabled_theme_weights) {
+    total += pair.second;
+  }
+  if (!total) {
     random_theme_index = random(_themes.size());
   } else {
-    uint32_t total = 0;
-    for (const auto& pair : _enabled_theme_weights) {
-      total += pair.second;
-    }
     auto r = random(total);
-    total = 0;
+    uint32_t t = 0;
     for (const auto& pair : _enabled_theme_weights) {
-      total += pair.second;
-      if (r < total) {
+      t += pair.second;
+      if (r < t) {
         random_theme_index = _theme_map[pair.first];
         break;
       };
     }
   }
+  // Override with pinned theme if last theme wasn't the pinned theme,
+  // or if there are no other weights.
   if (!_pinned_theme.empty()) {
     auto pinned_index = _theme_map[_pinned_theme];
-    if (_themes[pinned_index].get() != _active_themes.back()) {
+    if (!total || _themes[pinned_index].get() != _active_themes.back()) {
       random_theme_index = pinned_index;
     }
   }
