@@ -88,15 +88,16 @@ AccelerateVisual::AccelerateVisual(VisualControl& api) : _text_on{false}
 SubTextVisual::SubTextVisual(VisualControl& api) : _alternate{false}, _sub_speed_multiplier{0}
 {
   auto oneshot = new ActionCycler{[&] {
-    if (!api.change_themes()) {
-      _alternate = !_alternate;
-    }
+    api.change_themes();
     api.change_font();
     api.change_spiral();
     ++_sub_speed_multiplier;
   }};
   auto maybe_upload_next = new ActionCycler{48, 24, [&] { api.maybe_upload_next(); }};
-  auto image = new ActionCycler{48, [&] { _current = api.get_image(_alternate); }};
+  auto image = new ActionCycler{48, [&] {
+                                  _current = api.get_image(_alternate);
+                                  _alternate = !_alternate;
+                                }};
 
   auto text_reset =
       new ActionCycler{4, [&] { api.change_text(VisualControl::SPLIT_WORD, _alternate); }};
@@ -242,7 +243,8 @@ FlashTextVisual::FlashTextVisual(VisualControl& api)
   });
 }
 
-void FlashTextVisual::reset() {
+void FlashTextVisual::reset()
+{
   _animated = random_chance();
 }
 
