@@ -17,6 +17,7 @@ class Visual
 {
 public:
   virtual ~Visual() = default;
+  virtual void reset() {}
   Cycler* cycler();
   void render(VisualRender& api) const;
 
@@ -63,9 +64,10 @@ class FlashTextVisual : public Visual
 {
 public:
   FlashTextVisual(VisualControl& api);
+  void reset() override;
 
 private:
-  const bool _animated;
+  bool _animated;
   bool _alternate;
   Image _start;
   Image _end;

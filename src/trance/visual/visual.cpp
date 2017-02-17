@@ -242,6 +242,10 @@ FlashTextVisual::FlashTextVisual(VisualControl& api)
   });
 }
 
+void FlashTextVisual::reset() {
+  _animated = random_chance();
+}
+
 ParallelVisual::ParallelVisual(VisualControl& api)
 : _anim_cycle{2}, _alternate_anim_cycle{0}, _image{api.get_image()}, _alternate{api.get_image(true)}
 {

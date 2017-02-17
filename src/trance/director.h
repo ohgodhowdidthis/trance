@@ -62,8 +62,9 @@ private:
   mutable Renderer::State _render_state;
   Renderer& _renderer;
   std::unique_ptr<VisualApiImpl> _visual_api;
+
+  std::uint32_t _last_visual_selection;
   std::unique_ptr<Visual> _visual;
-  std::unique_ptr<Visual> _old_visual;
 };
 
 #endif

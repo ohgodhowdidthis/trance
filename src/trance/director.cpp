@@ -34,6 +34,7 @@ Director::Director(const trance_pb::Session& session, const trance_pb::System& s
 , _spiral_program{0}
 , _quad_buffer{0}
 , _renderer{renderer}
+, _last_visual_selection{0}
 {
   std::cout << "\npreloading GPU" << std::endl;
   static const std::size_t gl_preload = 1000;
@@ -70,15 +71,10 @@ void Director::set_program(const trance_pb::Program& program)
 bool Director::update()
 {
   _visual_api->update();
-  if (_old_visual) {
-    _old_visual.reset(nullptr);
-  }
-
   _visual->cycler()->advance();
   if (_visual->cycler()->complete()) {
     change_visual(_visual->cycler()->length());
   }
-
   return _renderer.update();
 }
 
@@ -319,13 +315,19 @@ void Director::render_text(const Font& font, const std::string& text, bool large
 
 void Director::change_visual(uint32_t length)
 {
+  // Always change if current visual isn't in the program.
+  bool included = false;
+  for (const auto& type : _program->visual_type()) {
+    if (_visual && type.random_weight() && type.type() == _last_visual_selection) {
+      included = true;
+    }
+  }
   // Like !random_chance(chance), but scaled to current speed and cycle length.
   // Roughly 1/2 chance for a cycle of length 2048.
   auto fps = program().global_fps();
-  if (length && random((2 * fps * length) / 2048) >= 120) {
+  if (included && length && random((2 * fps * length) / 2048) >= 120) {
     return;
   }
-  _visual.swap(_old_visual);
 
   uint32_t total = 0;
   for (const auto& type : _program->visual_type()) {
@@ -341,7 +343,10 @@ void Director::change_visual(uint32_t length)
     }
   }
 
-  // TODO: if it's the same as the last choice, don't reset!
+  if (_visual && t == _last_visual_selection) {
+    _visual->reset();
+    return;
+  }
   if (t == trance_pb::Program_VisualType_ACCELERATE) {
     _visual.reset(new AccelerateVisual{*_visual_api});
   }
@@ -366,6 +371,7 @@ void Director::change_visual(uint32_t length)
   if (t == trance_pb::Program_VisualType_SUPER_FAST) {
     _visual.reset(new SuperFastVisual{*_visual_api});
   }
+  _last_visual_selection = t;
 }
 
 float Director::far_plane_distance() const
