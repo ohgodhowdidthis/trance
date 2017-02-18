@@ -85,7 +85,7 @@ AccelerateVisual::AccelerateVisual(VisualControl& api) : _text_on{false}
   });
 }
 
-SubTextVisual::SubTextVisual(VisualControl& api) : _alternate{false}, _sub_speed_multiplier{0}
+SubTextVisual::SubTextVisual(VisualControl& api) : _alternate{true}, _sub_speed_multiplier{0}
 {
   auto oneshot = new ActionCycler{[&] {
     api.change_themes();
@@ -95,8 +95,8 @@ SubTextVisual::SubTextVisual(VisualControl& api) : _alternate{false}, _sub_speed
   }};
   auto maybe_upload_next = new ActionCycler{48, 24, [&] { api.maybe_upload_next(); }};
   auto image = new ActionCycler{48, [&] {
-                                  _current = api.get_image(_alternate);
                                   _alternate = !_alternate;
+                                  _current = api.get_image(_alternate);
                                 }};
 
   auto text_reset =
