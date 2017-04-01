@@ -203,6 +203,8 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
 
   auto leftleft_panel = new wxPanel{left_splitter, wxID_ANY};
   auto leftleft = new wxStaticBoxSizer{wxVERTICAL, leftleft_panel, "Included files"};
+  auto leftleft_row0 = new wxBoxSizer{wxHORIZONTAL};
+  auto leftleft_row1 = new wxBoxSizer{wxHORIZONTAL};
   auto leftright_panel = new wxPanel{left_splitter, wxID_ANY};
   auto leftright = new wxStaticBoxSizer{wxVERTICAL, leftright_panel, "Preview"};
 
@@ -249,6 +251,8 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
   _button_open = new wxButton{leftleft_panel, wxID_ANY, "Show in explorer"};
   _button_rename = new wxButton{leftleft_panel, wxID_ANY, "Move / rename"};
   _button_refresh = new wxButton{leftleft_panel, wxID_ANY, "Refresh directory"};
+  _button_next_unused = new wxButton{leftleft_panel, wxID_ANY, "Next unused"};
+  _button_next_theme = new wxButton{leftleft_panel, wxID_ANY, "Next in theme"};
 
   _button_new->SetToolTip("Create a new text item.");
   _button_edit->SetToolTip("Edit the selected text item.");
@@ -257,14 +261,20 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
   _button_rename->SetToolTip("Move or rename the selected file or directory.");
   _button_refresh->SetToolTip(
       "Scan the session directory for available images, animations and fonts.");
+  _button_next_unused->SetToolTip("Jump to the next unused item.");
+  _button_next_theme->SetToolTip("Jump to the next item in the current theme.");
 
   _button_open->Enable(false);
   _button_rename->Enable(false);
 
   leftleft->Add(_tree, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
-  leftleft->Add(_button_open, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
-  leftleft->Add(_button_rename, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
-  leftleft->Add(_button_refresh, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft->Add(leftleft_row0, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft->Add(leftleft_row1, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row0->Add(_button_open, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row0->Add(_button_rename, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row0->Add(_button_refresh, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row1->Add(_button_next_unused, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row1->Add(_button_next_theme, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft_panel->SetSizer(leftleft);
   leftright->Add(_image_panel, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftright_panel->SetSizer(leftright);
@@ -452,34 +462,86 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
     RefreshOurData();
   });
 
+  _button_next_unused->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    std::vector<std::string> paths;
+    for (const auto& path : _complete_theme->image_path()) {
+      paths.push_back(path);
+    }
+    for (const auto& path : _complete_theme->animation_path()) {
+      paths.push_back(path);
+    }
+    for (const auto& path : _complete_theme->font_path()) {
+      paths.push_back(path);
+    }
+    if (paths.empty()) {
+      return;
+    }
+    std::sort(paths.begin(), paths.end());
+    auto it = std::lower_bound(paths.begin(), paths.end(), _path_selected);
+    std::size_t index = it == paths.end() ? 0 : std::distance(paths.begin(), it);
+    for (std::size_t i = (index + 1) % paths.size(); i != index; i = (i + 1) % paths.size()) {
+      if (_tree_lookup.find(paths[i]) == _tree_lookup.end()) {
+        continue;
+      }
+      bool unused = true;
+      for (const auto& pair : _session.theme_map()) {
+        const auto& t = pair.second;
+        if (std::find(t.font_path().begin(), t.font_path().end(), paths[i]) !=
+                t.font_path().end() ||
+            std::find(t.image_path().begin(), t.image_path().end(), paths[i]) !=
+                t.image_path().end() ||
+            std::find(t.animation_path().begin(), t.animation_path().end(), paths[i]) !=
+                t.animation_path().end()) {
+          unused = false;
+        }
+      }
+      if (unused) {
+        _tree->Select(_tree_lookup[paths[i]]);
+        _tree->EnsureVisible(_tree_lookup[paths[i]]);
+        RefreshTree(_tree_lookup[paths[i]]);
+        break;
+      }
+    }
+  });
+
+  _button_next_theme->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    auto theme_it = _session.mutable_theme_map()->find(_item_selected);
+    if (theme_it == _session.mutable_theme_map()->end()) {
+      return;
+    }
+    std::vector<std::string> paths;
+    for (const auto& path : _complete_theme->image_path()) {
+      paths.push_back(path);
+    }
+    for (const auto& path : _complete_theme->animation_path()) {
+      paths.push_back(path);
+    }
+    for (const auto& path : _complete_theme->font_path()) {
+      paths.push_back(path);
+    }
+    if (paths.empty()) {
+      return;
+    }
+    std::sort(paths.begin(), paths.end());
+    auto it = std::lower_bound(paths.begin(), paths.end(), _path_selected);
+    std::size_t index = it == paths.end() ? 0 : std::distance(paths.begin(), it);
+    for (std::size_t i = (index + 1) % paths.size(); i != index; i = (i + 1) % paths.size()) {
+      const auto& t = theme_it->second;
+      if (std::find(t.font_path().begin(), t.font_path().end(), paths[i]) != t.font_path().end() ||
+          std::find(t.image_path().begin(), t.image_path().end(), paths[i]) !=
+              t.image_path().end() ||
+          std::find(t.animation_path().begin(), t.animation_path().end(), paths[i]) !=
+              t.animation_path().end()) {
+        _tree->Select(_tree_lookup[paths[i]]);
+        _tree->EnsureVisible(_tree_lookup[paths[i]]);
+        RefreshTree(_tree_lookup[paths[i]]);
+        break;
+      }
+    }
+  });
+
   _tree->Bind(wxEVT_TREELIST_SELECTION_CHANGED,
-              [&](wxTreeListEvent& e) {
-                auto data = _tree->GetItemData(e.GetItem());
-                if (data != nullptr) {
-                  std::string path = ((const wxStringClientData*) data)->GetData();
-                  auto root = std::tr2::sys::path{_session_path}.parent_path().string();
-                  const auto& images = _complete_theme->image_path();
-                  const auto& anims = _complete_theme->animation_path();
-                  const auto& fonts = _complete_theme->font_path();
-                  if (_path_selected != path) {
-                    if (std::find(images.begin(), images.end(), path) != images.end()) {
-                      _image_panel->SetImage(load_image(root + "/" + path));
-                    }
-                    if (std::find(anims.begin(), anims.end(), path) != anims.end()) {
-                      _image_panel->SetAnimation(load_animation(root + "/" + path));
-                    }
-                    if (std::find(fonts.begin(), fonts.end(), path) != fonts.end()) {
-                      _current_font = root + "/" + path;
-                      GenerateFontPreview();
-                    }
-                    _path_selected = path;
-                  }
-                }
-                RefreshHighlights();
-                _button_open->Enable(true);
-                _button_rename->Enable(true);
-              },
-              wxID_ANY);
+              [&](wxTreeListEvent& e) { RefreshTree(e.GetItem()); }, wxID_ANY);
 
   _tree->Bind(
       wxEVT_TREELIST_ITEM_CHECKED,
@@ -585,13 +647,45 @@ void ThemePage::RefreshOurData()
   _button_edit->Enable(!_item_selected.empty() && it->second.text_line_size());
   _button_delete->Enable(!_item_selected.empty() && it->second.text_line_size());
 
-  RefreshHighlights();
+  if (!_path_selected.empty() && _tree_lookup.find(_path_selected) != _tree_lookup.end()) {
+    RefreshTree(_tree_lookup[_path_selected]);
+  }
 }
 
 void ThemePage::RefreshData()
 {
   _item_list->RefreshData();
   RefreshOurData();
+}
+
+void ThemePage::RefreshTree(wxTreeListItem item)
+{
+  auto data = _tree->GetItemData(item);
+  if (data != nullptr) {
+    std::string path = ((const wxStringClientData*) data)->GetData();
+    auto root = std::tr2::sys::path{_session_path}.parent_path().string();
+    const auto& images = _complete_theme->image_path();
+    const auto& anims = _complete_theme->animation_path();
+    const auto& fonts = _complete_theme->font_path();
+    if (_path_selected != path) {
+      if (std::find(images.begin(), images.end(), path) != images.end()) {
+        _current_font.clear();
+        _image_panel->SetImage(load_image(root + "/" + path));
+      }
+      if (std::find(anims.begin(), anims.end(), path) != anims.end()) {
+        _current_font.clear();
+        _image_panel->SetAnimation(load_animation(root + "/" + path));
+      }
+      if (std::find(fonts.begin(), fonts.end(), path) != fonts.end()) {
+        _current_font = root + "/" + path;
+        GenerateFontPreview();
+      }
+      _path_selected = path;
+    }
+  }
+  RefreshHighlights();
+  _button_open->Enable(true);
+  _button_rename->Enable(true);
 }
 
 void ThemePage::RefreshHighlights()
