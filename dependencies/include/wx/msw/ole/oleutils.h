@@ -37,11 +37,7 @@
 inline bool wxOleInitialize()
 {
     HRESULT
-#ifdef __WXWINCE__
-     hr = ::CoInitializeEx(NULL, COINIT_MULTITHREADED);
-#else
-     hr = ::OleInitialize(NULL);
-#endif
+    hr = ::OleInitialize(NULL);
 
     // RPC_E_CHANGED_MODE indicates that OLE had been already initialized
     // before, albeit with different mode. Don't consider it to be an error as
@@ -60,11 +56,7 @@ inline bool wxOleInitialize()
 
 inline void wxOleUninitialize()
 {
-#ifdef __WXWINCE__
-    ::CoUninitialize();
-#else
     ::OleUninitialize();
-#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -192,7 +184,7 @@ private:
 // VZ: I don't know it's not done for compilers other than VC++ but I leave it
 //     as is. Please note, though, that tracing OLE interface calls may be
 //     incredibly useful when debugging OLE programs.
-#if defined(__WXDEBUG__) && (( defined(__VISUALC__) && (__VISUALC__ >= 1000) ))
+#if defined(__WXDEBUG__) && defined(__VISUALC__)
 // ----------------------------------------------------------------------------
 // All OLE specific log functions have DebugTrace level (as LogTrace)
 // ----------------------------------------------------------------------------

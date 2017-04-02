@@ -183,7 +183,7 @@ wxPG_ITERATE_DEFAULT = wxPG_ITERATE_NORMAL
 // Macro to test if children of PWC should be iterated through
 #define wxPG_ITERATOR_PARENTEXMASK_TEST(PWC, PARENTMASK) \
         ( \
-        !(PWC->GetFlags() & PARENTMASK) && \
+        !PWC->HasFlag(PARENTMASK) && \
         PWC->GetChildCount() \
         )
 
@@ -223,7 +223,7 @@ public:
     void Prev();
 
     /**
-        Set base parent, ie a property when, in which iteration returns, it
+        Set base parent, i.e. a property when, in which iteration returns, it
         ends.
 
         Default base parent is the root of the used wxPropertyGridPageState.
@@ -240,8 +240,8 @@ private:
     wxPGProperty*               m_baseParent;
 
     // Masks are used to quickly exclude items
-    int                         m_itemExMask;
-    int                         m_parentExMask;
+    wxPGProperty::FlagType      m_itemExMask;
+    wxPGProperty::FlagType      m_parentExMask;
 };
 
 
@@ -402,7 +402,7 @@ protected:
 /** @class wxPropertyGridPageState
 
     Contains low-level property page information (properties, column widths,
-    etc) of a single wxPropertyGrid or single wxPropertyGridPage. Generally you
+    etc.) of a single wxPropertyGrid or single wxPropertyGridPage. Generally you
     should not use this class directly, but instead member functions in
     wxPropertyGridInterface, wxPropertyGrid, wxPropertyGridPage, and
     wxPropertyGridManager.
@@ -470,7 +470,7 @@ public:
         if ( m_vhCalcPending )
         {
             RecalculateVirtualHeight();
-            m_vhCalcPending = 0;
+            m_vhCalcPending = false;
         }
     }
 
@@ -526,9 +526,7 @@ public:
     */
     wxPGProperty* GetSelection() const
     {
-        if ( m_selection.size() == 0 )
-            return NULL;
-        return m_selection[0];
+        return m_selection.empty()? NULL: m_selection[0];
     }
 
     void DoSetSelection( wxPGProperty* prop )
@@ -556,8 +554,11 @@ public:
 
     wxPropertyCategory* GetPropertyCategory( const wxPGProperty* p ) const;
 
+#if WXWIN_COMPATIBILITY_3_0
+    wxDEPRECATED_MSG("don't refer directly to wxPropertyGridPageState::GetPropertyByLabel")
     wxPGProperty* GetPropertyByLabel( const wxString& name,
                                       wxPGProperty* parent = NULL ) const;
+#endif // WXWIN_COMPATIBILITY_3_0
 
     wxVariant DoGetPropertyValues( const wxString& listname,
                                    wxPGProperty* baseparent,
@@ -650,7 +651,7 @@ public:
     */
     void VirtualHeightChanged()
     {
-        m_vhCalcPending = 1;
+        m_vhCalcPending = true;
     }
 
     /** Base append. */
@@ -689,6 +690,31 @@ protected:
 
     bool PrepareToAddItem( wxPGProperty* property,
                            wxPGProperty* scheduledParent );
+
+    /** Returns property by its label. */
+    wxPGProperty* BaseGetPropertyByLabel( const wxString& label,
+                                      wxPGProperty* parent = NULL ) const;
+
+    /** Unselect sub-properties */
+    void DoRemoveChildrenFromSelection(wxPGProperty* p, bool recursive,
+                                       int selFlags);
+
+    /** Mark sub-properties as being deleted */
+    void DoMarkChildrenAsDeleted(wxPGProperty* p, bool recursive);
+
+    /** Rename the property
+        so it won't remain in the way of the user code.
+     */
+    void DoInvalidatePropertyName(wxPGProperty* p);
+
+    /** Rename sub-properties
+        so it won't remain in the way of the user code.
+     */
+    void DoInvalidateChildrenNames(wxPGProperty* p, bool recursive);
+
+    /** Check if property contains given sub-category */
+    bool IsChildCategory(wxPGProperty* p,
+                         wxPropertyCategory* cat, bool recursive);
 
     /** If visible, then this is pointer to wxPropertyGrid.
         This shall *never* be NULL to indicate that this state is not visible.
@@ -730,6 +756,7 @@ protected:
     /** Indicates total virtual height of visible properties. */
     unsigned int                m_virtualHeight;
 
+#if WXWIN_COMPATIBILITY_3_0
     /** 1 if m_lastCaption is also the bottommost caption. */
     unsigned char               m_lastCaptionBottomnest;
 
@@ -743,6 +770,21 @@ protected:
     unsigned char               m_anyModified;
 
     unsigned char               m_vhCalcPending;
+#else
+    /** True if m_lastCaption is also the bottommost caption. */
+    bool                        m_lastCaptionBottomnest;
+
+    /** True: items appended/inserted, so stuff needs to be done before drawing;
+        If m_virtualHeight == 0, then calcylatey's must be done.
+        Otherwise just sort.
+    */
+    bool                        m_itemsAdded;
+
+    /** True if any value is modified. */
+    bool                        m_anyModified;
+
+    bool                        m_vhCalcPending;
+#endif // WXWIN_COMPATIBILITY_3_0
 
     /** True if splitter has been pre-set by the application. */
     bool                        m_isSplitterPreSet;

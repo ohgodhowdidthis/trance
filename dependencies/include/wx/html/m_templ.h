@@ -58,9 +58,9 @@ I STRONGLY recommend reading and understanding these macros!!
 #define TAGS_MODULE_BEGIN(name)                                           \
     class wxHTML_Module##name : public wxHtmlTagsModule                   \
     {                                                                     \
-        DECLARE_DYNAMIC_CLASS(wxHTML_Module##name )                       \
+        wxDECLARE_DYNAMIC_CLASS(wxHTML_Module##name );                    \
         public:                                                           \
-            void FillHandlersTable(wxHtmlWinParser *parser)               \
+            void FillHandlersTable(wxHtmlWinParser *parser) wxOVERRIDE    \
                 {
 
 
@@ -75,7 +75,7 @@ I STRONGLY recommend reading and understanding these macros!!
 #define TAGS_MODULE_END(name)                                             \
                 }                                                         \
     };                                                                    \
-    IMPLEMENT_DYNAMIC_CLASS(wxHTML_Module##name , wxHtmlTagsModule)
+    wxIMPLEMENT_DYNAMIC_CLASS(wxHTML_Module##name , wxHtmlTagsModule);
 
 
 

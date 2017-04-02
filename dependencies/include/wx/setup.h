@@ -63,6 +63,8 @@
         #define wxCOMPILER_PREFIX vc110
     #elif _MSC_VER == 1800
         #define wxCOMPILER_PREFIX vc120
+    #elif _MSC_VER == 1900
+        #define wxCOMPILER_PREFIX vc140
     #else
         #error "Unknown MSVC compiler version, please report to wx-dev."
     #endif
@@ -108,10 +110,10 @@
 // construct the path to it
 #ifdef wxSUFFIX
     #define wxSETUPH_PATH \
-        wxCONCAT5(wxLIB_SUBDIR, /, wxTOOLKIT_PREFIX, wxSUFFIX, /wx/setup.h)
+        wxCONCAT6(../../../lib/, wxLIB_SUBDIR, /, wxTOOLKIT_PREFIX, wxSUFFIX, /wx/setup.h)
 #else // suffix is empty
     #define wxSETUPH_PATH \
-        wxCONCAT4(wxLIB_SUBDIR, /, wxTOOLKIT_PREFIX, /wx/setup.h)
+        wxCONCAT5(../../../lib/, wxLIB_SUBDIR, /, wxTOOLKIT_PREFIX, /wx/setup.h)
 #endif
 
 #define wxSETUPH_PATH_STR wxSTRINGIZE(wxSETUPH_PATH)
@@ -155,15 +157,18 @@
 #endif
 #if wxUSE_XML && !defined(wxNO_XML_LIB)
     #pragma comment(lib, wxBASE_LIB_NAME("xml"))
+    #if !defined(wxNO_EXPAT_LIB) && !defined(WXUSINGDLL)
+        #pragma comment(lib, wx3RD_PARTY_LIB_NAME("expat"))
+    #endif
 #endif
 #if wxUSE_REGEX && !defined(wxNO_REGEX_LIB) && !defined(WXUSINGDLL)
     #pragma comment(lib, wx3RD_PARTY_LIB_NAME_U("regex"))
 #endif
+#if wxUSE_ZLIB && !defined(wxNO_ZLIB_LIB) && !defined(WXUSINGDLL)
+    #pragma comment(lib, wx3RD_PARTY_LIB_NAME("zlib"))
+#endif
 
 #if wxUSE_GUI
-    #if wxUSE_XML && !defined(wxNO_EXPAT_LIB) && !defined(WXUSINGDLL)
-        #pragma comment(lib, wx3RD_PARTY_LIB_NAME("expat"))
-    #endif
     #if wxUSE_LIBJPEG && !defined(wxNO_JPEG_LIB) && !defined(WXUSINGDLL)
         #pragma comment(lib, wx3RD_PARTY_LIB_NAME("jpeg"))
     #endif
@@ -172,9 +177,6 @@
     #endif
     #if wxUSE_LIBTIFF && !defined(wxNO_TIFF_LIB) && !defined(WXUSINGDLL)
         #pragma comment(lib, wx3RD_PARTY_LIB_NAME("tiff"))
-    #endif
-    #if wxUSE_ZLIB && !defined(wxNO_ZLIB_LIB) && !defined(WXUSINGDLL)
-        #pragma comment(lib, wx3RD_PARTY_LIB_NAME("zlib"))
     #endif
 
     #pragma comment(lib, wxTOOLKIT_LIB_NAME("core"))
@@ -243,8 +245,13 @@
     #endif
 
     #ifdef __WXGTK__
-        #pragma comment(lib, "gtk-win32-2.0.lib")
-        #pragma comment(lib, "gdk-win32-2.0.lib")
+        #ifdef __WXGTK3__
+            #pragma comment(lib, "libgtk-3.dll.a")
+            #pragma comment(lib, "libgdk-3.dll.a")
+        #else
+            #pragma comment(lib, "gtk-win32-2.0.lib")
+            #pragma comment(lib, "gdk-win32-2.0.lib")
+        #endif
         #pragma comment(lib, "pangocairo-1.0.lib")
         #pragma comment(lib, "gdk_pixbuf-2.0.lib")
         #pragma comment(lib, "cairo.lib")

@@ -19,12 +19,12 @@
 
 class WXDLLIMPEXP_XRC wxSizerXmlHandler : public wxXmlResourceHandler
 {
-    DECLARE_DYNAMIC_CLASS(wxSizerXmlHandler)
+    wxDECLARE_DYNAMIC_CLASS(wxSizerXmlHandler);
 
 public:
     wxSizerXmlHandler();
-    virtual wxObject *DoCreateResource();
-    virtual bool CanHandle(wxXmlNode *node);
+    virtual wxObject *DoCreateResource() wxOVERRIDE;
+    virtual bool CanHandle(wxXmlNode *node) wxOVERRIDE;
 
 protected:
     virtual wxSizer* DoCreateSizer(const wxString& name);
@@ -57,6 +57,7 @@ private:
     wxSizerItem* MakeSizerItem();
     void SetSizerItemAttributes(wxSizerItem* sitem);
     void AddSizerItem(wxSizerItem* sitem);
+    int GetSizerFlags();
 };
 
 #if wxUSE_BUTTON
@@ -64,12 +65,12 @@ private:
 class WXDLLIMPEXP_XRC wxStdDialogButtonSizerXmlHandler
     : public wxXmlResourceHandler
 {
-    DECLARE_DYNAMIC_CLASS(wxStdDialogButtonSizerXmlHandler)
+    wxDECLARE_DYNAMIC_CLASS(wxStdDialogButtonSizerXmlHandler);
 
 public:
     wxStdDialogButtonSizerXmlHandler();
-    virtual wxObject *DoCreateResource();
-    virtual bool CanHandle(wxXmlNode *node);
+    virtual wxObject *DoCreateResource() wxOVERRIDE;
+    virtual bool CanHandle(wxXmlNode *node) wxOVERRIDE;
 
 private:
     bool m_isInside;

@@ -81,7 +81,7 @@ enum wxHtmlSelectionState
 class WXDLLIMPEXP_HTML wxHtmlRenderingState
 {
 public:
-    wxHtmlRenderingState() : m_selState(wxHTML_SEL_OUT) {}
+    wxHtmlRenderingState() : m_selState(wxHTML_SEL_OUT) { m_bgMode = wxSOLID; }
 
     void SetSelectionState(wxHtmlSelectionState s) { m_selState = s; }
     wxHtmlSelectionState GetSelectionState() const { return m_selState; }
@@ -114,8 +114,8 @@ public:
 class WXDLLIMPEXP_HTML wxDefaultHtmlRenderingStyle : public wxHtmlRenderingStyle
 {
 public:
-    virtual wxColour GetSelectedTextColour(const wxColour& clr);
-    virtual wxColour GetSelectedTextBgColour(const wxColour& clr);
+    virtual wxColour GetSelectedTextColour(const wxColour& clr) wxOVERRIDE;
+    virtual wxColour GetSelectedTextBgColour(const wxColour& clr) wxOVERRIDE;
 };
 
 
@@ -125,7 +125,12 @@ public:
 class WXDLLIMPEXP_HTML wxHtmlRenderingInfo
 {
 public:
-    wxHtmlRenderingInfo() : m_selection(NULL), m_style(NULL) {}
+    wxHtmlRenderingInfo()
+        : m_selection(NULL),
+          m_style(NULL),
+          m_prevUnderlined(false)
+    {
+    }
 
     void SetSelection(wxHtmlSelection *s) { m_selection = s; }
     wxHtmlSelection *GetSelection() const { return m_selection; }
@@ -133,12 +138,16 @@ public:
     void SetStyle(wxHtmlRenderingStyle *style) { m_style = style; }
     wxHtmlRenderingStyle& GetStyle() { return *m_style; }
 
+    void SetCurrentUnderlined(bool u) { m_prevUnderlined = u; }
+    bool WasPreviousUnderlined() const { return m_prevUnderlined; }
+
     wxHtmlRenderingState& GetState() { return m_state; }
 
 protected:
     wxHtmlSelection      *m_selection;
     wxHtmlRenderingStyle *m_style;
     wxHtmlRenderingState m_state;
+    bool m_prevUnderlined;
 };
 
 
@@ -217,11 +226,6 @@ public:
     virtual wxCursor GetMouseCursorAt(wxHtmlWindowInterface *window,
                                       const wxPoint& relPos) const;
 
-#if WXWIN_COMPATIBILITY_2_6
-    // this was replaced by GetMouseCursor, don't use in new code!
-    virtual wxCursor GetCursor() const;
-#endif
-
     // return next cell among parent's cells
     wxHtmlCell *GetNext() const {return m_Next;}
     // returns first child cell (if there are any, i.e. if this is container):
@@ -274,12 +278,6 @@ public:
     virtual bool ProcessMouseClick(wxHtmlWindowInterface *window,
                                    const wxPoint& pos,
                                    const wxMouseEvent& event);
-
-#if WXWIN_COMPATIBILITY_2_6
-    // this was replaced by ProcessMouseClick, don't use in new code!
-    virtual void OnMouseClick(wxWindow *window,
-                              int x, int y, const wxMouseEvent& event);
-#endif
 
     // This method used to adjust pagebreak position. The parameter is variable
     // that contains y-coordinate of page break (= horizontal line that should
@@ -367,7 +365,7 @@ protected:
     // unique identifier of the cell, generated from "id" property of tags
     wxString m_id;
 
-    DECLARE_ABSTRACT_CLASS(wxHtmlCell)
+    wxDECLARE_ABSTRACT_CLASS(wxHtmlCell);
     wxDECLARE_NO_COPY_CLASS(wxHtmlCell);
 };
 
@@ -389,10 +387,10 @@ class WXDLLIMPEXP_HTML wxHtmlWordCell : public wxHtmlCell
 public:
     wxHtmlWordCell(const wxString& word, const wxDC& dc);
     void Draw(wxDC& dc, int x, int y, int view_y1, int view_y2,
-              wxHtmlRenderingInfo& info);
-    virtual wxCursor GetMouseCursor(wxHtmlWindowInterface *window) const;
-    virtual wxString ConvertToText(wxHtmlSelection *sel) const;
-    bool IsLinebreakAllowed() const { return m_allowLinebreak; }
+              wxHtmlRenderingInfo& info) wxOVERRIDE;
+    virtual wxCursor GetMouseCursor(wxHtmlWindowInterface *window) const wxOVERRIDE;
+    virtual wxString ConvertToText(wxHtmlSelection *sel) const wxOVERRIDE;
+    bool IsLinebreakAllowed() const wxOVERRIDE { return m_allowLinebreak; }
 
     void SetPreviousWord(wxHtmlWordCell *cell);
 
@@ -410,7 +408,7 @@ protected:
     wxString m_Word;
     bool     m_allowLinebreak;
 
-    DECLARE_ABSTRACT_CLASS(wxHtmlWordCell)
+    wxDECLARE_ABSTRACT_CLASS(wxHtmlWordCell);
     wxDECLARE_NO_COPY_CLASS(wxHtmlWordCell);
 };
 
@@ -431,8 +429,8 @@ public:
     {}
 
 protected:
-    virtual wxString GetAllAsText() const;
-    virtual wxString GetPartAsText(int begin, int end) const;
+    virtual wxString GetAllAsText() const wxOVERRIDE;
+    virtual wxString GetPartAsText(int begin, int end) const wxOVERRIDE;
 
     wxString m_wordOrig;
     size_t   m_linepos;
@@ -447,15 +445,15 @@ public:
     wxHtmlContainerCell(wxHtmlContainerCell *parent);
     virtual ~wxHtmlContainerCell();
 
-    virtual void Layout(int w);
+    virtual void Layout(int w) wxOVERRIDE;
     virtual void Draw(wxDC& dc, int x, int y, int view_y1, int view_y2,
-                      wxHtmlRenderingInfo& info);
+                      wxHtmlRenderingInfo& info) wxOVERRIDE;
     virtual void DrawInvisible(wxDC& dc, int x, int y,
-                               wxHtmlRenderingInfo& info);
+                               wxHtmlRenderingInfo& info) wxOVERRIDE;
 
     virtual bool AdjustPagebreak(int *pagebreak,
                                  const wxArrayInt& known_pagebreaks,
-                                 int pageHeight) const;
+                                 int pageHeight) const wxOVERRIDE;
 
     // insert cell at the end of m_Cells list
     void InsertCell(wxHtmlCell *cell);
@@ -489,31 +487,26 @@ public:
     // adapt to it:
     wxColour GetBackgroundColour();
     void SetBorder(const wxColour& clr1, const wxColour& clr2, int border = 1) {m_Border = border; m_BorderColour1 = clr1, m_BorderColour2 = clr2;}
-    virtual wxHtmlLinkInfo* GetLink(int x = 0, int y = 0) const;
-    virtual const wxHtmlCell* Find(int condition, const void* param) const;
+    virtual wxHtmlLinkInfo* GetLink(int x = 0, int y = 0) const wxOVERRIDE;
+    virtual const wxHtmlCell* Find(int condition, const void* param) const wxOVERRIDE;
 
-#if WXWIN_COMPATIBILITY_2_6
-    // this was replaced by ProcessMouseClick, don't use in new code!
-    virtual void OnMouseClick(wxWindow *window,
-                              int x, int y, const wxMouseEvent& event);
-#endif
     virtual bool ProcessMouseClick(wxHtmlWindowInterface *window,
                                    const wxPoint& pos,
-                                   const wxMouseEvent& event);
+                                   const wxMouseEvent& event) wxOVERRIDE;
 
-    virtual wxHtmlCell* GetFirstChild() const { return m_Cells; }
+    virtual wxHtmlCell* GetFirstChild() const wxOVERRIDE { return m_Cells; }
 
     // returns last child cell:
     wxHtmlCell* GetLastChild() const { return m_LastCell; }
 
     // see comment in wxHtmlCell about this method
-    virtual bool IsTerminalCell() const { return false; }
+    virtual bool IsTerminalCell() const wxOVERRIDE { return false; }
 
     virtual wxHtmlCell *FindCellByPos(wxCoord x, wxCoord y,
-                                  unsigned flags = wxHTML_FIND_EXACT) const;
+                                  unsigned flags = wxHTML_FIND_EXACT) const wxOVERRIDE;
 
-    virtual wxHtmlCell *GetFirstTerminal() const;
-    virtual wxHtmlCell *GetLastTerminal() const;
+    virtual wxHtmlCell *GetFirstTerminal() const wxOVERRIDE;
+    virtual wxHtmlCell *GetLastTerminal() const wxOVERRIDE;
 
 
     // Removes indentation on top or bottom of the container (i.e. above or
@@ -522,7 +515,7 @@ public:
 
     // Returns the maximum possible length of the container.
     // Call Layout at least once before using GetMaxTotalWidth()
-    virtual int GetMaxTotalWidth() const { return m_MaxTotalWidth; }
+    virtual int GetMaxTotalWidth() const wxOVERRIDE { return m_MaxTotalWidth; }
 
 protected:
     void UpdateRenderingStatePre(wxHtmlRenderingInfo& info,
@@ -557,7 +550,7 @@ protected:
             // Maximum possible length if ignoring line wrap
 
 
-    DECLARE_ABSTRACT_CLASS(wxHtmlContainerCell)
+    wxDECLARE_ABSTRACT_CLASS(wxHtmlContainerCell);
     wxDECLARE_NO_COPY_CLASS(wxHtmlContainerCell);
 };
 
@@ -573,15 +566,15 @@ class WXDLLIMPEXP_HTML wxHtmlColourCell : public wxHtmlCell
 public:
     wxHtmlColourCell(const wxColour& clr, int flags = wxHTML_CLR_FOREGROUND) : wxHtmlCell() {m_Colour = clr; m_Flags = flags;}
     virtual void Draw(wxDC& dc, int x, int y, int view_y1, int view_y2,
-                      wxHtmlRenderingInfo& info);
+                      wxHtmlRenderingInfo& info) wxOVERRIDE;
     virtual void DrawInvisible(wxDC& dc, int x, int y,
-                               wxHtmlRenderingInfo& info);
+                               wxHtmlRenderingInfo& info) wxOVERRIDE;
 
 protected:
     wxColour m_Colour;
     unsigned m_Flags;
 
-    DECLARE_ABSTRACT_CLASS(wxHtmlColourCell)
+    wxDECLARE_ABSTRACT_CLASS(wxHtmlColourCell);
     wxDECLARE_NO_COPY_CLASS(wxHtmlColourCell);
 };
 
@@ -598,14 +591,14 @@ class WXDLLIMPEXP_HTML wxHtmlFontCell : public wxHtmlCell
 public:
     wxHtmlFontCell(wxFont *font) : wxHtmlCell() { m_Font = (*font); }
     virtual void Draw(wxDC& dc, int x, int y, int view_y1, int view_y2,
-                      wxHtmlRenderingInfo& info);
+                      wxHtmlRenderingInfo& info) wxOVERRIDE;
     virtual void DrawInvisible(wxDC& dc, int x, int y,
-                               wxHtmlRenderingInfo& info);
+                               wxHtmlRenderingInfo& info) wxOVERRIDE;
 
 protected:
     wxFont m_Font;
 
-    DECLARE_ABSTRACT_CLASS(wxHtmlFontCell)
+    wxDECLARE_ABSTRACT_CLASS(wxHtmlFontCell);
     wxDECLARE_NO_COPY_CLASS(wxHtmlFontCell);
 };
 
@@ -631,17 +624,17 @@ public:
     wxHtmlWidgetCell(wxWindow *wnd, int w = 0);
     virtual ~wxHtmlWidgetCell() { m_Wnd->Destroy(); }
     virtual void Draw(wxDC& dc, int x, int y, int view_y1, int view_y2,
-                      wxHtmlRenderingInfo& info);
+                      wxHtmlRenderingInfo& info) wxOVERRIDE;
     virtual void DrawInvisible(wxDC& dc, int x, int y,
-                               wxHtmlRenderingInfo& info);
-    virtual void Layout(int w);
+                               wxHtmlRenderingInfo& info) wxOVERRIDE;
+    virtual void Layout(int w) wxOVERRIDE;
 
 protected:
     wxWindow* m_Wnd;
     int m_WidthFloat;
             // width float is used in adjustWidth (it is in percents)
 
-    DECLARE_ABSTRACT_CLASS(wxHtmlWidgetCell)
+    wxDECLARE_ABSTRACT_CLASS(wxHtmlWidgetCell);
     wxDECLARE_NO_COPY_CLASS(wxHtmlWidgetCell);
 };
 

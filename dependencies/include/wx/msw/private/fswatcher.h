@@ -301,8 +301,8 @@ protected:
     struct wxEventProcessingData
     {
         wxEventProcessingData(const FILE_NOTIFY_INFORMATION* ne,
-                              const wxFSWatchEntryMSW* watch) :
-            nativeEvent(ne), watch(watch)
+                              const wxFSWatchEntryMSW* watch_) :
+            nativeEvent(ne), watch(watch_)
         {}
 
         const FILE_NOTIFY_INFORMATION* nativeEvent;
@@ -312,7 +312,7 @@ protected:
     virtual ExitCode Entry();
 
     // wait for events to occur, read them and send to interested parties
-    // returns false it empty status was read, which means we whould exit
+    // returns false it empty status was read, which means we would exit
     //         true otherwise
     bool ReadEvents();
 

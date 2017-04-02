@@ -14,15 +14,13 @@
 
 #include "wx/settings.h"        // solely for wxSystemColour
 
+class WXDLLIMPEXP_FWD_CORE wxButton;
+
 // if this is set to 1, we use deferred window sizing to reduce flicker when
 // resizing complicated window hierarchies, but this can in theory result in
 // different behaviour than the old code so we keep the possibility to use it
 // by setting this to 0 (in the future this should be removed completely)
-#ifdef __WXWINCE__
-    #define wxUSE_DEFERRED_SIZING 0
-#else
-    #define wxUSE_DEFERRED_SIZING 1
-#endif
+#define wxUSE_DEFERRED_SIZING 1
 
 // ---------------------------------------------------------------------------
 // wxWindow declaration for MSW
@@ -33,9 +31,6 @@ class WXDLLIMPEXP_CORE wxWindowMSW : public wxWindowBase
     friend class wxSpinCtrl;
     friend class wxSlider;
     friend class wxRadioBox;
-#if defined __VISUALC__ && __VISUALC__ <= 1200
-    friend class wxWindowMSW;
-#endif
 public:
     wxWindowMSW() { Init(); }
 
@@ -118,6 +113,8 @@ public:
                                              wxCoord width,
                                              wxCoord widthTotal) const;
 
+    virtual void SetId(wxWindowID winid);
+
 #if wxUSE_DRAG_AND_DROP
     virtual void SetDropTarget( wxDropTarget *dropTarget );
 #endif // wxUSE_DRAG_AND_DROP
@@ -128,7 +125,7 @@ public:
 #ifndef __WXUNIVERSAL__
     // Native resource loading (implemented in src/msw/nativdlg.cpp)
     // FIXME: should they really be all virtual?
-    virtual bool LoadNativeDialog(wxWindow* parent, wxWindowID& id);
+    virtual bool LoadNativeDialog(wxWindow* parent, wxWindowID id);
     virtual bool LoadNativeDialog(wxWindow* parent, const wxString& name);
     wxWindow* GetWindowChild1(wxWindowID id);
     wxWindow* GetWindowChild(wxWindowID id);
@@ -139,11 +136,6 @@ public:
     virtual bool RegisterHotKey(int hotkeyId, int modifiers, int keycode);
     virtual bool UnregisterHotKey(int hotkeyId);
 #endif // wxUSE_HOTKEY
-
-#ifdef __POCKETPC__
-    bool IsContextMenuEnabled() const { return m_contextMenuEnabled; }
-    void EnableContextMenu(bool enable = true) { m_contextMenuEnabled = enable; }
-#endif
 
     // window handle stuff
     // -------------------
@@ -189,9 +181,6 @@ public:
     // --------------
 
     void OnPaint(wxPaintEvent& event);
-#ifdef __WXWINCE__
-    void OnInitDialog(wxInitDialogEvent& event);
-#endif
 
 public:
     // Windows subclassing
@@ -356,9 +345,7 @@ public:
 #if wxUSE_HOTKEY
     bool HandleHotKey(WXWPARAM wParam, WXLPARAM lParam);
 #endif
-#ifdef __WIN32__
     int HandleMenuChar(int chAccel, WXLPARAM lParam);
-#endif
     // Create and process a clipboard event specified by type.
     bool HandleClipboardEvent( WXUINT nMsg );
 
@@ -489,7 +476,7 @@ public:
         return InheritsBackgroundColour();
     }
 
-#if !defined(__WXWINCE__) && !defined(__WXUNIVERSAL__)
+#if !defined(__WXUNIVERSAL__)
     #define wxHAS_MSW_BACKGROUND_ERASE_HOOK
 #endif
 
@@ -535,6 +522,29 @@ public:
     // virtual function for implementing internal idle
     // behaviour
     virtual void OnInternalIdle();
+
+#if wxUSE_MENUS && !defined(__WXUNIVERSAL__)
+    virtual bool HandleMenuSelect(WXWORD nItem, WXWORD nFlags, WXHMENU hMenu);
+
+    // handle WM_(UN)INITMENUPOPUP message to generate wxEVT_MENU_OPEN/CLOSE
+    bool HandleMenuPopup(wxEventType evtType, WXHMENU hMenu);
+
+    // Command part of HandleMenuPopup() and HandleExitMenuLoop().
+    virtual bool DoSendMenuOpenCloseEvent(wxEventType evtType, wxMenu* menu);
+
+    // Find the menu corresponding to the given handle.
+    virtual wxMenu* MSWFindMenuFromHMENU(WXHMENU hMenu);
+#endif // wxUSE_MENUS && !__WXUNIVERSAL__
+
+    // Return the default button for the TLW containing this window or NULL if
+    // none.
+    static wxButton* MSWGetDefaultButtonFor(wxWindow* win);
+
+    // Simulate a click on the given button if it is non-null, enabled and
+    // shown.
+    //
+    // Return true if the button was clicked, false otherwise.
+    static bool MSWClickButtonIfPossible(wxButton* btn);
 
 protected:
     // this allows you to implement standard control borders without
@@ -709,13 +719,9 @@ protected:
 #endif // wxUSE_DEFERRED_SIZING
 
 private:
-#ifdef __POCKETPC__
-    bool        m_contextMenuEnabled;
-#endif
-
-    DECLARE_DYNAMIC_CLASS(wxWindowMSW)
+    wxDECLARE_DYNAMIC_CLASS(wxWindowMSW);
     wxDECLARE_NO_COPY_CLASS(wxWindowMSW);
-    DECLARE_EVENT_TABLE()
+    wxDECLARE_EVENT_TABLE();
 };
 
 // window creation helper class: before creating a new HWND, instantiate an

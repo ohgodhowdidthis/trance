@@ -18,12 +18,12 @@ class WXDLLIMPEXP_FWD_ADV wxPropertySheetDialog;
 
 class WXDLLIMPEXP_XRC wxPropertySheetDialogXmlHandler : public wxXmlResourceHandler
 {
-    DECLARE_DYNAMIC_CLASS(wxPropertySheetDialogXmlHandler)
+    wxDECLARE_DYNAMIC_CLASS(wxPropertySheetDialogXmlHandler);
 
 public:
     wxPropertySheetDialogXmlHandler();
-    virtual wxObject *DoCreateResource();
-    virtual bool CanHandle(wxXmlNode *node);
+    virtual wxObject *DoCreateResource() wxOVERRIDE;
+    virtual bool CanHandle(wxXmlNode *node) wxOVERRIDE;
 
 private:
     bool m_isInside;
