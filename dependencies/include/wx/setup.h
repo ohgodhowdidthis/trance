@@ -110,10 +110,10 @@
 // construct the path to it
 #ifdef wxSUFFIX
     #define wxSETUPH_PATH \
-        wxCONCAT6(../../../lib/, wxLIB_SUBDIR, /, wxTOOLKIT_PREFIX, wxSUFFIX, /wx/setup.h)
+        wxCONCAT5(wxLIB_SUBDIR, /, wxTOOLKIT_PREFIX, wxSUFFIX, /wx/setup.h)
 #else // suffix is empty
     #define wxSETUPH_PATH \
-        wxCONCAT5(../../../lib/, wxLIB_SUBDIR, /, wxTOOLKIT_PREFIX, /wx/setup.h)
+        wxCONCAT4(wxLIB_SUBDIR, /, wxTOOLKIT_PREFIX, /wx/setup.h)
 #endif
 
 #define wxSETUPH_PATH_STR wxSTRINGIZE(wxSETUPH_PATH)
