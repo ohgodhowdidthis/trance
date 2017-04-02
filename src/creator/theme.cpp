@@ -82,7 +82,7 @@ namespace
 class ImagePanel : public wxPanel
 {
 public:
-  ImagePanel(wxWindow* parent) : wxPanel{parent, wxID_ANY}, _dirty{true}, _bitmap{0, 0}
+  ImagePanel(wxWindow* parent) : wxPanel{parent, wxID_ANY}, _dirty{true}, _bitmap{1, 1}
   {
     _timer = new wxTimer(this, wxID_ANY);
     _timer->Start(20);
