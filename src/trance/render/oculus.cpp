@@ -123,6 +123,9 @@ OculusRenderer::OculusRenderer(const trance_pb::System& system)
 
 OculusRenderer::~OculusRenderer()
 {
+  for (auto fbo : _fbo_ovr) {
+    glDeleteFramebuffers(1, &fbo);
+  }
   if (_session) {
     ovr_Destroy(_session);
   }

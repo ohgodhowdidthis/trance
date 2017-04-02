@@ -13,28 +13,36 @@ message ExportSettings
 {
   // Last path exported to.
   string path = 1;
+  // Export side-by-side 3D video.
+  bool export_3d = 2;
   // Width in pixels of the video.
-  uint32 width = 2;
+  uint32 width = 3;
   // Height in pixels of the video.
-  uint32 height = 3;
+  uint32 height = 4;
   // Frames per seconds of the video.
-  uint32 fps = 4;
+  uint32 fps = 5;
   // Length in seconds of the video.
-  uint32 length = 5;
+  uint32 length = 6;
   // 0 to 4, 0 is best.
-  uint32 quality = 6;
+  uint32 quality = 7;
   // Number of threads for encoding.
-  uint32 threads = 7;
+  uint32 threads = 8;
 }
 
 // General system-wide configuration.
 message System
 {
+  enum Renderer {
+    MONITOR = 0;
+    OCULUS = 1;
+    OPENVR = 2;
+  }
+
   // Enable vsync to eliminate tearing, but can cause stuttering.
   bool enable_vsync = 1;
 
-  // Whether to enable oculus rift support, if possible.
-  bool enable_oculus_rift = 2;
+  // The renderer to use.
+  Renderer renderer = 2;
 
   // Draw depth, between 0 and 1. Affects intensity of zoom effect, and depth in VR.
   message DrawDepth {

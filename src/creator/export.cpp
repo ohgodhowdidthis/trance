@@ -7,6 +7,7 @@
 #pragma warning(push, 0)
 #include <common/trance.pb.h>
 #include <wx/button.h>
+#include <wx/checkbox.h>
 #include <wx/filedlg.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
@@ -17,6 +18,7 @@
 
 namespace
 {
+  const std::string EXPORT_3D_TOOLTIP = "Whether to export side-by-side 3D video.";
   const std::string WIDTH_TOOLTIP = "Width, in pixels, of the exported video.";
   const std::string HEIGHT_TOOLTIP = "Height, in pixels, of the exported video.";
   const std::string FPS_TOOLTIP = "Number of frames per second in the exported video.";
@@ -93,6 +95,7 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
   auto top_inner = new wxStaticBoxSizer{wxVERTICAL, panel, "Export settings for " + _path};
   auto quality = new wxBoxSizer{wxHORIZONTAL};
 
+  _export_3d = new wxCheckBox{panel, wxID_ANY, "Export 3D"};
   _width = new wxSpinCtrl{panel, wxID_ANY};
   _height = new wxSpinCtrl{panel, wxID_ANY};
   _fps = new wxSpinCtrl{panel, wxID_ANY};
@@ -110,6 +113,7 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
   auto button_defaults = new wxButton{panel, wxID_ANY, "Defaults"};
   auto button_cancel = new wxButton{panel, wxID_ANY, "Cancel"};
 
+  _export_3d->SetToolTip(EXPORT_3D_TOOLTIP);
   _width->SetToolTip(WIDTH_TOOLTIP);
   _height->SetToolTip(HEIGHT_TOOLTIP);
   _fps->SetToolTip(FPS_TOOLTIP);
@@ -123,6 +127,7 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
   _length->SetRange(1, 86400);
   _threads->SetRange(1, 128);
 
+  _export_3d->SetValue(settings.export_3d());
   _width->SetValue(settings.width());
   _height->SetValue(settings.height());
   _fps->SetValue(settings.fps());
@@ -132,6 +137,8 @@ ExportFrame::ExportFrame(CreatorFrame* parent, trance_pb::System& system,
   sizer->Add(top, 1, wxEXPAND, 0);
   sizer->Add(bottom, 0, wxEXPAND, 0);
   top->Add(top_inner, 1, wxALL | wxEXPAND, DEFAULT_BORDER);
+
+  top_inner->Add(_export_3d, 0, wxALL, DEFAULT_BORDER);
   wxStaticText* label = nullptr;
 
   label = new wxStaticText{panel, wxID_ANY, "Width:"};
@@ -206,6 +213,7 @@ void ExportFrame::ResetDefaults()
     _configuration->ResetDefaults();
   }
   auto defaults = get_default_system().last_export_settings();
+  _export_3d->SetValue(defaults.export_3d());
   _width->SetValue(defaults.width());
   _height->SetValue(defaults.height());
   _fps->SetValue(defaults.fps());
@@ -221,6 +229,7 @@ void ExportFrame::Export()
   }
   auto& settings = *_system.mutable_last_export_settings();
   settings.set_path(_path);
+  settings.set_export_3d(_export_3d->GetValue());
   settings.set_width(_width->GetValue());
   settings.set_height(_height->GetValue());
   settings.set_fps(_fps->GetValue());

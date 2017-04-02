@@ -10,9 +10,8 @@
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)
 
-VideoExportRenderer::VideoExportRenderer(const exporter_settings& settings, bool export_vr)
+VideoExportRenderer::VideoExportRenderer(const exporter_settings& settings)
 : _settings{settings}
-, _export_vr{export_vr}
 , _render_fbo{0}
 , _render_fb_tex{0}
 , _yuv_fbo{0}
@@ -60,12 +59,12 @@ VideoExportRenderer::~VideoExportRenderer()
 
 bool VideoExportRenderer::vr_enabled() const
 {
-  return _export_vr;
+  return _settings.export_3d;
 }
 
 uint32_t VideoExportRenderer::view_width() const
 {
-  return _export_vr ? _settings.width / 2 : _settings.width;
+  return _settings.export_3d ? _settings.width / 2 : _settings.width;
 }
 
 uint32_t VideoExportRenderer::width() const
@@ -89,7 +88,7 @@ bool VideoExportRenderer::update()
 
 void VideoExportRenderer::render(const std::function<void(State)>& render_fn)
 {
-  if (_export_vr) {
+  if (_settings.export_3d) {
     glBindFramebuffer(GL_FRAMEBUFFER, _render_fbo);
     glClear(GL_COLOR_BUFFER_BIT);
     for (int eye = 0; eye < 2; ++eye) {

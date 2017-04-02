@@ -5,8 +5,8 @@
 #include <fstream>
 
 #pragma warning(push, 0)
-#include <common/trance.pb.cc>
 #include <google/protobuf/text_format.h>
+#include <common/trance.pb.cc>
 #pragma warning(pop)
 
 namespace
@@ -436,7 +436,7 @@ trance_pb::System get_default_system()
 {
   trance_pb::System system;
   system.set_enable_vsync(true);
-  system.set_enable_oculus_rift(false);
+  system.set_renderer(trance_pb::System::MONITOR);
   system.mutable_draw_depth()->set_draw_depth(.5f);
   system.set_image_cache_size(64);
   system.set_font_cache_size(8);

@@ -13,7 +13,7 @@ class Exporter;
 class VideoExportRenderer : public Renderer
 {
 public:
-  VideoExportRenderer(const exporter_settings& settings, bool export_vr);
+  VideoExportRenderer(const exporter_settings& settings);
   ~VideoExportRenderer();
 
   bool vr_enabled() const override;
@@ -29,7 +29,6 @@ private:
   bool init_framebuffer(uint32_t& fbo, uint32_t& fb_tex, uint32_t width, uint32_t height) const;
 
   const exporter_settings& _settings;
-  bool _export_vr;
 
   bool _convert_to_yuv;
   uint32_t _render_fbo;

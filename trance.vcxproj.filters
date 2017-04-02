@@ -46,6 +46,9 @@
     <ClCompile Include="src\trance\render\oculus.cpp">
       <Filter>trance\render</Filter>
     </ClCompile>
+    <ClCompile Include="src\trance\render\openvr.cpp">
+      <Filter>trance\render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="trance">
@@ -120,6 +123,9 @@
       <Filter>trance\render</Filter>
     </ClInclude>
     <ClInclude Include="src\trance\render\video_export.h">
+      <Filter>trance\render</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trance\render\openvr.h">
       <Filter>trance\render</Filter>
     </ClInclude>
   </ItemGroup>

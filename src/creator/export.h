@@ -12,6 +12,7 @@ namespace trance_pb
   class System;
 }
 class CreatorFrame;
+class wxCheckBox;
 class wxSlider;
 class wxSpinCtrl;
 
@@ -29,6 +30,7 @@ private:
   std::string _path;
 
   CreatorFrame* _parent;
+  wxCheckBox* _export_3d;
   wxSpinCtrl* _width;
   wxSpinCtrl* _height;
   wxSpinCtrl* _fps;

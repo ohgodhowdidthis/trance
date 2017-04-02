@@ -12,6 +12,7 @@ namespace trance_pb
 class CreatorFrame;
 class wxButton;
 class wxCheckBox;
+class wxRadioButton;
 class wxSlider;
 class wxSpinCtrl;
 
@@ -27,8 +28,10 @@ private:
   trance_pb::System& _system;
 
   CreatorFrame* _parent;
+  wxRadioButton* _monitor;
+  wxRadioButton* _oculus;
+  wxRadioButton* _openvr;
   wxCheckBox* _enable_vsync;
-  wxCheckBox* _enable_oculus_rift;
   wxSpinCtrl* _image_cache_size;
   wxSpinCtrl* _font_cache_size;
   wxSlider* _draw_depth;

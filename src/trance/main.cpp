@@ -5,6 +5,7 @@
 #include <trance/media/audio.h>
 #include <trance/media/export.h>
 #include <trance/render/oculus.h>
+#include <trance/render/openvr.h>
 #include <trance/render/render.h>
 #include <trance/render/video_export.h>
 #include <trance/theme_bank.h>
@@ -121,8 +122,14 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
   std::unique_ptr<Renderer> renderer;
   bool realtime = settings.path.empty();
   if (!realtime) {
-    renderer.reset(new VideoExportRenderer(settings, system.enable_oculus_rift()));
-  } else if (system.enable_oculus_rift()) {
+    renderer.reset(new VideoExportRenderer(settings));
+  } else if (system.renderer() == trance_pb::System::OPENVR) {
+    auto openvr = new OpenVrRenderer(system);
+    renderer.reset(openvr);
+    if (!openvr->success()) {
+      renderer.reset();
+    }
+  } else if (system.renderer() == trance_pb::System::OCULUS) {
     auto oculus = new OculusRenderer(system);
     renderer.reset(oculus);
     if (!oculus->success()) {
@@ -172,6 +179,7 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
     while (running) {
       handle_events(running, renderer->window());
 
+      // TODO: should sleep rather than spinning.
       uint32_t frames_this_loop = 0;
       auto t = clock_time();
       auto elapsed_ms = t - last_clock_time;
@@ -336,6 +344,7 @@ std::unordered_map<std::string, std::string> parse_variables(const std::string& 
 
 DEFINE_string(variables, "", "semicolon-separated list of key=value variable assignments");
 DEFINE_string(export_path, "", "export video to this path");
+DEFINE_bool(export_3d, false, "export side-by-side 3D video");
 DEFINE_uint64(export_width, 1280, "export video resolution width");
 DEFINE_uint64(export_height, 720, "export video resolution height");
 DEFINE_uint64(export_fps, 60, "export video frames per second");
@@ -356,6 +365,7 @@ int main(int argc, char** argv)
   }
 
   exporter_settings settings{FLAGS_export_path,
+                             FLAGS_export_3d,
                              uint32_t(FLAGS_export_width),
                              uint32_t(FLAGS_export_height),
                              uint32_t(FLAGS_export_fps),

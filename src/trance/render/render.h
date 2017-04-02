@@ -23,6 +23,7 @@ void init_glew();
 class Renderer
 {
 public:
+  // TODO: could factor out actual rendering to intermediate texture(s) and add multisampling?
   enum class State {
     NONE = 0,
     VR_LEFT = 1,

@@ -220,6 +220,9 @@ void CreatorFrame::ExportVideo(const std::string& path)
       " --export_height=" + std::to_string(settings.height()) +
       " --export_fps=" + std::to_string(settings.fps()) +
       " --export_length=" + std::to_string(settings.length());
+  if (settings.export_3d()) {
+    command_line += " --export_3d";
+  }
   if (!frame_by_frame) {
     command_line += " --export_quality=" + std::to_string(settings.quality()) +
         " --export_threads=" + std::to_string(settings.threads());
