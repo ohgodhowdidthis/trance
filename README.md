@@ -9,7 +9,7 @@ Features
 * Hardware-accelerated rendering of images, animations and fonts.
 * Audio support with multiple independent channels.
 * Programmable playlist.
-* Oculus Rift support.
+* Oculus Rift and SteamVR support.
 * Video export.
 
 Sessions

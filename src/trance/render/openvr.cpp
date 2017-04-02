@@ -9,14 +9,6 @@
 #include <SFML/OpenGL.hpp>
 #pragma warning(pop)
 
-namespace
-{
-  void print_openvr_error(vr::HmdError error)
-  {
-    std::cerr << vr::VR_GetVRInitErrorAsEnglishDescription(error) << std::endl;
-  }
-}
-
 OpenVrRenderer::OpenVrRenderer(const trance_pb::System& system)
 : _initialised{false}
 , _success{false}
@@ -29,7 +21,7 @@ OpenVrRenderer::OpenVrRenderer(const trance_pb::System& system)
   _system = vr::VR_Init(&error, vr::VRApplication_Scene);
   if (!_system || error != vr::VRInitError_None) {
     std::cerr << "OpenVR initialization failed" << std::endl;
-    print_openvr_error(error);
+    std::cerr << vr::VR_GetVRInitErrorAsEnglishDescription(error) << std::endl;
     return;
   }
   _initialised = true;
@@ -59,7 +51,8 @@ OpenVrRenderer::OpenVrRenderer(const trance_pb::System& system)
 
     glGenTextures(1, &fb_tex);
     glBindTexture(GL_TEXTURE_2D, fb_tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 nullptr);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb_tex, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
       std::cerr << "framebuffer failed" << std::endl;
@@ -128,7 +121,11 @@ bool OpenVrRenderer::update()
 void OpenVrRenderer::render(const std::function<void(State)>& render_fn)
 {
   static vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
-  vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, nullptr, 0);
+  auto error = vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount,
+                                                nullptr, 0);
+  if (error != vr::VRCompositorError_None) {
+    std::cerr << "compositor wait failed: " << static_cast<uint32_t>(error) << std::endl;
+  }
 
   for (int eye = 0; eye < 2; ++eye) {
     glBindFramebuffer(GL_FRAMEBUFFER, _fbo[eye]);
@@ -139,6 +136,13 @@ void OpenVrRenderer::render(const std::function<void(State)>& render_fn)
   }
   vr::Texture_t left = {(void*) (uintptr_t) _fbo[0], vr::TextureType_OpenGL, vr::ColorSpace_Gamma};
   vr::Texture_t right = {(void*) (uintptr_t) _fbo[1], vr::TextureType_OpenGL, vr::ColorSpace_Gamma};
-  vr::VRCompositor()->Submit(vr::Eye_Left, &left);
-  vr::VRCompositor()->Submit(vr::Eye_Right, &right);
+  error = vr::VRCompositor()->Submit(vr::Eye_Left, &left);
+  if (error != vr::VRCompositorError_None) {
+    std::cerr << "compositor submit failed: " << static_cast<uint32_t>(error) << std::endl;
+  }
+  error = vr::VRCompositor()->Submit(vr::Eye_Right, &right);
+  if (error != vr::VRCompositorError_None) {
+    std::cerr << "compositor submit failed: " << static_cast<uint32_t>(error) << std::endl;
+  }
+  vr::VRCompositor()->PostPresentHandoff();
 }
