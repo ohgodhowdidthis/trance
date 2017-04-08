@@ -177,6 +177,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\common\media\image.cpp" />
+    <ClCompile Include="src\common\media\streamer.cpp" />
     <ClCompile Include="src\common\session.cpp" />
     <ClCompile Include="src\jpgd\jpgd.cpp" />
     <ClCompile Include="src\trance\director.cpp" />
@@ -196,6 +197,7 @@
   <ItemGroup>
     <ClInclude Include="src\common\common.h" />
     <ClInclude Include="src\common\media\image.h" />
+    <ClInclude Include="src\common\media\streamer.h" />
     <ClInclude Include="src\common\session.h" />
     <ClInclude Include="src\common\util.h" />
     <ClInclude Include="src\jpgd\jpgd.h" />

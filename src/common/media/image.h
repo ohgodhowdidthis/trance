@@ -52,8 +52,6 @@ private:
   mutable std::shared_ptr<texture_deleter> _deleter;
 };
 
-bool is_gif_animated(const std::string& path);
 Image load_image(const std::string& path);
-std::vector<Image> load_animation(const std::string& path);
 
 #endif

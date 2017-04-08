@@ -1,6 +1,7 @@
 #include "theme.h"
 #include <common/common.h>
 #include <common/media/image.h>
+#include <common/media/streamer.h>
 #include <common/session.h>
 #include <creator/item_list.h>
 #include <creator/main.h>
@@ -674,7 +675,17 @@ void ThemePage::RefreshTree(wxTreeListItem item)
       }
       if (std::find(anims.begin(), anims.end(), path) != anims.end()) {
         _current_font.clear();
-        _image_panel->SetAnimation(load_animation(root + "/" + path));
+        auto streamer = load_animation(root + "/" + path);
+        std::vector<Image> frames;
+        while (true) {
+          auto image = streamer->next_frame();
+          if (image.width() && image.height()) {
+            frames.push_back(image);
+          } else {
+            break;
+          }
+        }
+        _image_panel->SetAnimation(frames);
       }
       if (std::find(fonts.begin(), fonts.end(), path) != fonts.end()) {
         _current_font = root + "/" + path;

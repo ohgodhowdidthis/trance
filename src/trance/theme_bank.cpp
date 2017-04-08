@@ -1,4 +1,5 @@
 #include "theme_bank.h"
+#include <common/media/streamer.h>
 #include <common/util.h>
 #include <iostream>
 
@@ -465,9 +466,18 @@ void ThemeBank::do_load_animation(ThemeInfo& theme, AnimationInfo& animation, bo
     return;
   }
 
-  auto new_frames = load_animation(_root_path + "/" + _all_animations[animation.index]);
+  auto streamer = load_animation(_root_path + "/" + _all_animations[animation.index]);
+  std::vector<Image> new_frames;
+  while (true) {
+    auto image = streamer->next_frame();
+    if (image.width() && image.height()) {
+      new_frames.push_back(image);
+    } else {
+      break;
+    }
+  }
   int32_t amount = -1;
-  if (new_frames.empty()) {
+  if (!streamer->success()) {
     // Don't try to load again if it failed.
     amount = -static_cast<int32_t>(_loaded_animations.size());
   }
