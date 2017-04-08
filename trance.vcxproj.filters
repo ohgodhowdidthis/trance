@@ -49,6 +49,9 @@
     <ClCompile Include="src\trance\render\openvr.cpp">
       <Filter>trance\render</Filter>
     </ClCompile>
+    <ClCompile Include="src\common\media\streamer.cpp">
+      <Filter>common\media</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="trance">
@@ -127,6 +130,9 @@
     </ClInclude>
     <ClInclude Include="src\trance\render\openvr.h">
       <Filter>trance\render</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\media\streamer.h">
+      <Filter>common\media</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
