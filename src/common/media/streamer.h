@@ -68,6 +68,7 @@ private:
   bool _cluster_eos = false;
 
   int _block_index = -1;
+  bool _iterating = false;
   vpx_codec_iter_t _it = nullptr;
   const vpx_image_t* _image = nullptr;
   std::unique_ptr<uint8_t[]> _data;

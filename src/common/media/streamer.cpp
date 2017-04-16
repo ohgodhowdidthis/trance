@@ -125,21 +125,29 @@ WebmStreamer::WebmStreamer(const std::string& path) : _path{path}, _codec{}
     return;
   }
 
+  bool vp9 = false;
   for (unsigned long i = 0; i < _segment->GetTracks()->GetTracksCount(); ++i) {
     const auto& track = _segment->GetTracks()->GetTrackByIndex(i);
-    if (track && track->GetType() && mkvparser::Track::kVideo ||
-        track->GetCodecNameAsUTF8() == std::string("VP8")) {
-      _video_track = (const mkvparser::VideoTrack*) track;
-      break;
+    if (track && track->GetType() == mkvparser::Track::kVideo) {
+      std::string codec{track->GetCodecId()};
+      if (codec.find("VP8") != std::string::npos) {
+        _video_track = (const mkvparser::VideoTrack*) track;
+        break;
+      }
+      if (codec.find("VP9") != std::string::npos) {
+        vp9 = true;
+        _video_track = (const mkvparser::VideoTrack*) track;
+        break;
+      }
     }
   }
 
   if (!_video_track) {
-    std::cerr << "couldn't load " << path << ": no VP8 video track found" << std::endl;
+    std::cerr << "couldn't load " << path << ": no video track found" << std::endl;
     return;
   }
 
-  if (vpx_codec_dec_init(&_codec, vpx_codec_vp8_dx(), nullptr, 0)) {
+  if (vpx_codec_dec_init(&_codec, vp9 ? vpx_codec_vp9_dx() : vpx_codec_vp8_dx(), nullptr, 0)) {
     codec_error("initialising codec");
     return;
   }
@@ -202,6 +210,7 @@ Image WebmStreamer::next_frame()
 
     if (_block_index < 0) {
       _block_index = 0;
+      _iterating = false;
       _it = nullptr;
     }
     if (_block->GetBlock()->GetTrackNumber() != _video_track->GetNumber() ||
@@ -219,7 +228,7 @@ Image WebmStreamer::next_frame()
       continue;
     }
 
-    if (!_it) {
+    if (!_iterating) {
       auto& frame = _block->GetBlock()->GetFrame(_block_index);
       _data.reset(new uint8_t[frame.len]);
       _reader.Read(frame.pos, frame.len, _data.get());
@@ -229,10 +238,12 @@ Image WebmStreamer::next_frame()
         _success = false;
         return {};
       }
+      _iterating = true;
       _image = vpx_codec_get_frame(&_codec, &_it);
     }
     if (!_image) {
       ++_block_index;
+      _iterating = false;
       _it = nullptr;
       continue;
     }
