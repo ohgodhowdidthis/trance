@@ -177,6 +177,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
       event.Veto();
       return;
     }
+    _theme_page->Shutdown();
     Destroy();
   });
 }

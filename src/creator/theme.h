@@ -30,6 +30,7 @@ public:
   void RefreshOurData();
   void RefreshData();
   void RefreshDirectory(const std::string& directory);
+  void Shutdown();
 
 private:
   void RefreshTree(wxTreeListItem item);

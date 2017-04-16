@@ -83,7 +83,7 @@ namespace
 class ImagePanel : public wxPanel
 {
 public:
-  ImagePanel(wxWindow* parent) : wxPanel{parent, wxID_ANY}, _dirty{true}, _bitmap{1, 1}
+  ImagePanel(wxWindow* parent) : wxPanel{parent, wxID_ANY}, _bitmap{1, 1}
   {
     _timer = new wxTimer(this, wxID_ANY);
     _timer->Start(20);
@@ -91,8 +91,16 @@ public:
 
     Bind(wxEVT_TIMER,
          [&](const wxTimerEvent&) {
+           if (!_streamer || _shutdown) {
+             return;
+           }
+           auto image = _streamer->next_frame();
+           if (!image.width() || !image.height()) {
+             _streamer->reset();
+             image = _streamer->next_frame();
+           }
+           _image = ConvertImage(image);
            _dirty = true;
-           ++_frame;
            Refresh();
          },
          wxID_ANY);
@@ -110,14 +118,13 @@ public:
 
       if (width && height && _dirty) {
         wxImage temp_image{width, height};
-        if (!_images.empty()) {
-          const auto& image = _images[_frame % _images.size()];
-          auto iw = image->GetWidth();
-          auto ih = image->GetHeight();
+        if (_image) {
+          auto iw = _image->GetWidth();
+          auto ih = _image->GetHeight();
           auto scale = std::min(float(height) / ih, float(width) / iw);
           auto sw = unsigned(scale * iw);
           auto sh = unsigned(scale * ih);
-          temp_image.Paste(image->Scale(sw, sh, wxIMAGE_QUALITY_HIGH), (width - sw) / 2,
+          temp_image.Paste(_image->Scale(sw, sh, wxIMAGE_QUALITY_HIGH), (width - sw) / 2,
                            (height - sh) / 2);
         }
         _bitmap = wxBitmap{temp_image};
@@ -131,24 +138,9 @@ public:
     _timer->Stop();
   }
 
-  void SetAnimation(const std::vector<Image>& images)
+  void SetAnimation(std::unique_ptr<Streamer> streamer)
   {
-    _images.clear();
-    for (const auto& image : images) {
-      auto ptr = image.get_sf_image();
-      if (!ptr) {
-        continue;
-      }
-      auto sf_image = *ptr;
-      _images.emplace_back(
-          std::make_unique<wxImage>((int) sf_image.getSize().x, (int) sf_image.getSize().y));
-      for (unsigned y = 0; y < sf_image.getSize().y; ++y) {
-        for (unsigned x = 0; x < sf_image.getSize().x; ++x) {
-          const auto& c = sf_image.getPixel(x, y);
-          _images.back()->SetRGB(x, y, c.r, c.g, c.b);
-        }
-      }
-    }
+    _streamer = std::move(streamer);
     _dirty = true;
     _frame = 0;
     Refresh();
@@ -156,14 +148,41 @@ public:
 
   void SetImage(const Image& image)
   {
-    std::vector<Image> images = {image};
-    SetAnimation(images);
+    _image = ConvertImage(image);
+    _streamer.reset();
+    _dirty = true;
+    _frame = 0;
+    Refresh();
+  }
+
+  void Shutdown() {
+    _shutdown = true;
   }
 
 private:
-  bool _dirty;
+  std::unique_ptr<wxImage> ConvertImage(const Image& image)
+  {
+    auto ptr = image.get_sf_image();
+    if (!ptr) {
+      return {};
+    }
+    auto sf_image = *ptr;
+    std::unique_ptr<wxImage> wx =
+        std::make_unique<wxImage>((int) sf_image.getSize().x, (int) sf_image.getSize().y);
+    for (unsigned y = 0; y < sf_image.getSize().y; ++y) {
+      for (unsigned x = 0; x < sf_image.getSize().x; ++x) {
+        const auto& c = sf_image.getPixel(x, y);
+        wx->SetRGB(x, y, c.r, c.g, c.b);
+      }
+    }
+    return wx;
+  }
+
+  bool _dirty = true;
+  bool _shutdown = false;
   std::size_t _frame;
-  std::vector<std::shared_ptr<wxImage>> _images;
+  std::unique_ptr<wxImage> _image;
+  std::unique_ptr<Streamer> _streamer;
   wxBitmap _bitmap;
   wxTimer* _timer;
 };
@@ -659,60 +678,6 @@ void ThemePage::RefreshData()
   RefreshOurData();
 }
 
-void ThemePage::RefreshTree(wxTreeListItem item)
-{
-  auto data = _tree->GetItemData(item);
-  if (data != nullptr) {
-    std::string path = ((const wxStringClientData*) data)->GetData();
-    auto root = std::tr2::sys::path{_session_path}.parent_path().string();
-    const auto& images = _complete_theme->image_path();
-    const auto& anims = _complete_theme->animation_path();
-    const auto& fonts = _complete_theme->font_path();
-    if (_path_selected != path) {
-      if (std::find(images.begin(), images.end(), path) != images.end()) {
-        _current_font.clear();
-        _image_panel->SetImage(load_image(root + "/" + path));
-      }
-      if (std::find(anims.begin(), anims.end(), path) != anims.end()) {
-        _current_font.clear();
-        auto streamer = load_animation(root + "/" + path);
-        std::vector<Image> frames;
-        while (true) {
-          auto image = streamer->next_frame();
-          if (image.width() && image.height()) {
-            frames.push_back(image);
-          } else {
-            break;
-          }
-        }
-        _image_panel->SetAnimation(frames);
-      }
-      if (std::find(fonts.begin(), fonts.end(), path) != fonts.end()) {
-        _current_font = root + "/" + path;
-        GenerateFontPreview();
-      }
-      _path_selected = path;
-    }
-  }
-  RefreshHighlights();
-  _button_open->Enable(true);
-  _button_rename->Enable(true);
-}
-
-void ThemePage::RefreshHighlights()
-{
-  _item_list->ClearHighlights();
-  for (const auto& pair : _session.theme_map()) {
-    auto used = [&](const google::protobuf::RepeatedPtrField<std::string>& f) {
-      return std::find(f.begin(), f.end(), _path_selected) != f.end();
-    };
-    const auto& theme = pair.second;
-    if (used(theme.image_path()) || used(theme.font_path()) || used(theme.animation_path())) {
-      _item_list->AddHighlight(pair.first);
-    }
-  }
-}
-
 void ThemePage::RefreshDirectory(const std::string& directory)
 {
   *_complete_theme = trance_pb::Theme{};
@@ -813,6 +778,55 @@ void ThemePage::RefreshDirectory(const std::string& directory)
     }
   }
   _creator_frame.SetStatusText("Scanned " + std::to_string(file_count) + " files in " + directory);
+}
+
+void ThemePage::Shutdown()
+{
+  _image_panel->Shutdown();
+}
+
+void ThemePage::RefreshTree(wxTreeListItem item)
+{
+  auto data = _tree->GetItemData(item);
+  if (data != nullptr) {
+    std::string path = ((const wxStringClientData*) data)->GetData();
+    auto root = std::tr2::sys::path{_session_path}.parent_path().string();
+    const auto& images = _complete_theme->image_path();
+    const auto& anims = _complete_theme->animation_path();
+    const auto& fonts = _complete_theme->font_path();
+    if (_path_selected != path) {
+      if (std::find(images.begin(), images.end(), path) != images.end()) {
+        _current_font.clear();
+        _image_panel->SetImage(load_image(root + "/" + path));
+      }
+      if (std::find(anims.begin(), anims.end(), path) != anims.end()) {
+        _current_font.clear();
+        _image_panel->SetAnimation(load_animation(root + "/" + path));
+      }
+      if (std::find(fonts.begin(), fonts.end(), path) != fonts.end()) {
+        _current_font = root + "/" + path;
+        GenerateFontPreview();
+      }
+      _path_selected = path;
+    }
+  }
+  RefreshHighlights();
+  _button_open->Enable(true);
+  _button_rename->Enable(true);
+}
+
+void ThemePage::RefreshHighlights()
+{
+  _item_list->ClearHighlights();
+  for (const auto& pair : _session.theme_map()) {
+    auto used = [&](const google::protobuf::RepeatedPtrField<std::string>& f) {
+      return std::find(f.begin(), f.end(), _path_selected) != f.end();
+    };
+    const auto& theme = pair.second;
+    if (used(theme.image_path()) || used(theme.font_path()) || used(theme.animation_path())) {
+      _item_list->AddHighlight(pair.first);
+    }
+  }
 }
 
 void ThemePage::GenerateFontPreview()
