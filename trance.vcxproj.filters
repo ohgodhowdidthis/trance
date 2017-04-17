@@ -52,6 +52,9 @@
     <ClCompile Include="src\common\media\streamer.cpp">
       <Filter>common\media</Filter>
     </ClCompile>
+    <ClCompile Include="src\trance\media\async_streamer.cpp">
+      <Filter>trance\media</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="trance">
@@ -133,6 +136,9 @@
     </ClInclude>
     <ClInclude Include="src\common\media\streamer.h">
       <Filter>common\media</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trance\media\async_streamer.h">
+      <Filter>trance\media</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

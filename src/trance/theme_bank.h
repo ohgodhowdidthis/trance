@@ -1,8 +1,8 @@
 #ifndef TRANCE_SRC_TRANCE_THEME_BANK_H
 #define TRANCE_SRC_TRANCE_THEME_BANK_H
 #include <common/media/image.h>
-#include <common/media/streamer.h>
 #include <common/util.h>
+#include <trance/media/async_streamer.h>
 #include <array>
 #include <atomic>
 #include <memory>

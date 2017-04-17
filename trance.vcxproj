@@ -182,6 +182,7 @@
     <ClCompile Include="src\jpgd\jpgd.cpp" />
     <ClCompile Include="src\trance\director.cpp" />
     <ClCompile Include="src\trance\main.cpp" />
+    <ClCompile Include="src\trance\media\async_streamer.cpp" />
     <ClCompile Include="src\trance\media\audio.cpp" />
     <ClCompile Include="src\trance\media\export.cpp" />
     <ClCompile Include="src\trance\media\font.cpp" />
@@ -202,6 +203,7 @@
     <ClInclude Include="src\common\util.h" />
     <ClInclude Include="src\jpgd\jpgd.h" />
     <ClInclude Include="src\trance\director.h" />
+    <ClInclude Include="src\trance\media\async_streamer.h" />
     <ClInclude Include="src\trance\media\audio.h" />
     <ClInclude Include="src\trance\media\export.h" />
     <ClInclude Include="src\trance\media\font.h" />
