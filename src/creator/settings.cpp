@@ -48,11 +48,11 @@ namespace
 
   const std::string DRAW_DEPTH_TOOLTIP =
       "Controls the depth of the view. This affects the intensity of the zoom "
-      "effect and the 3D effect in Oculus Rift. The default value is 4.";
+      "effect and the 3D effect in VR. The default value is 4.";
 
-  const std::string TEXT_DEPTH_TOOLTIP =
-      "How intense depth-based effects are on text in the Oculus Rift. The "
-      "default value is 4.";
+  const std::string EYE_SPACING_TOOLTIP =
+      "Distance between the view for each eye in VR. Adjust this if the 3D effects are "
+      "out-of-sync or difficult to focus on. The default value is .0625.";
 }
 
 SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
@@ -89,6 +89,7 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
                              wxDefaultPosition,
                              wxDefaultSize,
                              wxSL_HORIZONTAL | wxSL_AUTOTICKS | wxSL_VALUE_LABEL};
+  _eye_spacing = new wxSpinCtrlDouble{panel, wxID_ANY};
   auto button_ok = new wxButton{panel, wxID_ANY, "OK"};
   auto button_cancel = new wxButton{panel, wxID_ANY, "Cancel"};
   _button_apply = new wxButton{panel, wxID_ANY, "Apply"};
@@ -102,6 +103,7 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
     _oculus->SetValue(true);
   } else {
     _monitor->SetValue(true);
+    _eye_spacing->Disable();
   }
   _enable_vsync->SetToolTip(VSYNC_TOOLTIP);
   _enable_vsync->SetValue(_system.enable_vsync());
@@ -112,7 +114,10 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   _font_cache_size->SetRange(2, 256);
   _font_cache_size->SetValue(_system.font_cache_size());
   _draw_depth->SetToolTip(DRAW_DEPTH_TOOLTIP);
-  _button_apply->Enable(false);
+  _eye_spacing->SetToolTip(EYE_SPACING_TOOLTIP);
+  _eye_spacing->SetRange(0., 1.);
+  _eye_spacing->SetIncrement(1. / 128);
+  _eye_spacing->SetValue(_system.eye_spacing().eye_spacing());
 
   sizer->Add(top, 1, wxEXPAND, 0);
   sizer->Add(bottom, 0, wxEXPAND, 0);
@@ -138,10 +143,18 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   label->SetToolTip(DRAW_DEPTH_TOOLTIP);
   right->Add(label, 0, wxALL, DEFAULT_BORDER);
   right->Add(_draw_depth, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+  _eye_spacing_label = new wxStaticText{panel, wxID_ANY, "Eye spacing (in VR):"};
+  _eye_spacing_label->SetToolTip(EYE_SPACING_TOOLTIP);
+  right->Add(_eye_spacing_label, 0, wxALL, DEFAULT_BORDER);
+  right->Add(_eye_spacing, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
 
   bottom->Add(button_ok, 1, wxALL, DEFAULT_BORDER);
   bottom->Add(button_cancel, 1, wxALL, DEFAULT_BORDER);
   bottom->Add(_button_apply, 1, wxALL, DEFAULT_BORDER);
+
+  _eye_spacing_label->Enable(!_monitor->GetValue());
+  _eye_spacing->Enable(!_monitor->GetValue());
+  _button_apply->Enable(false);
 
   panel->SetSizer(sizer);
   SetClientSize(sizer->GetMinSize());
@@ -153,6 +166,7 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   Bind(wxEVT_COMMAND_CHECKBOX_CLICKED, changed);
   Bind(wxEVT_SLIDER, changed);
   Bind(wxEVT_SPINCTRL, changed);
+  Bind(wxEVT_SPINCTRLDOUBLE, changed);
 
   button_ok->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
     Apply();
@@ -169,6 +183,8 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
 
 void SettingsFrame::Changed()
 {
+  _eye_spacing_label->Enable(!_monitor->GetValue());
+  _eye_spacing->Enable(!_monitor->GetValue());
   _button_apply->Enable(true);
 }
 
@@ -181,6 +197,7 @@ void SettingsFrame::Apply()
   _system.set_image_cache_size(_image_cache_size->GetValue());
   _system.set_font_cache_size(_font_cache_size->GetValue());
   _system.mutable_draw_depth()->set_draw_depth(v2f(_draw_depth->GetValue()));
+  _system.mutable_eye_spacing()->set_eye_spacing(static_cast<float>(_eye_spacing->GetValue()));
   _parent->SaveSystem(true);
 
   // Seems to work around a bug. No idea why. Radio buttons break if the first isn't set while

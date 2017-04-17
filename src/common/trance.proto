@@ -50,6 +50,12 @@ message System
   }
   DrawDepth draw_depth = 11;
 
+  // How far apart the view for each eye is in VR.
+  message EyeSpacing {
+    float eye_spacing = 1;
+  }
+  EyeSpacing eye_spacing = 12;
+
   // Number of images to keep in memory at a time. Uses up both RAM and video
   // memory.
   uint32 image_cache_size = 5;

@@ -19,7 +19,6 @@ extern "C" {
 
 namespace
 {
-  const float max_eye_offset = 1.f / 16;
   const uint32_t spiral_type_max = 7;
 }
 #include "shaders.h"
@@ -171,7 +170,7 @@ void Director::render_image(const Image& image, float alpha, float zoom_origin, 
          x_flip ? 0.f : 1.f, y_flip ? 1.f : 0.f, x_flip ? 1.f : 0.f, y_flip ? 1.f : 0.f});
   };
 
-  for (int x = 0; x_size * (2 * x - 1) < 1 + max_eye_offset; ++x) {
+  for (int x = 0; x_size * (2 * x - 1) < 1 + _system.eye_spacing().eye_spacing(); ++x) {
     for (int y = 0; y_size * (2 * y - 1) < 1; ++y) {
       add_quad(x, y, x % 2, y % 2);
       if (x) {
@@ -381,7 +380,8 @@ float Director::far_plane_distance() const
 
 float Director::eye_offset() const
 {
+  auto offset = _system.eye_spacing().eye_spacing();
   return _render_state == Renderer::State::VR_LEFT
-      ? -max_eye_offset
-      : _render_state == Renderer::State::VR_RIGHT ? max_eye_offset : 0;
+      ? -offset
+      : _render_state == Renderer::State::VR_RIGHT ? offset : 0;
 }

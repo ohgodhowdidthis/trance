@@ -15,6 +15,8 @@ class wxCheckBox;
 class wxRadioButton;
 class wxSlider;
 class wxSpinCtrl;
+class wxSpinCtrlDouble;
+class wxStaticText;
 
 class SettingsFrame : public wxFrame
 {
@@ -35,6 +37,8 @@ private:
   wxSpinCtrl* _image_cache_size;
   wxSpinCtrl* _font_cache_size;
   wxSlider* _draw_depth;
+  wxSpinCtrlDouble* _eye_spacing;
+  wxStaticText* _eye_spacing_label;
   wxButton* _button_apply;
 };
 
