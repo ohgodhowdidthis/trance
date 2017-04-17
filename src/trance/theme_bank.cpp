@@ -1,5 +1,4 @@
 #include "theme_bank.h"
-#include <common/media/streamer.h>
 #include <common/util.h>
 #include <iostream>
 
@@ -49,11 +48,14 @@ ThemeBank::ThemeBank(const std::string& root_path, const trance_pb::Session& ses
                                        {_all_images.size()},
                                        {_all_images.size()},
                                        {_all_animations.size()},
+                                       {},
+                                       false,
+                                       false,
                                        {theme.font_path().begin(), theme.font_path().end()},
                                        {theme.text_line().begin(), theme.text_line().end()},
                                        {},
                                        {static_cast<std::size_t>(theme.text_line().size())}});
-
+    ThemeInfo& theme_info = *_themes.back();
     // Disable images not in this theme in both shufflers so that they can
     // never be chosen.
     for (std::size_t i = 0; i < _all_images.size(); ++i) {
@@ -64,12 +66,15 @@ ThemeBank::ThemeBank(const std::string& root_path, const trance_pb::Session& ses
     }
     for (std::size_t i = 0; i < _all_animations.size(); ++i) {
       if (animations.count(_all_animations[i])) {
-        _themes.back()->animation_shuffler.modify(i, 1 + (int32_t) _loaded_animations.size());
+        _themes.back()->animation_shuffler.modify(i, 1);
       }
     }
     for (std::size_t i = 0; i < _themes.back()->text_lines.size(); ++i) {
       _themes.back()->text_lookup[_themes.back()->text_lines[i]].push_back(i);
     }
+    theme_info.async_streamer.reset(
+        new AsyncStreamer{[&theme_info, this] { return do_load_animation(theme_info); },
+                          system.animation_buffer_size()});
   }
 
   // Set the initially-enabled themes.
@@ -81,13 +86,12 @@ ThemeBank::ThemeBank(const std::string& root_path, const trance_pb::Session& ses
   for (std::size_t i = 0; i < _active_themes.size(); ++i) {
     advance_theme();
     if (i) {
+      auto& theme = *_active_themes.back().load();
+      theme.async_streamer->load();
       while (!all_loaded()) {
-        do_reconcile(*_active_themes.back().load());
+        do_reconcile(theme);
       }
     }
-  }
-  for (std::size_t i = 1; i < _active_themes.size(); ++i) {
-    do_load_animation(*_active_themes[i].load(), animation(i), false);
   }
 }
 
@@ -98,6 +102,7 @@ const std::string& ThemeBank::get_root_path() const
 
 void ThemeBank::set_program(const trance_pb::Program& program)
 {
+  _global_fps = program.global_fps();
   _enabled_theme_weights.clear();
   _pinned_theme.clear();
   for (auto& theme : _themes) {
@@ -135,11 +140,21 @@ void ThemeBank::set_program(const trance_pb::Program& program)
   }
 }
 
+void ThemeBank::advance_frames()
+{
+  for (std::size_t i = 1; i < 3; ++i) {
+    auto& theme = *_active_themes[1].load();
+    theme.async_streamer->advance_frame(_global_fps, theme.change_animation && !theme.newly_loaded);
+    theme.newly_loaded = false;
+    theme.change_animation = false;
+  }
+}
+
 Image ThemeBank::get_image(bool alternate)
 {
   auto& theme = *_active_themes[alternate ? 2 : 1].load();
   if (!theme.size) {
-    return get_animation(alternate, random(2 << 16));
+    return get_animation(alternate);
   }
   std::size_t index;
   Image image;
@@ -166,24 +181,10 @@ Image ThemeBank::get_image(bool alternate)
   return image;
 }
 
-Image ThemeBank::get_animation(bool alternate, std::size_t frame)
+Image ThemeBank::get_animation(bool alternate)
 {
-  auto& a = animation(alternate ? 2 : 1);
-  std::lock_guard<std::mutex> lock{a.mutex};
-  if (a.frames.empty()) {
-    return {};
-  }
-  auto len = a.frames.size();
-  std::size_t f = 0;
-  if (!len) {
-    return {};
-  }
-  if (len > 1) {
-    f = frame % (2 * len - 2);
-    f = f < len ? f : 2 * len - 2 - f;
-  }
-  do_video_upload(a.frames[f]);
-  return a.frames[f];
+  auto& theme = *_active_themes[alternate ? 2 : 1].load();
+  return theme.async_streamer->get_frame([&](const Image& image) { do_video_upload(image); });
 }
 
 const std::string& ThemeBank::get_text(bool alternate, bool exclusive)
@@ -236,15 +237,20 @@ void ThemeBank::maybe_upload_next()
       do_video_upload(*_all_images[index].image);
     }
   }
-  auto& a = animation(3);
-  if (!a.frames.empty()) {
-    do_video_upload(a.frames[random(a.frames.size())]);
+  for (std::size_t i = 1; i < _active_themes.size(); ++i) {
+    _active_themes.back().load()->async_streamer->maybe_upload_next(
+        [&](const Image& image) { do_video_upload(image); });
   }
+}
+
+void ThemeBank::change_animation(bool alternate)
+{
+  _active_themes[alternate ? 2 : 1].load()->change_animation = true;
 }
 
 bool ThemeBank::change_themes()
 {
-  if (!all_loaded() || !all_unloaded() || animation(0).loaded || !animation(3).loaded) {
+  if (!all_loaded() || !all_unloaded()) {
     return false;
   }
   _cooldown = switch_cooldown;
@@ -290,15 +296,11 @@ void ThemeBank::async_update()
   } else {
     do_reconcile(*_active_themes[1].load());
     do_reconcile(*_active_themes[2].load());
-    if (animation(0).loaded) {
-      do_load_animation(*_active_themes[0].load(), animation(0), true);
-    } else if (!all_unloaded()) {
-      do_unload(*_active_themes.front().load());
+    if (!all_unloaded()) {
+      do_reconcile(*_active_themes.front().load());
     }
-    if (!animation(3).loaded) {
-      do_load_animation(*_active_themes[3].load(), animation(3), false);
-    } else if (!all_loaded()) {
-      do_load(*_active_themes.back().load());
+    if (!all_loaded()) {
+      do_reconcile(*_active_themes.back().load());
     }
   }
 }
@@ -336,13 +338,34 @@ void ThemeBank::advance_theme()
     _active_themes[i].store(_active_themes[1 + i].load());
   }
   _active_themes.back() = _themes[random_theme_index].get();
-  _animation_index = (1 + _animation_index) % _loaded_animations.size();
+
+  std::size_t front_count = 0;
+  for (std::size_t i = 1; i < 4; ++i) {
+    if (_active_themes[i].load() == _active_themes.front().load()) {
+      ++front_count;
+    }
+  }
+  if (front_count == 0) {
+    auto theme = _active_themes.front().load();
+    if (theme) {
+      theme->async_streamer->clear();
+      theme->change_animation = false;
+    }
+  }
+  auto theme = _active_themes.back().load();
+  if (theme) {
+    theme->async_streamer->load();
+    theme->change_animation = false;
+    theme->newly_loaded = true;
+  }
 }
 
 bool ThemeBank::all_loaded() const
 {
   const auto& next_theme = *_active_themes.back().load();
-  return next_theme.loaded_size >= next_theme.size || next_theme.loaded_size >= cache_per_theme();
+  return (next_theme.loaded_size >= next_theme.size ||
+          next_theme.loaded_size >= cache_per_theme()) &&
+      next_theme.async_streamer->is_loaded();
 }
 
 bool ThemeBank::all_unloaded() const
@@ -354,22 +377,12 @@ bool ThemeBank::all_unloaded() const
       ++count;
     }
   }
-  return !prev_theme.loaded_size || count > 1;
-}
-
-ThemeBank::AnimationInfo& ThemeBank::animation(std::size_t active_theme_index)
-{
-  return _loaded_animations[(_animation_index + active_theme_index) % _loaded_animations.size()];
+  return (!prev_theme.loaded_size && prev_theme.async_streamer->is_loaded()) || count > 1;
 }
 
 void ThemeBank::do_swap(std::size_t active_theme_index)
 {
   auto& theme = *_active_themes[active_theme_index].load();
-  if (random_chance(4)) {
-    do_load_animation(theme, animation(active_theme_index), false);
-    return;
-  }
-
   if (!theme.loaded_size || theme.loaded_size == theme.size) {
     return;
   }
@@ -385,6 +398,11 @@ void ThemeBank::do_reconcile(ThemeInfo& theme)
   if (theme.loaded_size > cache_per_theme()) {
     do_unload(theme);
   }
+  theme.async_streamer->async_update([&](const Image& image) {
+    _purge_mutex.lock();
+    _purgeable_images.push_back(image.get_sf_image());
+    _purge_mutex.unlock();
+  });
 }
 
 void ThemeBank::do_load(ThemeInfo& theme)
@@ -438,59 +456,22 @@ void ThemeBank::do_unload(ThemeInfo& theme)
   --theme.loaded_size;
 }
 
-void ThemeBank::do_load_animation(ThemeInfo& theme, AnimationInfo& animation, bool only_unload)
+std::unique_ptr<Streamer> ThemeBank::do_load_animation(ThemeInfo& theme)
 {
-  if (animation.loaded) {
-    _purge_mutex.lock();
-    for (auto& image : animation.frames) {
-      _purgeable_images.push_back(image.get_sf_image());
-    }
-    _purge_mutex.unlock();
-
-    if (animation.index < _all_animations.size()) {
-      for (auto& other_theme : _themes) {
-        other_theme->animation_shuffler.increase(animation.index);
-      }
-    }
-  }
-  if (only_unload) {
-    std::lock_guard<std::mutex> lock{animation.mutex};
-    animation.frames.clear();
-    animation.loaded = false;
-    return;
+  auto index = theme.animation_shuffler.next();
+  if (index >= _all_animations.size()) {
+    return {};
   }
 
-  animation.index = theme.animation_shuffler.next();
-  if (animation.index >= _all_animations.size()) {
-    animation.loaded = true;
-    return;
-  }
-
-  auto streamer = load_animation(_root_path + "/" + _all_animations[animation.index]);
-  std::vector<Image> new_frames;
-  while (true) {
-    auto image = streamer->next_frame();
-    if (image.width() && image.height()) {
-      new_frames.push_back(image);
-    } else {
-      break;
-    }
-  }
+  auto streamer = load_animation(_root_path + "/" + _all_animations[index]);
   int32_t amount = -1;
   if (!streamer->success()) {
     // Don't try to load again if it failed.
-    amount = -static_cast<int32_t>(_loaded_animations.size());
+    for (auto& other_theme : _themes) {
+      other_theme->animation_shuffler.modify(index, -5);
+    }
   }
-
-  {
-    std::lock_guard<std::mutex> lock{animation.mutex};
-    animation.frames = std::move(new_frames);
-  }
-
-  for (auto& other_theme : _themes) {
-    other_theme->animation_shuffler.modify(animation.index, amount);
-  }
-  animation.loaded = true;
+  return streamer;
 }
 
 void ThemeBank::do_video_upload(const Image& image) const

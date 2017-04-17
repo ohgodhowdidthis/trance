@@ -166,7 +166,7 @@ namespace
           auto index = *--it;
           strong_components.back().insert(index);
           tarjan_data[index].on_stack = false;
-          tarjan_stack.erase(it);
+          it = tarjan_stack.erase(it);
           if (index == node_index) {
             break;
           }
@@ -190,11 +190,13 @@ namespace
         uint64_t lowest_distance = 0;
         for (auto it = lowest_it, end = unvisited.end(); it != end; ++it) {
           auto jt = distance_map.find(*it);
-          if (first || (jt != distance_map.end() && jt->second < lowest_distance)) {
-            lowest_distance = jt->second;
-            lowest_it = it;
+          if (jt != distance_map.end()) {
+            if (first || jt->second < lowest_distance) {
+              lowest_distance = jt->second;
+              lowest_it = it;
+            }
+            first = false;
           }
-          first = false;
         }
         auto current = *lowest_it;
         unvisited.erase(lowest_it);

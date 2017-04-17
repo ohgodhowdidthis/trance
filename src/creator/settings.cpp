@@ -35,6 +35,10 @@ namespace
       "uses up both RAM and video memory. Images will be swapped in and out "
       "of the cache periodically.";
 
+  const std::string ANIMATION_BUFFER_SIZE_TOOLTIP =
+      "Number of frames to buffer into memory for each loaded animation. Uses up "
+      "both RAM and video memory.";
+
   const std::string FONT_CACHE_SIZE_TOOLTIP =
       "Number of fonts to load into memory at once. Increasing the font cache "
       "size prevents pauses when loading fonts, but uses up both RAM and video "
@@ -80,6 +84,7 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
 
   _enable_vsync = new wxCheckBox{panel, wxID_ANY, "Enable VSync"};
   _image_cache_size = new wxSpinCtrl{panel, wxID_ANY};
+  _animation_buffer_size = new wxSpinCtrl{panel, wxID_ANY};
   _font_cache_size = new wxSpinCtrl{panel, wxID_ANY};
   _draw_depth = new wxSlider{panel,
                              wxID_ANY,
@@ -108,8 +113,11 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   _enable_vsync->SetToolTip(VSYNC_TOOLTIP);
   _enable_vsync->SetValue(_system.enable_vsync());
   _image_cache_size->SetToolTip(IMAGE_CACHE_SIZE_TOOLTIP);
-  _image_cache_size->SetRange(8, 1024);
+  _image_cache_size->SetRange(16, 1024);
   _image_cache_size->SetValue(_system.image_cache_size());
+  _animation_buffer_size->SetToolTip(ANIMATION_BUFFER_SIZE_TOOLTIP);
+  _animation_buffer_size->SetRange(8, 512);
+  _animation_buffer_size->SetValue(_system.animation_buffer_size());
   _font_cache_size->SetToolTip(FONT_CACHE_SIZE_TOOLTIP);
   _font_cache_size->SetRange(2, 256);
   _font_cache_size->SetValue(_system.font_cache_size());
@@ -129,6 +137,10 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   label->SetToolTip(IMAGE_CACHE_SIZE_TOOLTIP);
   left->Add(label, 0, wxALL, DEFAULT_BORDER);
   left->Add(_image_cache_size, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
+  label = new wxStaticText{panel, wxID_ANY, "Animation buffer size:"};
+  label->SetToolTip(ANIMATION_BUFFER_SIZE_TOOLTIP);
+  left->Add(label, 0, wxALL, DEFAULT_BORDER);
+  left->Add(_animation_buffer_size, 0, wxALL | wxEXPAND, DEFAULT_BORDER);
   label = new wxStaticText{panel, wxID_ANY, "Font cache size:"};
   label->SetToolTip(IMAGE_CACHE_SIZE_TOOLTIP);
   left->Add(label, 0, wxALL, DEFAULT_BORDER);
@@ -195,6 +207,7 @@ void SettingsFrame::Apply()
                                                                  : trance_pb::System::MONITOR);
   _system.set_enable_vsync(_enable_vsync->GetValue());
   _system.set_image_cache_size(_image_cache_size->GetValue());
+  _system.set_animation_buffer_size(_animation_buffer_size->GetValue());
   _system.set_font_cache_size(_font_cache_size->GetValue());
   _system.mutable_draw_depth()->set_draw_depth(v2f(_draw_depth->GetValue()));
   _system.mutable_eye_spacing()->set_eye_spacing(static_cast<float>(_eye_spacing->GetValue()));

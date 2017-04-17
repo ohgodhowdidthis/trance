@@ -95,7 +95,7 @@ public:
              return;
            }
            auto image = _streamer->next_frame();
-           if (!image.width() || !image.height()) {
+           if (!image) {
              _streamer->reset();
              image = _streamer->next_frame();
            }

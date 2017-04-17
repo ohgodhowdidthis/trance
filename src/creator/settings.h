@@ -35,6 +35,7 @@ private:
   wxRadioButton* _openvr;
   wxCheckBox* _enable_vsync;
   wxSpinCtrl* _image_cache_size;
+  wxSpinCtrl* _animation_buffer_size;
   wxSpinCtrl* _font_cache_size;
   wxSlider* _draw_depth;
   wxSpinCtrlDouble* _eye_spacing;

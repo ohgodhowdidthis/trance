@@ -31,6 +31,7 @@ public:
 
   virtual void rotate_spiral(float amount) = 0;
   virtual void change_spiral() = 0;
+  virtual void change_animation(bool alternate = false) = 0;
   virtual void change_font(bool force = false) = 0;
   virtual void change_text(SplitType split_type, bool alternate = false) = 0;
   virtual void change_subtext(bool alternate = false) = 0;
@@ -71,6 +72,7 @@ public:
 
   void rotate_spiral(float amount) override;
   void change_spiral() override;
+  void change_animation(bool alternate = false) override;
   void change_font(bool force = false) override;
   void change_text(SplitType split_type, bool alternate = false) override;
   void change_subtext(bool alternate = false) override;

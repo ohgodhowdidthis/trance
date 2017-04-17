@@ -60,6 +60,10 @@ message System
   // memory.
   uint32 image_cache_size = 5;
 
+  // Number of frames to buffer for each loaded animation. Uses up both RAM and video
+  // memory.
+  uint32 animation_buffer_size = 13;
+
   // Number of font sizes to keep in memory at a time. Each character size of a
   // single font uses up another slot in the cache. Uses up video card memory.
   uint32 font_cache_size = 6;

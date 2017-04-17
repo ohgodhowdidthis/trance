@@ -36,6 +36,7 @@ public:
   AccelerateVisual(VisualControl& api);
 
 private:
+  bool _alternate_animation;
   bool _text_on;
   Image _current;
 };
@@ -91,6 +92,7 @@ public:
   SuperParallelVisual(VisualControl& api);
 
 private:
+  bool _alternate_animation;
   std::vector<Image> _images;
 };
 

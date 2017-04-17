@@ -1,6 +1,7 @@
 #ifndef TRANCE_SRC_TRANCE_THEME_BANK_H
 #define TRANCE_SRC_TRANCE_THEME_BANK_H
 #include <common/media/image.h>
+#include <common/media/streamer.h>
 #include <common/util.h>
 #include <array>
 #include <atomic>
@@ -35,12 +36,14 @@ public:
   const std::string& get_root_path() const;
   void set_program(const trance_pb::Program& program);
 
+  // Advance animation frames.
+  void advance_frames();
   // Get a random loaded in-memory image, text string, etc.
   //
   // These are called from the main (rendering) thread and can upload
   // images from RAM to video memory on-demand.
   Image get_image(bool alternate);
-  Image get_animation(bool alternate, std::size_t frame);
+  Image get_animation(bool alternate);
   const std::string& get_text(bool alternate, bool exclusive);
   const std::string& get_font(bool alternate);
 
@@ -52,6 +55,8 @@ public:
   // mitigate the upload cost of switching active themes.
   void maybe_upload_next();
 
+  // Allow an animation to change this frame.
+  void change_animation(bool alternate);
   // If the next theme has been fully loaded, swap it out for one of the two
   // active themes.
   bool change_themes();
@@ -83,6 +88,10 @@ private:
     Shuffler image_shuffler;
     // Shuffler for choosing animations. Maps on to all_animations.
     Shuffler animation_shuffler;
+    // Async animation streamer.
+    std::unique_ptr<AsyncStreamer> async_streamer;
+    bool newly_loaded;
+    bool change_animation;
     // All font paths for this theme.
     std::vector<std::string> font_paths;
     // All texts for this theme.
@@ -101,18 +110,9 @@ private:
     std::unique_ptr<Image> image;
   };
 
-  struct AnimationInfo {
-    std::atomic<bool> loaded = false;
-    // Index into all_animations.
-    std::size_t index = 0;
-    std::mutex mutex;
-    std::vector<Image> frames;
-  };
-
   void advance_theme();
   bool all_loaded() const;
   bool all_unloaded() const;
-  AnimationInfo& animation(std::size_t active_theme_index);
 
   // Called from the async_update thread and can load images from files
   // into RAM as necessary.
@@ -120,7 +120,7 @@ private:
   void do_reconcile(ThemeInfo& theme);
   void do_load(ThemeInfo& theme);
   void do_unload(ThemeInfo& theme);
-  void do_load_animation(ThemeInfo& theme, AnimationInfo& animation, bool only_unload);
+  std::unique_ptr<Streamer> do_load_animation(ThemeInfo& theme);
   void do_video_upload(const Image& image) const;
   void do_purge();
 
@@ -129,7 +129,6 @@ private:
   std::vector<ImageInfo> _all_images;
   std::vector<std::size_t> _last_images;
   std::vector<std::string> _all_animations;
-  std::array<AnimationInfo, 4> _loaded_animations;
   std::atomic<std::size_t> _animation_index;
   std::string _last_text;
 
@@ -145,6 +144,7 @@ private:
   const uint32_t _image_cache_size;
   uint32_t _swaps_to_match_theme;
   uint32_t _updates;
+  uint32_t _global_fps;
   std::atomic<uint32_t> _cooldown;
 
   mutable std::mutex _purge_mutex;

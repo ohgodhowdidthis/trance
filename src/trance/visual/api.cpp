@@ -96,6 +96,11 @@ void VisualApiImpl::change_spiral()
   _spiral_width = 360 / (1 + random(6));
 }
 
+void VisualApiImpl::change_animation(bool alternate)
+{
+  _themes.change_animation(alternate);
+}
+
 void VisualApiImpl::change_font(bool force)
 {
   if (force || random_chance(4)) {
@@ -179,11 +184,12 @@ bool VisualApiImpl::change_themes()
 void VisualApiImpl::render_animation_or_image(Anim type, const Image& image, float alpha,
                                               float zoom_origin, float zoom) const
 {
-  Image anim = _themes.get_animation(
-      type == Anim::ANIM_ALTERNATE,
-      std::size_t((120.f / _director.program().global_fps()) * _switch_themes / 8));
+  Image anim;
+  if (type != Anim::NONE) {
+    anim = _themes.get_animation(type == Anim::ANIM_ALTERNATE);
+  }
 
-  if (type != Anim::NONE && anim) {
+  if (anim) {
     render_image(anim, alpha, zoom_origin, zoom);
   } else {
     render_image(image, alpha, zoom_origin, zoom);

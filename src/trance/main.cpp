@@ -266,6 +266,7 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
         update = true;
         --frames_this_loop;
         continue_playing &= director.update();
+        theme_bank->advance_frames();
       }
       if (!continue_playing) {
         break;
