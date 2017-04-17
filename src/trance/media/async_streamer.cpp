@@ -5,46 +5,10 @@ AsyncStreamer::AsyncStreamer(const std::function<std::unique_ptr<Streamer>()>& l
                              size_t buffer_size)
 : _load_function{load_function}, _buffer_size{buffer_size}
 {
-}
-
-bool AsyncStreamer::is_loaded() const
-{
-  std::lock_guard<std::mutex> lock{_current_mutex};
-  if (_current.streamer) {
-    return _current.end || _current.buffer.size() >= _buffer_size;
+  _current.streamer = load_function();
+  while (!_current.end && _current.buffer.size() < _buffer_size) {
+    async_update([](const Image& image) {});
   }
-  std::lock_guard<std::mutex> next_lock{_next_mutex};
-  return _current.buffer.empty() && _next.buffer.empty();
-}
-
-void AsyncStreamer::load()
-{
-  std::lock_guard<std::mutex> lock{_current_mutex};
-  if (!_current.streamer) {
-    _current.streamer = _load_function();
-    _current.buffer.clear();
-    _current.end = false;
-
-    _update_counter = 0.f;
-    _reached_end = false;
-    _backwards = false;
-    _index = 0;
-  }
-}
-
-void AsyncStreamer::clear()
-{
-  std::lock_guard<std::mutex> lock{_current_mutex};
-  std::lock_guard<std::mutex> next_lock{_next_mutex};
-  _current.streamer.reset();
-  _next.streamer.reset();
-  _current.end = false;
-  _next.end = false;
-
-  _update_counter = 0.f;
-  _reached_end = false;
-  _backwards = false;
-  _index = 0;
 }
 
 void AsyncStreamer::maybe_upload_next(const std::function<void(const Image&)>& function)
@@ -74,38 +38,36 @@ Image AsyncStreamer::get_frame(const std::function<void(const Image&)>& function
   return image;
 }
 
-void AsyncStreamer::advance_frame(uint32_t global_fps, bool maybe_switch)
+void AsyncStreamer::advance_frame(uint32_t global_fps, bool maybe_switch, bool force_switch)
 {
-  if (!_current.streamer) {
-    return;
+  std::lock_guard<std::mutex> lock{_current_mutex};
+  {
+    std::lock_guard<std::mutex> next_lock{_next_mutex};
+    if (!_old_streamer && _old_buffer.empty() && _next.streamer &&
+        (!_current.streamer->success() || _current.buffer.empty() ||
+         (maybe_switch && (_reached_end || force_switch) &&
+          (_next.end || _next.buffer.size() >= _buffer_size)))) {
+      _current.streamer.swap(_next.streamer);
+      _current.buffer.swap(_next.buffer);
+      _current.end = _next.end;
+
+      {
+        std::lock_guard<std::mutex> lock{_old_mutex};
+        _next.streamer.swap(_old_streamer);
+        _next.buffer.swap(_old_buffer);
+      }
+      _next.end = false;
+
+      _reached_end = false;
+      _backwards = false;
+      _index = 0;
+    }
   }
+
   _update_counter += (120.f / global_fps) / 8.f;
   while (_update_counter > 1.f) {
     _update_counter -= 1.f;
 
-    std::lock_guard<std::mutex> lock{_current_mutex};
-    {
-      std::lock_guard<std::mutex> next_lock{_next_mutex};
-      if (!_old_streamer && _old_buffer.empty() && _next.streamer &&
-          (!_current.streamer->success() || _current.buffer.empty() ||
-           (maybe_switch && _reached_end && (_next.end || _next.buffer.size() >= _buffer_size)))) {
-        _current.streamer.swap(_next.streamer);
-        _current.buffer.swap(_next.buffer);
-        _current.end = _next.end;
-
-        {
-          std::lock_guard<std::mutex> lock{_old_mutex};
-          _next.streamer.swap(_old_streamer);
-          _next.buffer.swap(_old_buffer);
-        }
-        _next.end = false;
-
-        _reached_end = false;
-        _backwards = false;
-        _index = 0;
-        return;
-      }
-    }
     if (_backwards) {
       if (_index > 0) {
         --_index;
@@ -152,7 +114,7 @@ void AsyncStreamer::async_update(const std::function<void(const Image&)>& cleanu
 
   do {
     std::lock_guard<std::mutex> lock{_current_mutex};
-    if (!_current.streamer || _current.end || !_index) {
+    if (_current.end || !_index) {
       break;
     }
     auto image = _current.streamer->next_frame();
@@ -166,15 +128,12 @@ void AsyncStreamer::async_update(const std::function<void(const Image&)>& cleanu
   } while (true);
 
   {
-    std::unique_lock<std::mutex> lock{_current_mutex};
-    std::unique_lock<std::mutex> next_lock{_next_mutex};
-    if (_current.streamer && !_next.streamer) {
-      next_lock.unlock();
+    std::unique_lock<std::mutex> lock{_next_mutex};
+    if (!_next.streamer) {
       lock.unlock();
       auto next_streamer = _load_function();
       lock.lock();
-      next_lock.lock();
-      if (_current.streamer && !_next.streamer) {
+      if (!_next.streamer) {
         _next.streamer = std::move(next_streamer);
         _next.buffer.clear();
         _next.end = false;
@@ -184,21 +143,13 @@ void AsyncStreamer::async_update(const std::function<void(const Image&)>& cleanu
 
   {
     std::lock_guard<std::mutex> lock{_current_mutex};
-    if (_current.streamer && !_current.end && _current.buffer.size() < _buffer_size) {
+    if (!_current.end && _current.buffer.size() < _buffer_size) {
       auto image = _current.streamer->next_frame();
       if (image) {
         _current.buffer.push_back(image);
-        if (_index > 0) {
-          _current.buffer.pop_front();
-          --_index;
-        }
       } else {
         _current.end = true;
       }
-    }
-    if (!_current.streamer && !_current.buffer.empty()) {
-      cleanup_function(_current.buffer.front());
-      _current.buffer.pop_front();
     }
   }
 
@@ -211,10 +162,6 @@ void AsyncStreamer::async_update(const std::function<void(const Image&)>& cleanu
       } else {
         _next.end = true;
       }
-    }
-    if (!_next.streamer && !_next.buffer.empty()) {
-      cleanup_function(_next.buffer.front());
-      _next.buffer.pop_front();
     }
   }
 }

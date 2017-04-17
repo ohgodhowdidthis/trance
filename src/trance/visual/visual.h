@@ -115,7 +115,9 @@ private:
   bool _alternate;
   uint32_t _cooldown_timer;
   uint32_t _animation_timer;
+  bool _start_animation;
   Image _current;
+  Image _next;
 };
 
 #endif

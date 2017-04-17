@@ -88,10 +88,6 @@ private:
     Shuffler image_shuffler;
     // Shuffler for choosing animations. Maps on to all_animations.
     Shuffler animation_shuffler;
-    // Async animation streamer.
-    std::unique_ptr<AsyncStreamer> async_streamer;
-    bool newly_loaded;
-    bool change_animation;
     // All font paths for this theme.
     std::vector<std::string> font_paths;
     // All texts for this theme.
@@ -120,7 +116,7 @@ private:
   void do_reconcile(ThemeInfo& theme);
   void do_load(ThemeInfo& theme);
   void do_unload(ThemeInfo& theme);
-  std::unique_ptr<Streamer> do_load_animation(ThemeInfo& theme);
+  std::unique_ptr<Streamer> do_load_animation(bool alternate);
   void do_video_upload(const Image& image) const;
   void do_purge();
 
@@ -129,8 +125,14 @@ private:
   std::vector<ImageInfo> _all_images;
   std::vector<std::size_t> _last_images;
   std::vector<std::string> _all_animations;
-  std::atomic<std::size_t> _animation_index;
   std::string _last_text;
+
+  std::unique_ptr<AsyncStreamer> _streamer;
+  std::unique_ptr<AsyncStreamer> _alt_streamer;
+  bool _animation_theme_changed = false;
+  bool _alt_animation_theme_changed = false;
+  bool _change_animation = false;
+  bool _alt_change_animation = false;
 
   // Maps theme name to index in theme vector.
   std::unordered_map<std::string, std::size_t> _theme_map;

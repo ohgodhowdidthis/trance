@@ -3,6 +3,7 @@
 #include <trance/director.h>
 #include <trance/visual/api.h>
 #include <trance/visual/cyclers.h>
+#include <algorithm>
 
 void Visual::set_cycler(Cycler* cycler)
 {
@@ -244,7 +245,7 @@ FlashTextVisual::FlashTextVisual(VisualControl& api)
 
     api.render_spiral();
     api.render_small_subtext(1.f / 5, .25f);
-    if ((image_repeat->index())) {
+    if (image_repeat->index()) {
       api.render_text(.85f - .05f * progress, .9f - .1f * progress, .75f, .8f - .05f * progress);
     }
   });
@@ -299,7 +300,7 @@ ParallelVisual::ParallelVisual(VisualControl& api)
 
     auto alt_anim = _alternate_anim_cycle % 3 == 1 ? VisualRender::Anim::ANIM_ALTERNATE
                                                    : VisualRender::Anim::NONE;
-    api.render_animation_or_image(alt_anim, _alternate, .5f, 0, .75f * image_alt->progress());
+    api.render_animation_or_image(alt_anim, _alternate, .5f, 0, .5f * image_alt->progress());
 
     api.render_spiral();
     api.render_small_subtext(1.f / 5, .25f);
@@ -370,30 +371,31 @@ SuperParallelVisual::SuperParallelVisual(VisualControl& api) : _alternate_animat
 AnimationVisual::AnimationVisual(VisualControl& api)
 {
   auto image_timer = new ActionCycler{16};
-  auto zoom_timer = new ActionCycler{128};
   auto image = new ActionCycler{32, [&] {
                                   _animation_backup = api.get_image();
                                   _current = api.get_image();
                                 }};
   auto image_alt = new ActionCycler{32, 16, [&] { _current = api.get_image(true); }};
 
-  auto text = new ActionCycler{128, 0, [&] { api.change_text(VisualControl::SPLIT_LINE); }};
-  auto text_alt =
-      new ActionCycler{128, 0, [&] { api.change_text(VisualControl::SPLIT_LINE, true); }};
-  auto text_both = new SequenceCycler{{text, text_alt}};
-  auto text_counter = new RepeatCycler{2, new ActionCycler{64}};
-
-  auto anim = new ActionCycler{32, 0, [&] { api.change_animation(false); }};
-  auto anim_alt = new ActionCycler{32, 0, [&] { api.change_animation(true); }};
-  auto anim_both = new SequenceCycler{{new RepeatCycler{4, anim}, new RepeatCycler{4, anim_alt}}};
+  auto change = new ActionCycler{128, 0, [&] {
+                                   api.change_text(VisualControl::SPLIT_LINE);
+                                   api.change_animation(false);
+                                 }};
+  auto change_alt = new ActionCycler{128, 0, [&] {
+                                       api.change_text(VisualControl::SPLIT_LINE, true);
+                                       api.change_animation(true);
+                                     }};
+  auto change_both = new SequenceCycler{{change, change_alt}};
+  auto half_counter = new ActionCycler{64};
+  auto change_counter = new RepeatCycler{2, half_counter};
 
   auto spiral = new ActionCycler{[&] { api.rotate_spiral(3.5f); }};
   auto small_subtext =
       new ActionCycler{16, [&] { api.change_small_subtext(true, random_chance()); }};
   auto upload = new ActionCycler{32, 24, [&] { api.maybe_upload_next(); }};
 
-  auto parallel = new ParallelCycler{{spiral, small_subtext, upload, image, image_alt, image_timer,
-                                      zoom_timer, text_both, text_counter, anim_both}};
+  auto parallel = new ParallelCycler{
+      {spiral, small_subtext, upload, image, image_alt, image_timer, change_both, change_counter}};
   auto repeat = new RepeatCycler{4, parallel};
   auto oneshot = new ActionCycler{[&] {
     api.change_spiral();
@@ -405,44 +407,54 @@ AnimationVisual::AnimationVisual(VisualControl& api)
 
   set_render([=](VisualRender& api) {
     auto which_anim =
-        text_alt->active() ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM;
-    auto image_zoom = 1.25f * zoom_timer->progress();
+        change_alt->active() ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM;
+    auto image_zoom = .625f * half_counter->progress();
     api.render_animation_or_image(which_anim, _animation_backup, 1.f, 0, image_zoom);
-    api.render_image(_current, .2f, .5f, .5f + .25f * image_timer->progress());
+    if (half_counter->frame() >= 48) {
+      auto t = half_counter->frame() - 48;
+      api.render_image(_current, std::min(.75f, t / 12.f), .5f, .5f + .125f * t / 16.f);
+    }
     api.render_spiral();
     api.render_small_subtext(1.f / 5, .5f);
-    if (!text_counter->index()) {
+    if (!change_counter->index()) {
       api.render_text(.75f, .75f, .5f, .5f);
     }
   });
 }
 
 SuperFastVisual::SuperFastVisual(VisualControl& api)
-: _alternate{false}, _cooldown_timer{0}, _animation_timer{0}
+: _alternate{false}, _cooldown_timer{0}, _animation_timer{0}, _start_animation{false}
 {
   auto length = new ActionCycler{2048};
-  auto rapid = new ActionCycler{8, [&] {
-                                  if (_animation_timer) {
-                                    if (--_animation_timer == 4) {
-                                      api.maybe_upload_next();
-                                    }
-                                  } else if (_cooldown_timer) {
-                                    --_cooldown_timer;
-                                  }
-                                  if (!_animation_timer && !_cooldown_timer && random_chance(16)) {
-                                    _alternate = !_alternate;
-                                    _animation_timer = 8 + random(9);
-                                    _cooldown_timer = 8;
-                                  }
-                                  if (!_animation_timer) {
-                                    _current = api.get_image(_alternate);
-                                    api.change_text(VisualControl::SPLIT_WORD, _alternate);
-                                  }
-                                }};
-  auto spiral = new ActionCycler{[&] {
-    api.rotate_spiral(3.f);
-    api.change_animation(_alternate);
-  }};
+  auto rapid = new ActionCycler{
+      8, [&] {
+        if (_animation_timer) {
+          if (--_animation_timer == 4) {
+            api.maybe_upload_next();
+          }
+        } else if (_cooldown_timer) {
+          --_cooldown_timer;
+        }
+        if (_start_animation) {
+          _alternate = !_alternate;
+          api.change_animation(_alternate);
+          _animation_timer = 8 + random(9);
+          _cooldown_timer = 8;
+          _start_animation = false;
+        }
+        if (!_start_animation && !_animation_timer && !_cooldown_timer && random_chance(12)) {
+          _start_animation = true;
+        }
+        if (!_animation_timer) {
+          _current = _next;
+          if (!_current) {
+            _current = api.get_image(_alternate);
+          }
+          _next = api.get_image(_alternate);
+          api.change_text(VisualControl::SPLIT_WORD, _alternate);
+        }
+      }};
+  auto spiral = new ActionCycler{[&] { api.rotate_spiral(3.f); }};
 
   auto parallel = new ParallelCycler{{length, rapid, spiral}};
   auto oneshot = new ActionCycler{[&] {
@@ -460,8 +472,12 @@ SuperFastVisual::SuperFastVisual(VisualControl& api)
           _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, _current, 1.f,
           0.f, anim_progress);
     } else {
-      auto image_zoom = .1875f * rapid->progress();
+      auto next_zoom = .1875f * (rapid->progress() - .5f);
+      auto image_zoom = .1875f * (.5f + rapid->progress());
       api.render_image(_current, 1.f, 0.f, image_zoom);
+      if (rapid->frame() >= rapid->length() - 4 && !_start_animation) {
+        api.render_image(_next, (5 - rapid->length() + rapid->frame()) / 5.f, next_zoom, next_zoom);
+      }
       if (rapid->frame() >= rapid->length() - 2) {
         api.render_text(.75f, .75f, image_zoom, image_zoom);
       }

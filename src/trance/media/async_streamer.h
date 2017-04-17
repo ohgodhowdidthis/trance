@@ -14,13 +14,9 @@ public:
   AsyncStreamer(const std::function<std::unique_ptr<Streamer>()>& load_function,
                 size_t buffer_size);
 
-  bool is_loaded() const;
-  void load();
-  void clear();
-
   void maybe_upload_next(const std::function<void(const Image&)>& function);
   Image get_frame(const std::function<void(const Image&)>& function) const;
-  void advance_frame(uint32_t global_fps, bool maybe_switch);
+  void advance_frame(uint32_t global_fps, bool maybe_switch, bool force_switch);
 
   // Called from async update thread.
   void async_update(const std::function<void(const Image&)>& cleanup_function);
@@ -32,7 +28,7 @@ private:
   struct Animation {
     std::unique_ptr<Streamer> streamer;
     std::deque<Image> buffer;
-    bool end;
+    bool end = false;
   };
   std::function<std::unique_ptr<Streamer>()> _load_function;
   const size_t _buffer_size;
