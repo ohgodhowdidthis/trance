@@ -21,6 +21,7 @@ GifStreamer::GifStreamer(const std::string& path) : _path{path}
     return;
   }
   _pixels.reset(new uint32_t[_gif->SWidth * _gif->SHeight]);
+  _success = true;
 }
 
 GifStreamer::~GifStreamer()
