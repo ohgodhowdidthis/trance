@@ -39,7 +39,7 @@ private:
   std::deque<Image> _old_buffer;
 
   float _update_counter = 0.f;
-  std::size_t _index = 0;
+  size_t _index = 0;
   bool _backwards = false;
   bool _reached_end = false;
 };

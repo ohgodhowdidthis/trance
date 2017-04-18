@@ -36,7 +36,10 @@ public:
   AccelerateVisual(VisualControl& api);
 
 private:
-  bool _alternate_animation;
+  int32_t _animation_counter;
+  int32_t _animation_mod;
+  bool _animation_on;
+  bool _animation_alternate;
   bool _text_on;
   Image _current;
 };
@@ -47,6 +50,9 @@ public:
   SubTextVisual(VisualControl& api);
 
 private:
+  int32_t _animation_counter;
+  int32_t _animation_mod;
+  bool _animation_on;
   Image _current;
   bool _alternate;
   uint32_t _sub_speed_multiplier;

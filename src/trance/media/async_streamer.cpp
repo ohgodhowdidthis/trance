@@ -40,21 +40,23 @@ Image AsyncStreamer::get_frame(const std::function<void(const Image&)>& function
 
 void AsyncStreamer::advance_frame(uint32_t global_fps, bool maybe_switch, bool force_switch)
 {
-  std::lock_guard<std::mutex> lock{_current_mutex};
   {
+    std::lock_guard<std::mutex> lock{_current_mutex};
     std::lock_guard<std::mutex> next_lock{_next_mutex};
-    if (!_old_streamer && _old_buffer.empty() && _current.streamer && _next.streamer &&
+    if (!_old_streamer && _current.streamer && _next.streamer &&
         (!_current.streamer->success() || _current.buffer.empty() ||
          (maybe_switch && (_reached_end || force_switch) &&
           (_next.end || _next.buffer.size() >= _buffer_size)))) {
       _current.streamer.swap(_next.streamer);
       _current.buffer.swap(_next.buffer);
       _current.end = _next.end;
-
       {
         std::lock_guard<std::mutex> lock{_old_mutex};
         _next.streamer.swap(_old_streamer);
-        _next.buffer.swap(_old_buffer);
+        for (auto& image : _next.buffer) {
+          _old_buffer.emplace_back(std::move(image));
+        }
+        _next.buffer.clear();
       }
       _next.end = false;
 
@@ -68,6 +70,7 @@ void AsyncStreamer::advance_frame(uint32_t global_fps, bool maybe_switch, bool f
   while (_update_counter > 1.f) {
     _update_counter -= 1.f;
 
+    std::lock_guard<std::mutex> lock{_current_mutex};
     if (_backwards) {
       if (_index > 0) {
         --_index;
@@ -153,15 +156,16 @@ void AsyncStreamer::async_update(const std::function<void(const Image&)>& cleanu
     }
   }
 
-  {
+  for (auto i = 0; i < 2; ++i) {
     std::lock_guard<std::mutex> lock{_next_mutex};
-    if (_next.streamer && !_next.end && _next.buffer.size() < _buffer_size) {
-      auto image = _next.streamer->next_frame();
-      if (image) {
-        _next.buffer.push_back(image);
-      } else {
-        _next.end = true;
-      }
+    if (!_next.streamer || _next.end || _next.buffer.size() >= _buffer_size) {
+      break;
+    }
+    auto image = _next.streamer->next_frame();
+    if (image) {
+      _next.buffer.push_back(image);
+    } else {
+      _next.end = true;
     }
   }
 }

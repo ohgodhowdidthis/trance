@@ -302,10 +302,10 @@ void ThemeBank::async_update()
     do_reconcile(*_active_themes[1].load());
     do_reconcile(*_active_themes[2].load());
     if (!all_unloaded()) {
-      do_reconcile(*_active_themes.front().load());
+      do_unload(*_active_themes.front().load());
     }
     if (!all_loaded()) {
-      do_reconcile(*_active_themes.back().load());
+      do_load(*_active_themes.back().load());
     }
   }
 }
