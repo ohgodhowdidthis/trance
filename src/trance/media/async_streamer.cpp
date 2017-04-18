@@ -6,7 +6,7 @@ AsyncStreamer::AsyncStreamer(const std::function<std::unique_ptr<Streamer>()>& l
 : _load_function{load_function}, _buffer_size{buffer_size}
 {
   _current.streamer = load_function();
-  while (!_current.end && _current.buffer.size() < _buffer_size) {
+  while (_current.streamer && !_current.end && _current.buffer.size() < _buffer_size) {
     async_update([](const Image& image) {});
   }
 }
@@ -43,7 +43,7 @@ void AsyncStreamer::advance_frame(uint32_t global_fps, bool maybe_switch, bool f
   std::lock_guard<std::mutex> lock{_current_mutex};
   {
     std::lock_guard<std::mutex> next_lock{_next_mutex};
-    if (!_old_streamer && _old_buffer.empty() && _next.streamer &&
+    if (!_old_streamer && _old_buffer.empty() && _current.streamer && _next.streamer &&
         (!_current.streamer->success() || _current.buffer.empty() ||
          (maybe_switch && (_reached_end || force_switch) &&
           (_next.end || _next.buffer.size() >= _buffer_size)))) {
@@ -114,7 +114,7 @@ void AsyncStreamer::async_update(const std::function<void(const Image&)>& cleanu
 
   do {
     std::lock_guard<std::mutex> lock{_current_mutex};
-    if (_current.end || !_index) {
+    if (!_current.streamer || _current.end || !_index) {
       break;
     }
     auto image = _current.streamer->next_frame();
@@ -143,7 +143,7 @@ void AsyncStreamer::async_update(const std::function<void(const Image&)>& cleanu
 
   {
     std::lock_guard<std::mutex> lock{_current_mutex};
-    if (!_current.end && _current.buffer.size() < _buffer_size) {
+    if (_current.streamer && !_current.end && _current.buffer.size() < _buffer_size) {
       auto image = _current.streamer->next_frame();
       if (image) {
         _current.buffer.push_back(image);
