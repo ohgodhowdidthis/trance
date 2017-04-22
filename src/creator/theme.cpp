@@ -7,6 +7,8 @@
 #include <creator/main.h>
 #include <algorithm>
 #include <filesystem>
+#include <iomanip>
+#include <sstream>
 #include <thread>
 
 #pragma warning(push, 0)
@@ -14,6 +16,7 @@
 #include <wx/button.h>
 #include <wx/dcclient.h>
 #include <wx/listctrl.h>
+#include <wx/radiobut.h>
 #include <wx/sizer.h>
 #include <wx/splitter.h>
 #include <wx/textdlg.h>
@@ -78,6 +81,28 @@ namespace
     }
     return r;
   }
+
+  std::string GetFileSize(const std::string& path)
+  {
+    struct stat stat_buffer;
+    int rc = stat(path.c_str(), &stat_buffer);
+    auto size = rc == 0 ? stat_buffer.st_size : 0;
+    if (size < 1024) {
+      return std::to_string(size) + "B";
+    }
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(1);
+    if (size < 1024 * 1024) {
+      ss << static_cast<float>(size) / 1024;
+      return ss.str() + "KB";
+    }
+    if (size < 1024 * 1024 * 1024) {
+      ss << static_cast<float>(size) / (1024 * 1024);
+      return ss.str() + "MB";
+    }
+    ss << static_cast<float>(size) / (1024 * 1024 * 1024);
+    return ss.str() + "GB";
+  }
 }
 
 class ImagePanel : public wxPanel
@@ -130,6 +155,13 @@ public:
         _bitmap = wxBitmap{temp_image};
       }
       dc.DrawBitmap(_bitmap, 0, 0, false);
+      dc.SetFont(*wxNORMAL_FONT);
+      dc.SetTextForeground(*wxWHITE);
+      if (!_info.empty()) {
+        dc.DrawText(std::to_string(_image->GetWidth()) + "x" + std::to_string(_image->GetHeight()) +
+                        " [" + _info + "]",
+                    4, 4);
+      }
     });
   }
 
@@ -155,7 +187,13 @@ public:
     Refresh();
   }
 
-  void Shutdown() {
+  void SetInfo(const std::string& info)
+  {
+    _info = info;
+  }
+
+  void Shutdown()
+  {
     _shutdown = true;
   }
 
@@ -180,6 +218,7 @@ private:
 
   bool _dirty = true;
   bool _shutdown = false;
+  std::string _info;
   std::size_t _frame;
   std::unique_ptr<wxImage> _image;
   std::unique_ptr<Streamer> _streamer;
@@ -225,6 +264,7 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
   auto leftleft = new wxStaticBoxSizer{wxVERTICAL, leftleft_panel, "Included files"};
   auto leftleft_row0 = new wxBoxSizer{wxHORIZONTAL};
   auto leftleft_row1 = new wxBoxSizer{wxHORIZONTAL};
+  auto leftleft_row2 = new wxBoxSizer{wxHORIZONTAL};
   auto leftright_panel = new wxPanel{left_splitter, wxID_ANY};
   auto leftright = new wxStaticBoxSizer{wxVERTICAL, leftright_panel, "Preview"};
 
@@ -274,6 +314,11 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
   _button_next_unused = new wxButton{leftleft_panel, wxID_ANY, "Next unused"};
   _button_next_theme = new wxButton{leftleft_panel, wxID_ANY, "Next in theme"};
 
+  _button_show_all = new wxRadioButton{leftleft_panel,    wxID_ANY,      "All",
+                                       wxDefaultPosition, wxDefaultSize, wxRB_GROUP};
+  _button_show_images = new wxRadioButton{leftleft_panel, wxID_ANY, "Images"};
+  _button_show_animations = new wxRadioButton{leftleft_panel, wxID_ANY, "Animations"};
+
   _button_new->SetToolTip("Create a new text item.");
   _button_edit->SetToolTip("Edit the selected text item.");
   _button_delete->SetToolTip("Delete the selected text item.");
@@ -283,18 +328,28 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
       "Scan the session directory for available images, animations and fonts.");
   _button_next_unused->SetToolTip("Jump to the next unused item.");
   _button_next_theme->SetToolTip("Jump to the next item in the current theme.");
+  _button_show_all->SetToolTip("Show all items (images, animations and fonts).");
+  _button_show_images->SetToolTip("Show images only.");
+  _button_show_animations->SetToolTip("Show animations only.");
 
   _button_open->Enable(false);
   _button_rename->Enable(false);
+  _button_show_all->SetValue(true);
+  _button_show_images->SetValue(false);
+  _button_show_animations->SetValue(false);
 
-  leftleft->Add(_tree, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft->Add(leftleft_row0, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft->Add(_tree, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft->Add(leftleft_row1, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
-  leftleft_row0->Add(_button_open, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
-  leftleft_row0->Add(_button_rename, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
-  leftleft_row0->Add(_button_refresh, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
-  leftleft_row1->Add(_button_next_unused, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
-  leftleft_row1->Add(_button_next_theme, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft->Add(leftleft_row2, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row0->Add(_button_show_all, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row0->Add(_button_show_images, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row0->Add(_button_show_animations, 0, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row1->Add(_button_open, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row1->Add(_button_rename, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row1->Add(_button_refresh, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row2->Add(_button_next_unused, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row2->Add(_button_next_theme, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft_panel->SetSizer(leftleft);
   leftright->Add(_image_panel, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftright_panel->SetSizer(leftright);
@@ -500,7 +555,7 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
     auto it = std::lower_bound(paths.begin(), paths.end(), _path_selected);
     std::size_t index = it == paths.end() ? 0 : std::distance(paths.begin(), it);
     for (std::size_t i = (index + 1) % paths.size(); i != index; i = (i + 1) % paths.size()) {
-      if (_tree_lookup.find(paths[i]) == _tree_lookup.end()) {
+      if (!_tree_lookup.count(paths[i])) {
         continue;
       }
       bool unused = true;
@@ -546,6 +601,9 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
     auto it = std::lower_bound(paths.begin(), paths.end(), _path_selected);
     std::size_t index = it == paths.end() ? 0 : std::distance(paths.begin(), it);
     for (std::size_t i = (index + 1) % paths.size(); i != index; i = (i + 1) % paths.size()) {
+      if (!_tree_lookup.count(paths[i])) {
+        continue;
+      }
       const auto& t = theme_it->second;
       if (std::find(t.font_path().begin(), t.font_path().end(), paths[i]) != t.font_path().end() ||
           std::find(t.image_path().begin(), t.image_path().end(), paths[i]) !=
@@ -558,6 +616,21 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
         break;
       }
     }
+  });
+
+  _button_show_all->Bind(wxEVT_RADIOBUTTON, [&](wxCommandEvent&) {
+    _creator_frame.RefreshDirectory();
+    RefreshOurData();
+  });
+
+  _button_show_images->Bind(wxEVT_RADIOBUTTON, [&](wxCommandEvent&) {
+    _creator_frame.RefreshDirectory();
+    RefreshOurData();
+  });
+
+  _button_show_animations->Bind(wxEVT_RADIOBUTTON, [&](wxCommandEvent&) {
+    _creator_frame.RefreshDirectory();
+    RefreshOurData();
   });
 
   _tree->Bind(wxEVT_TREELIST_SELECTION_CHANGED,
@@ -727,6 +800,15 @@ void ThemePage::RefreshDirectory(const std::string& directory)
     }
   }
 
+  for (auto it = paths.begin(); it != paths.end();) {
+    if ((_button_show_images->GetValue() && !is_image(*it)) ||
+        (_button_show_animations->GetValue() && !is_animation(*it))) {
+      it = paths.erase(it);
+    } else {
+      ++it;
+    }
+  }
+
   std::size_t file_count = 0;
   for (const auto& path_str : paths) {
     std::tr2::sys::path path{path_str};
@@ -738,6 +820,7 @@ void ThemePage::RefreshDirectory(const std::string& directory)
         parent.append(*jt);
       }
       component.append(*it);
+
       if (_tree_lookup.find(component.string()) == _tree_lookup.end()) {
         wxClientData* data = nullptr;
         if (it == --path.end()) {
@@ -778,6 +861,14 @@ void ThemePage::RefreshDirectory(const std::string& directory)
     }
   }
   _creator_frame.SetStatusText("Scanned " + std::to_string(file_count) + " files in " + directory);
+
+  auto it = _tree_lookup.find(_path_selected);
+  if (it == _tree_lookup.end()) {
+    _path_selected.clear();
+  } else {
+    _tree->Select(it->second);
+    _tree->EnsureVisible(it->second);
+  }
 }
 
 void ThemePage::Shutdown()
@@ -795,17 +886,21 @@ void ThemePage::RefreshTree(wxTreeListItem item)
     const auto& anims = _complete_theme->animation_path();
     const auto& fonts = _complete_theme->font_path();
     if (_path_selected != path) {
+      auto full_path = root + "/" + path;
       if (std::find(images.begin(), images.end(), path) != images.end()) {
         _current_font.clear();
-        _image_panel->SetImage(load_image(root + "/" + path));
+        _image_panel->SetImage(load_image(full_path));
+        _image_panel->SetInfo(GetFileSize(full_path));
       }
       if (std::find(anims.begin(), anims.end(), path) != anims.end()) {
         _current_font.clear();
-        _image_panel->SetAnimation(load_animation(root + "/" + path));
+        _image_panel->SetAnimation(load_animation(full_path));
+        _image_panel->SetInfo(GetFileSize(full_path));
       }
       if (std::find(fonts.begin(), fonts.end(), path) != fonts.end()) {
-        _current_font = root + "/" + path;
+        _current_font = full_path;
         GenerateFontPreview();
+        _image_panel->SetInfo("");
       }
       _path_selected = path;
     }

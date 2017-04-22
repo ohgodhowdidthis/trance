@@ -18,6 +18,7 @@ class ItemList;
 class ImagePanel;
 class wxButton;
 class wxListCtrl;
+class wxRadioButton;
 class wxTreeListCtrl;
 class wxTreeListItem;
 
@@ -59,6 +60,9 @@ private:
   wxButton* _button_refresh;
   wxButton* _button_next_unused;
   wxButton* _button_next_theme;
+  wxRadioButton* _button_show_all;
+  wxRadioButton* _button_show_images;
+  wxRadioButton* _button_show_animations;
   wxListCtrl* _text_list;
 };
 
