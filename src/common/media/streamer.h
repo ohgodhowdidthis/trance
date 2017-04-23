@@ -1,5 +1,6 @@
 #ifndef TRANCE_SRC_COMMON_MEDIA_STREAMER_H
 #define TRANCE_SRC_COMMON_MEDIA_STREAMER_H
+#include <atomic>
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -56,7 +57,7 @@ private:
   void codec_error(const std::string& error);
 
   const std::string _path;
-  bool _success = false;
+  std::atomic<bool> _success = false;
 
   mkvparser::MkvReader _reader;
   std::unique_ptr<mkvparser::Segment> _segment;
