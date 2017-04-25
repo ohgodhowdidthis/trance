@@ -85,14 +85,15 @@ AccelerateVisual::AccelerateVisual(VisualControl& api)
   set_render([=](VisualRender& api) {
     auto zoom_origin = .4f * main->progress();
     auto zoom = zoom_origin + .1f * main_image[main->index()]->progress();
+    bool fastest = 1 + main->index() == main_text.size();
     api.render_animation_or_image(
-        !_animation_on
+        !_animation_on || (fastest && _animation_mod == 2)
             ? VisualRender::Anim::NONE
             : _animation_alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM,
         _current, 1.f, zoom_origin, zoom);
 
     api.render_spiral();
-    if ((_text_on && main_text[main->index()]->active()) || 1 + main->index() == main_text.size()) {
+    if ((_text_on && main_text[main->index()]->active()) || fastest) {
       api.render_text(.6f + .2f * main->progress(), .6f + .2f * main->progress(), zoom, zoom);
     }
   });
@@ -442,37 +443,52 @@ AnimationVisual::AnimationVisual(VisualControl& api)
 }
 
 SuperFastVisual::SuperFastVisual(VisualControl& api)
-: _alternate{false}, _cooldown_timer{0}, _animation_timer{0}, _start_animation{false}
+: _alternate{false}, _cooldown_timer{0}, _animation_timer{0}, _state{State::RAPID}
 {
   auto length = new ActionCycler{2048};
-  auto rapid = new ActionCycler{
-      8, [&] {
-        if (_animation_timer) {
-          if (--_animation_timer == 4) {
-            api.maybe_upload_next();
-          }
-        } else if (_cooldown_timer) {
-          --_cooldown_timer;
-        }
-        if (_start_animation) {
-          _alternate = !_alternate;
-          api.change_animation(_alternate);
-          _animation_timer = 8 + random(9);
-          _cooldown_timer = 8;
-          _start_animation = false;
-        }
-        if (!_start_animation && !_animation_timer && !_cooldown_timer && random_chance(12)) {
-          _start_animation = true;
-        }
-        if (!_animation_timer) {
-          _current = _next;
-          if (!_current) {
-            _current = api.get_image(_alternate);
-          }
-          _next = api.get_image(_alternate);
-          api.change_text(VisualControl::SPLIT_WORD, _alternate);
-        }
-      }};
+  auto rapid =
+      new ActionCycler{8, [&] {
+                         if (_animation_timer == 4) {
+                           api.maybe_upload_next();
+                         }
+                         if (_cooldown_timer) {
+                           --_cooldown_timer;
+                         }
+                         if (_state == State::RAPID) {
+                           _text_mod = (1 + _text_mod) % 4;
+                         }
+                         if (_state == State::END_ANIMATION) {
+                           _text_mod = 0;
+                           _cooldown_timer = 8;
+                           _state = State::RAPID;
+                         }
+                         if (_state == State::ANIMATION) {
+                           --_animation_timer;
+                           if (!_animation_timer) {
+                             _state = State::END_ANIMATION;
+                           }
+                         }
+                         if (_state == State::START_ANIMATION) {
+                           _state = State::ANIMATION;
+                           --_animation_timer;
+                         }
+                         if (_state == State::RAPID && !_cooldown_timer && random_chance(12)) {
+                           _state = State::START_ANIMATION;
+                           _animation_timer = 8 + random(9);
+                           _alternate = !_alternate;
+                           api.change_animation(_alternate);
+                         }
+                         if (_state != State::ANIMATION) {
+                           _current = _next;
+                           if (!_current) {
+                             _current = api.get_image(_alternate);
+                           }
+                           _next = api.get_image(_alternate);
+                           if (_text_mod == 0) {
+                             api.change_text(VisualControl::SPLIT_WORD, _alternate);
+                           }
+                         }
+                       }};
   auto spiral = new ActionCycler{[&] { api.rotate_spiral(3.f); }};
 
   auto parallel = new ParallelCycler{{length, rapid, spiral}};
@@ -485,21 +501,28 @@ SuperFastVisual::SuperFastVisual(VisualControl& api)
   set_cycler(new OneShotCycler{{oneshot, parallel}});
 
   set_render([=](VisualRender& api) {
-    if (_animation_timer) {
-      auto anim_progress = float(8 * (16 - _animation_timer) + rapid->frame()) / 128;
+    auto anim_progress = float(8 * (16 - _animation_timer) + rapid->frame()) / 128;
+    auto next_alpha = (5 - (int32_t) rapid->length() + (int32_t) rapid->frame()) / 5.f;
+    auto image_zoom = .125f * (.5f + rapid->progress());
+    auto next_zoom = .125f * (rapid->progress() - .5f);
+    if (_state == State::ANIMATION || _state == State::END_ANIMATION) {
       api.render_animation_or_image(
           _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, _current, 1.f,
           0.f, anim_progress);
     } else {
-      auto next_zoom = .1875f * (rapid->progress() - .5f);
-      auto image_zoom = .1875f * (.5f + rapid->progress());
       api.render_image(_current, 1.f, 0.f, image_zoom);
-      if (rapid->frame() >= rapid->length() - 4 && !_start_animation) {
-        api.render_image(_next, (5 - rapid->length() + rapid->frame()) / 5.f, next_zoom, next_zoom);
+    }
+    if (rapid->frame() >= rapid->length() - 4) {
+      if (_state == State::START_ANIMATION) {
+        api.render_animation_or_image(
+            _alternate ? VisualRender::Anim::ANIM_ALTERNATE : VisualRender::Anim::ANIM, {},
+            next_alpha, 0.f, anim_progress);
+      } else if (_state == State::RAPID || _state == State::END_ANIMATION) {
+        api.render_image(_next, next_alpha, next_zoom, next_zoom);
       }
-      if (rapid->frame() >= rapid->length() - 2) {
-        api.render_text(.75f, .75f, image_zoom, image_zoom);
-      }
+    }
+    if (_state == State::RAPID && !_text_mod) {
+      api.render_text(.75f, .75f, image_zoom, image_zoom);
     }
     api.render_spiral();
   });

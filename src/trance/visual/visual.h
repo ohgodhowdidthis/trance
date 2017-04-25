@@ -118,10 +118,17 @@ public:
   SuperFastVisual(VisualControl& api);
 
 private:
+  enum class State {
+    RAPID = 0,
+    START_ANIMATION = 1,
+    ANIMATION = 2,
+    END_ANIMATION = 3,
+  };
+  State _state;
   bool _alternate;
+  uint32_t _text_mod;
   uint32_t _cooldown_timer;
   uint32_t _animation_timer;
-  bool _start_animation;
   Image _current;
   Image _next;
 };
