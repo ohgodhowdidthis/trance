@@ -46,7 +46,7 @@ void GifStreamer::reset()
 
 Image GifStreamer::next_frame()
 {
-  if (!success() || _index >= _gif->ImageCount) {
+  if (!success() || _gif->ImageCount < 0 || _index >= (size_t) _gif->ImageCount) {
     return {};
   }
   if (!_index) {
