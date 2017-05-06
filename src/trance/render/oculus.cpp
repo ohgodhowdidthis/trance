@@ -47,8 +47,16 @@ OculusRenderer::OculusRenderer(const trance_pb::System& system)
   auto desc = ovr_GetHmdDesc(_session);
   ovr_SetBool(_session, "QueueAheadEnabled", ovrFalse);
 
-  ovrSizei eye_left = ovr_GetFovTextureSize(_session, ovrEyeType(0), desc.DefaultEyeFov[0], 1.0);
-  ovrSizei eye_right = ovr_GetFovTextureSize(_session, ovrEyeType(1), desc.DefaultEyeFov[0], 1.0);
+  auto xfov = std::max({desc.DefaultEyeFov[0].LeftTan, desc.DefaultEyeFov[0].RightTan,
+                        desc.DefaultEyeFov[1].LeftTan, desc.DefaultEyeFov[1].RightTan});
+  auto yfov = std::max({desc.DefaultEyeFov[0].DownTan, desc.DefaultEyeFov[0].UpTan,
+                        desc.DefaultEyeFov[1].DownTan, desc.DefaultEyeFov[1].UpTan});
+  ovrFovPort fov;
+  fov.LeftTan = fov.RightTan = xfov;
+  fov.DownTan = fov.UpTan = yfov;
+
+  ovrSizei eye_left = ovr_GetFovTextureSize(_session, ovrEye_Left, fov, 1.0);
+  ovrSizei eye_right = ovr_GetFovTextureSize(_session, ovrEye_Right, fov, 1.0);
   int fw = eye_left.w + eye_right.w;
   int fh = std::max(eye_left.h, eye_right.h);
 
