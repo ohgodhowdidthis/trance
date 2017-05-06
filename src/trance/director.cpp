@@ -170,7 +170,7 @@ void Director::render_image(const Image& image, float alpha, float zoom_origin, 
          x_flip ? 0.f : 1.f, y_flip ? 1.f : 0.f, x_flip ? 1.f : 0.f, y_flip ? 1.f : 0.f});
   };
 
-  for (int x = 0; x_size * (2 * x - 1) < 1 + _system.eye_spacing().eye_spacing(); ++x) {
+  for (int x = 0; x_size * (2 * x - 1) < 1 + std::abs(_system.eye_spacing().eye_spacing()); ++x) {
     for (int y = 0; y_size * (2 * y - 1) < 1; ++y) {
       add_quad(x, y, x % 2, y % 2);
       if (x) {

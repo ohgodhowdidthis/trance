@@ -438,7 +438,7 @@ trance_pb::System get_default_system()
   system.set_enable_vsync(true);
   system.set_renderer(trance_pb::System::MONITOR);
   system.mutable_draw_depth()->set_draw_depth(.5f);
-  system.mutable_eye_spacing()->set_eye_spacing(.5f);
+  system.mutable_eye_spacing()->set_eye_spacing(1.f / 16);
   system.set_image_cache_size(64);
   system.set_animation_buffer_size(32);
   system.set_font_cache_size(8);
@@ -465,7 +465,7 @@ void validate_system(trance_pb::System& system)
     system.mutable_eye_spacing()->set_eye_spacing(1.f / 16);
   }
   system.mutable_eye_spacing()->set_eye_spacing(
-      std::max(0.f, std::min(1.f, system.eye_spacing().eye_spacing())));
+      std::max(-1.f, std::min(1.f, system.eye_spacing().eye_spacing())));
   system.set_image_cache_size(std::max(16u, system.image_cache_size()));
   system.set_animation_buffer_size(std::max(8u, system.animation_buffer_size()));
   system.set_font_cache_size(std::max(2u, system.font_cache_size()));

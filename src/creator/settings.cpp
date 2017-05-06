@@ -56,7 +56,8 @@ namespace
 
   const std::string EYE_SPACING_TOOLTIP =
       "Distance between the view for each eye in VR. Adjust this if the 3D effects are "
-      "out-of-sync or difficult to focus on. The default value is .0625.";
+      "out-of-sync or difficult to focus on. This can also be made negative to correct "
+      "problems where the left and right eyes are swapped. The default value is .0625.";
 }
 
 SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
@@ -123,7 +124,7 @@ SettingsFrame::SettingsFrame(CreatorFrame* parent, trance_pb::System& system)
   _font_cache_size->SetValue(_system.font_cache_size());
   _draw_depth->SetToolTip(DRAW_DEPTH_TOOLTIP);
   _eye_spacing->SetToolTip(EYE_SPACING_TOOLTIP);
-  _eye_spacing->SetRange(0., 1.);
+  _eye_spacing->SetRange(-1., 1.);
   _eye_spacing->SetIncrement(1. / 128);
   _eye_spacing->SetValue(_system.eye_spacing().eye_spacing());
 
