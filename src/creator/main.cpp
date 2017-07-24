@@ -24,6 +24,8 @@
 #pragma warning(pop)
 
 static const std::string session_file_pattern = "Session files (*.session)|*.session";
+static const std::string archive_file_pattern =
+    "Session archives (*.session.archive)|*.session.archive";
 
 CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string& parameter)
 : wxFrame{nullptr, wxID_ANY, "Creator", wxDefaultPosition, wxSize{640, 640}}
@@ -45,6 +47,8 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
   menu_file->Append(ID_LAUNCH_SESSION, "&Launch session...\tCtrl+L", "Launch the current session");
   menu_file->Append(ID_EXPORT_VIDEO, "Export &video...\tCtrl+V",
                     "Export the current session as a video");
+  menu_file->Append(ID_EXPORT_ARCHIVE, "Export &archive...\tCtrl+A",
+                    "Export the current session as a packed session archive");
   menu_file->AppendSeparator();
   menu_file->Append(ID_EDIT_SYSTEM_CONFIG, "&Edit system settings...\tCtrl+E",
                     "Edit global system settings that apply to all sessions");
@@ -54,6 +58,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
   _menu_bar->Enable(wxID_SAVE, false);
   _menu_bar->Enable(ID_LAUNCH_SESSION, false);
   _menu_bar->Enable(ID_EXPORT_VIDEO, false);
+  _menu_bar->Enable(ID_EXPORT_ARCHIVE, false);
   SetMenuBar(_menu_bar);
   CreateStatusBar();
 
@@ -106,9 +111,9 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
            return;
          }
          _session = get_default_session();
-         std::tr2::sys::path path{std::string(dialog.GetPath())};
+         std::tr2::sys::path path{std::string{dialog.GetPath()}};
          search_resources(_session, path.parent_path().string());
-         SetSessionPath(std::string(dialog.GetPath()));
+         SetSessionPath(std::string{dialog.GetPath()});
          SetStatusText("Generated default session for " + path.parent_path().string());
          MakeDirty(true);
        },
@@ -135,6 +140,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
          SetStatusText("Wrote " + _session_path);
          _menu_bar->Enable(ID_LAUNCH_SESSION, true);
          _menu_bar->Enable(ID_EXPORT_VIDEO, true);
+         _menu_bar->Enable(ID_EXPORT_ARCHIVE, true);
        },
        wxID_SAVE);
 
@@ -159,6 +165,25 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
          auto frame = new ExportFrame{this, _system, _session, _session_path, _executable_path};
        },
        ID_EXPORT_VIDEO);
+
+  Bind(wxEVT_MENU,
+       [&](wxCommandEvent& event) {
+         if (!ConfirmDiscardChanges()) {
+           return;
+         }
+         std::tr2::sys::path path = _session_path;
+         wxFileDialog dialog{this,
+                             "Choose archive location",
+                             path.parent_path().string(),
+                             path.filename().string() + ".archive",
+                             archive_file_pattern,
+                             wxFD_SAVE | wxFD_OVERWRITE_PROMPT};
+         if (dialog.ShowModal() == wxID_CANCEL) {
+           return;
+         }
+         ExportArchive(std::string{dialog.GetPath()});
+       },
+       ID_EXPORT_ARCHIVE);
 
   Bind(wxEVT_MENU,
        [&](wxCommandEvent& event) {
@@ -231,6 +256,17 @@ void CreatorFrame::ExportVideo(const std::string& path)
   if (!_session.variable_map().empty()) {
     command_line += " \"--variables=" + EncodeVariables() + "\"";
   }
+  SetStatusText("Running " + command_line);
+  wxExecute(command_line, wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE);
+}
+
+void CreatorFrame::ExportArchive(const std::string& path)
+{
+  auto trance_exe_path = get_trance_exe_path(_executable_path);
+  auto system_config_path = get_system_config_path(_executable_path);
+
+  auto command_line = trance_exe_path + " \"" + _session_path +
+      "\" --export_archive=\"" + path + "\"";
   SetStatusText("Running " + command_line);
   wxExecute(command_line, wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE);
 }
@@ -505,6 +541,7 @@ bool CreatorFrame::OpenSession(const std::string& path)
     SetSessionPath(path);
     _menu_bar->Enable(ID_LAUNCH_SESSION, true);
     _menu_bar->Enable(ID_EXPORT_VIDEO, true);
+    _menu_bar->Enable(ID_EXPORT_ARCHIVE, true);
     MakeDirty(false);
     return true;
   } catch (const std::exception& e) {

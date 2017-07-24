@@ -336,7 +336,8 @@ void Director::change_visual(uint32_t length)
   total = 0;
   trance_pb::Program_VisualType t;
   for (const auto& type : _program->visual_type()) {
-    if (r < (total += type.random_weight())) {
+    total += type.random_weight();
+    if (r < total) {
       t = type.type();
       break;
     }

@@ -343,6 +343,12 @@ std::unordered_map<std::string, std::string> parse_variables(const std::string& 
   return {};
 }
 
+int export_archive(const std::string& root_path, const trance_pb::Session& session,
+                   const std::string& archive_path) {
+  return 0;
+}
+
+DEFINE_string(export_archive, "", "export archive to this path");
 DEFINE_string(variables, "", "semicolon-separated list of key=value variable assignments");
 DEFINE_string(export_path, "", "export video to this path");
 DEFINE_bool(export_3d, false, "export side-by-side 3D video");
@@ -382,7 +388,6 @@ int main(int argc, char** argv)
     std::cerr << e.what() << std::endl;
     session = get_default_session();
     search_resources(session, ".");
-    save_session(session, session_path);
   }
 
   std::string system_path{argc >= 3 ? argv[2] : "./" + SYSTEM_CONFIG_PATH};
@@ -396,6 +401,9 @@ int main(int argc, char** argv)
   }
 
   auto root_path = std::tr2::sys::path{session_path}.parent_path().string();
+  if (!FLAGS_export_archive.empty()) {
+    return export_archive(root_path, session, FLAGS_export_archive);
+  }
   play_session(root_path, session, system, variables, settings);
   return 0;
 }
