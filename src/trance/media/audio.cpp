@@ -27,7 +27,17 @@ void Audio::TriggerEvent(const trance_pb::AudioEvent& event)
     _channels.emplace_back(channel{{}, 0, false, 0, 0, 0, {}});
     _channels.back().music.reset(new sf::Music);
   }
-  auto& channel = _channels[event.channel()];
+  uint32_t i = event.channel();
+  while (event.next_unused_channel() && event.type() == trance_pb::AudioEvent::AUDIO_PLAY) {
+    if (i >= _channels.size()) {
+      _channels.emplace_back(channel{{}, 0, false, 0, 0, 0, {}});
+      _channels.back().music.reset(new sf::Music);
+    }
+    if (_channels[i].music->getStatus() != sf::SoundSource::Playing) {
+      break;
+    }
+  }
+  auto& channel = _channels[i];
 
   if (event.type() == trance_pb::AudioEvent::AUDIO_PLAY) {
     if (!channel.music->openFromFile(_root_path + "/" + event.path())) {

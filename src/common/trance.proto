@@ -154,6 +154,8 @@ message AudioEvent {
 
   // Type of event.
   Type type = 1;
+  // Whether to use the next unused audio channel.
+  bool next_unused_channel = 7;
   // Audio channel to affect.
   uint32 channel = 2;
   // Path to (audio) file.

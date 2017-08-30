@@ -64,6 +64,9 @@ namespace
   const std::string AUDIO_EVENT_LOOP_TOOLTIP =
       "Whether to loop the file forever (or until another event interrupts it).";
 
+  const std::string AUDIO_EVENT_NEXT_UNUSED_CHANNEL_TOOLTIP =
+      "Play audio on the next channel that isn't currently in use.";
+
   const std::string AUDIO_EVENT_INITIAL_VOLUME_TOOLTIP =
       "The initial volume of the audio channel used to play this file.";
 
@@ -560,6 +563,7 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
       if (e.type() != type) {
         e.set_path("");
         e.set_loop(false);
+        e.set_next_unused_channel(false);
         e.set_time_seconds(0);
       }
       e.set_type(trance_pb::AudioEvent::Type(type));
@@ -641,6 +645,11 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
     loop->SetToolTip(AUDIO_EVENT_LOOP_TOOLTIP);
     loop->SetValue(event.loop());
     box_sizer->Add(loop, 0, wxALL, DEFAULT_BORDER);
+
+    auto next_unused = new wxCheckBox{_right_panel, wxID_ANY, "Next unused channel"};
+    next_unused->SetToolTip(AUDIO_EVENT_NEXT_UNUSED_CHANNEL_TOOLTIP);
+    next_unused->SetValue(event.next_unused_channel());
+    box_sizer->Add(next_unused, 0, wxALL, DEFAULT_BORDER);
     wrap_sizer->Add(box_sizer, 0, wxEXPAND);
 
     path_choice->Bind(wxEVT_CHOICE, [&, index, path_choice](const wxCommandEvent&) {
@@ -661,6 +670,17 @@ void PlaylistPage::AddAudioEvent(const trance_pb::AudioEvent& event)
       it->second.mutable_audio_event(int(index))->set_loop(loop->GetValue());
       _creator_frame.MakeDirty(true);
     });
+
+    next_unused->Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,
+      [&, index, next_unused](const wxCommandEvent&) {
+        auto it = _session.mutable_playlist()->find(_item_selected);
+        if (it == _session.mutable_playlist()->end()) {
+          return;
+        }
+        it->second.mutable_audio_event(int(index))->set_next_unused_channel(
+            next_unused->GetValue());
+        _creator_frame.MakeDirty(true);
+      });
   }
   if (event.type() == trance_pb::AudioEvent::AUDIO_FADE) {
     box_sizer = new wxBoxSizer{wxHORIZONTAL};
