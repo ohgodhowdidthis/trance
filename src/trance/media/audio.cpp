@@ -36,6 +36,7 @@ void Audio::TriggerEvent(const trance_pb::AudioEvent& event)
     if (_channels[i].music->getStatus() != sf::SoundSource::Playing) {
       break;
     }
+    ++i;
   }
   auto& channel = _channels[i];
 
