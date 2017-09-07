@@ -436,9 +436,14 @@ void PlaylistPage::AddNextItem(const std::string& name, std::uint32_t weight_val
   variable_choice->Enable(name != "");
   variable_choice->Append("[None]");
   i = 1;
+  std::vector<std::string> variables;
   for (const auto& pair : _session.variable_map()) {
-    variable_choice->Append(pair.first);
-    if (pair.first == variable) {
+    variables.push_back(pair.first);
+  }
+  std::sort(variables.begin(), variables.end());
+  for (const auto& v : variables) {
+    variable_choice->Append(v);
+    if (v == variable) {
       variable_choice->SetSelection(i);
     }
     ++i;
@@ -456,7 +461,12 @@ void PlaylistPage::AddNextItem(const std::string& name, std::uint32_t weight_val
   if (!variable.empty()) {
     auto it = _session.variable_map().find(variable);
     i = 0;
+    std::vector<std::string> variable_values;
     for (const auto& value : it->second.value()) {
+      variable_values.push_back(value);
+    }
+    std::sort(variable_values.begin(), variable_values.end());
+    for (const auto& value : variable_values) {
       variable_value_choice->Append(value);
       if (value == variable_value) {
         variable_value_choice->SetSelection(i);

@@ -452,8 +452,22 @@ void CreatorFrame::VariableCreated(const std::string& variable_name)
 {
   static const std::string new_value_name = "Default";
   auto& variable = (*_session.mutable_variable_map())[variable_name];
-  variable.add_value(new_value_name);
-  variable.set_default_value(new_value_name);
+  bool has_default = false;
+  bool default_exists = false;
+  for (const auto value : variable.value()) {
+    if (value == new_value_name) {
+      has_default = true;
+    }
+    if (value == variable.default_value()) {
+      default_exists = true;
+    }
+  }
+  if (!default_exists) {
+    if (!has_default) {
+      variable.add_value(new_value_name);
+    }
+    variable.set_default_value(new_value_name);
+  }
   _variable_page->RefreshOurData();
   _playlist_page->RefreshOurData();
   MakeDirty(true);

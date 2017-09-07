@@ -1,9 +1,9 @@
 #ifndef TRANCE_SRC_CREATOR_LAUNCH_H
 #define TRANCE_SRC_CREATOR_LAUNCH_H
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #pragma warning(push, 0)
@@ -29,7 +29,7 @@ public:
                         const std::string& session_path, const std::function<void()>& on_change,
                         wxPanel* panel);
 
-  std::unordered_map<std::string, std::string> Variables() const;
+  std::map<std::string, std::string> Variables() const;
   wxSizer* Sizer() const;
   void SaveToSystem(CreatorFrame* parent) const;
   void ResetDefaults();
@@ -41,7 +41,7 @@ private:
   std::function<void()> _on_change;
 
   wxSizer* _sizer;
-  std::unordered_map<std::string, wxChoice*> _variables;
+  std::map<std::string, wxChoice*> _variables;
 };
 
 class LaunchFrame : public wxFrame

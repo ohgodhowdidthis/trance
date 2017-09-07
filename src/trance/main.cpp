@@ -12,9 +12,9 @@
 #include <chrono>
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <string>
 #include <thread>
-#include <unordered_map>
 
 #pragma warning(push, 0)
 #include <common/trance.pb.h>
@@ -22,7 +22,7 @@
 #include <SFML/Window.hpp>
 #pragma warning(pop)
 
-std::string next_playlist_item(const std::unordered_map<std::string, std::string>& variables,
+std::string next_playlist_item(const std::map<std::string, std::string>& variables,
                                const trance_pb::PlaylistItem* item)
 {
   uint32_t total = 0;
@@ -92,7 +92,7 @@ void print_info(double elapsed_seconds, uint64_t frames, uint64_t total_frames)
 
 void play_session(const std::string& root_path, const trance_pb::Session& session,
                   const trance_pb::System& system,
-                  const std::unordered_map<std::string, std::string> variables,
+                  const std::map<std::string, std::string> variables,
                   const exporter_settings& settings)
 {
   struct PlayStackEntry {
@@ -289,9 +289,9 @@ void play_session(const std::string& root_path, const trance_pb::Session& sessio
   renderer->window().close();
 }
 
-std::unordered_map<std::string, std::string> parse_variables(const std::string& variables)
+std::map<std::string, std::string> parse_variables(const std::string& variables)
 {
-  std::unordered_map<std::string, std::string> result;
+  std::map<std::string, std::string> result;
   std::vector<std::string> current;
   current.emplace_back();
   bool escaped = false;

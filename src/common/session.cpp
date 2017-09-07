@@ -293,7 +293,7 @@ bool is_audio_file(const std::string& path)
 }
 
 bool is_enabled(const trance_pb::PlaylistItem_NextItem& next,
-                const std::unordered_map<std::string, std::string>& variables)
+                const std::map<std::string, std::string>& variables)
 {
   if (next.condition_variable_name().empty()) {
     return true;

@@ -64,7 +64,7 @@ namespace
   };
 
   PlayTime calculate_play_time(const trance_pb::Session& session,
-                               const std::unordered_map<std::string, std::string>& variables)
+                               const std::map<std::string, std::string>& variables)
   {
     Node first_node{{session.first_playlist_item(), 0}};
     std::unordered_map<Node, size_t, NodeHash> index_map;
@@ -327,9 +327,9 @@ VariableConfiguration::VariableConfiguration(trance_pb::System& system,
   }
 }
 
-std::unordered_map<std::string, std::string> VariableConfiguration::Variables() const
+std::map<std::string, std::string> VariableConfiguration::Variables() const
 {
-  std::unordered_map<std::string, std::string> variables;
+  std::map<std::string, std::string> variables;
   for (const auto& pair : _variables) {
     variables[pair.first] = pair.second->GetString(pair.second->GetSelection());
   }
@@ -438,7 +438,7 @@ void LaunchFrame::Launch()
 
 void LaunchFrame::RefreshTimeEstimate()
 {
-  std::unordered_map<std::string, std::string> variables;
+  std::map<std::string, std::string> variables;
   if (_configuration) {
     variables = _configuration->Variables();
   }
