@@ -105,6 +105,11 @@ uint32_t OpenVrRenderer::height() const
   return _height;
 }
 
+float OpenVrRenderer::eye_spacing_multiplier() const
+{
+  return 32.f;
+}
+
 void OpenVrRenderer::init()
 {
 }

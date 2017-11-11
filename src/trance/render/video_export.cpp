@@ -77,6 +77,11 @@ uint32_t VideoExportRenderer::height() const
   return _settings.height;
 }
 
+float VideoExportRenderer::eye_spacing_multiplier() const
+{
+  return 1.f;
+}
+
 void VideoExportRenderer::init()
 {
 }

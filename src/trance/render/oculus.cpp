@@ -167,6 +167,11 @@ uint32_t OculusRenderer::height() const
   return _height;
 }
 
+float OculusRenderer::eye_spacing_multiplier() const
+{
+  return 1.f;
+}
+
 void OculusRenderer::init()
 {
 }

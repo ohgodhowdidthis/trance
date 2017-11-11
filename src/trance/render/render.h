@@ -37,6 +37,7 @@ public:
   virtual uint32_t view_width() const = 0;
   virtual uint32_t width() const = 0;
   virtual uint32_t height() const = 0;
+  virtual float eye_spacing_multiplier() const = 0;
 
   virtual void init() = 0;
   virtual bool update() = 0;
@@ -55,6 +56,7 @@ public:
   uint32_t view_width() const override;
   uint32_t width() const override;
   uint32_t height() const override;
+  float eye_spacing_multiplier() const override;
 
   void init() override;
   bool update() override;

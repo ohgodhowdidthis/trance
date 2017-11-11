@@ -133,6 +133,11 @@ uint32_t ScreenRenderer::height() const
   return _window->getSize().y;
 }
 
+float ScreenRenderer::eye_spacing_multiplier() const
+{
+  return 1.f;
+}
+
 void ScreenRenderer::init()
 {
   _window->setVisible(true);

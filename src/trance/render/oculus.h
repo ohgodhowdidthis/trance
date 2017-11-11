@@ -20,6 +20,7 @@ public:
   uint32_t view_width() const override;
   uint32_t width() const override;
   uint32_t height() const override;
+  float eye_spacing_multiplier() const override;
 
   void init() override;
   bool update() override;

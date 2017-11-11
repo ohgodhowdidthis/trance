@@ -381,7 +381,7 @@ float Director::far_plane_distance() const
 
 float Director::eye_offset() const
 {
-  auto offset = _system.eye_spacing().eye_spacing();
+  auto offset = _system.eye_spacing().eye_spacing() * _renderer.eye_spacing_multiplier();
   return _render_state == Renderer::State::VR_LEFT
       ? -offset
       : _render_state == Renderer::State::VR_RIGHT ? offset : 0;
