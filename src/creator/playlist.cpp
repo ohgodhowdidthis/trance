@@ -499,6 +499,7 @@ void PlaylistPage::AddNextItem(const std::string& name, std::uint32_t weight_val
       it->second.mutable_next_item()->erase(index + it->second.mutable_next_item()->begin());
     }
     _creator_frame.MakeDirty(true);
+    RefreshOurData();
   });
 
   weight->Bind(wxEVT_SPINCTRL, [&, index, weight](const wxCommandEvent&) {
@@ -525,6 +526,7 @@ void PlaylistPage::AddNextItem(const std::string& name, std::uint32_t weight_val
       item.set_condition_variable_value(variable_it->second.default_value());
     }
     _creator_frame.MakeDirty(true);
+    RefreshOurData();
   });
 
   variable_value_choice->Bind(
