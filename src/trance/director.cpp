@@ -360,10 +360,10 @@ void Director::change_visual(uint32_t length)
     _visual.reset(new FlashTextVisual{*_visual_api});
   }
   if (t == trance_pb::Program_VisualType_PARALLEL) {
-    _visual.reset(new ParallelVisual{*_visual_api});
+    _visual.reset(new SimpleVisual{*_visual_api});
   }
   if (t == trance_pb::Program_VisualType_SUPER_PARALLEL) {
-    _visual.reset(new SuperParallelVisual{*_visual_api});
+    _visual.reset(new ParallelVisual{*_visual_api});
   }
   if (t == trance_pb::Program_VisualType_ANIMATION) {
     _visual.reset(new AnimationVisual{*_visual_api});

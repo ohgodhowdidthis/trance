@@ -52,7 +52,7 @@ namespace
   const std::string SUB_TEXT_TOOLTIP = "Overlays subtle text on changing images.";
   const std::string FLASH_TEXT_TOOLTIP = "Smoothly fades between images, animations and text.";
   const std::string PARALLEL_TOOLTIP =
-      "Displays two images or animations at once with overlaid text.";
+      "Displays images with overlaid text.";
   const std::string SUPER_PARALLEL_TOOLTIP =
       "Displays three images or animations at once with overlaid text.";
   const std::string ANIMATION_TOOLTIP = "Displays animations with overlaid text.";
@@ -160,13 +160,13 @@ ProgramPage::ProgramPage(wxNotebook* parent, CreatorFrame& creator_frame,
     });
   };
 
-  add_visual("2-parallel (moderate)", PARALLEL_TOOLTIP, trance_pb::Program::PARALLEL);
-  add_visual("3-parallel (intense)", SUPER_PARALLEL_TOOLTIP, trance_pb::Program::SUPER_PARALLEL);
   add_visual("Accelerate (mixed)", ACCELERATE_TOOLTIP, trance_pb::Program::ACCELERATE);
   add_visual("Alternate (mixed)", SLOW_FLASH_TOOLTIP, trance_pb::Program::SLOW_FLASH);
   add_visual("Animation (mixed)", ANIMATION_TOOLTIP, trance_pb::Program::ANIMATION);
   add_visual("Fade (moderate)", FLASH_TEXT_TOOLTIP, trance_pb::Program::FLASH_TEXT);
+  add_visual("Parallel (intense)", SUPER_PARALLEL_TOOLTIP, trance_pb::Program::SUPER_PARALLEL);
   add_visual("Rapid (intense)", SUPER_FAST_TOOLTIP, trance_pb::Program::SUPER_FAST);
+  add_visual("Simple (moderate)", PARALLEL_TOOLTIP, trance_pb::Program::PARALLEL);
   add_visual("Subtext (moderate)", SUB_TEXT_TOOLTIP, trance_pb::Program::SUB_TEXT);
 
   leftright_panel->SetSizer(leftright);

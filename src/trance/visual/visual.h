@@ -80,22 +80,20 @@ private:
   Image _end;
 };
 
+class SimpleVisual : public Visual
+{
+public:
+  SimpleVisual(VisualControl& api);
+
+private:
+  uint32_t _anim_cycle;
+  Image _image;
+};
+
 class ParallelVisual : public Visual
 {
 public:
   ParallelVisual(VisualControl& api);
-
-private:
-  uint32_t _anim_cycle;
-  uint32_t _alternate_anim_cycle;
-  Image _image;
-  Image _alternate;
-};
-
-class SuperParallelVisual : public Visual
-{
-public:
-  SuperParallelVisual(VisualControl& api);
 
 private:
   bool _alternate_animation;
