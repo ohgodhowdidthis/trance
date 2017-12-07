@@ -98,6 +98,10 @@ bool Director::vr_enabled() const
 
 void Director::render_spiral(float spiral, uint32_t spiral_width, uint32_t spiral_type) const
 {
+  if (_renderer.is_openvr()) {
+    // 3D spiral broken on OpenVR.
+    return;
+  }
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glDisable(GL_DEPTH_TEST);
@@ -132,6 +136,12 @@ void Director::render_spiral(float spiral, uint32_t spiral_width, uint32_t spira
 
 void Director::render_image(const Image& image, float alpha, float zoom_origin, float zoom) const
 {
+  if (_renderer.is_openvr()) {
+    // Perspective doesn't work right on OpenVR.
+    zoom -= zoom_origin;
+    zoom_origin = 0;
+  }
+
   GLuint position_buffer;
   glGenBuffers(1, &position_buffer);
   std::vector<float> position_data;
@@ -245,6 +255,11 @@ void Director::render_text(const Font& font, const std::string& text, bool large
                            const sf::Color& colour, float scale, const sf::Vector2f& offset,
                            float zoom_origin, float zoom) const
 {
+  if (_renderer.is_openvr()) {
+    zoom -= zoom_origin;
+    zoom_origin = 0;
+  }
+
   auto vertices = font.get_vertices(text, large);
 
   GLuint position_buffer;
@@ -381,7 +396,7 @@ float Director::far_plane_distance() const
 
 float Director::eye_offset() const
 {
-  auto offset = _system.eye_spacing().eye_spacing() * _renderer.eye_spacing_multiplier();
+  auto offset = _renderer.eye_spacing_multiplier() * _system.eye_spacing().eye_spacing();
   return _render_state == Renderer::State::VR_LEFT
       ? -offset
       : _render_state == Renderer::State::VR_RIGHT ? offset : 0;

@@ -34,6 +34,7 @@ public:
 
   sf::RenderWindow& window();
   virtual bool vr_enabled() const = 0;
+  virtual bool is_openvr() const = 0;
   virtual uint32_t view_width() const = 0;
   virtual uint32_t width() const = 0;
   virtual uint32_t height() const = 0;
@@ -53,6 +54,7 @@ public:
   ScreenRenderer(const trance_pb::System& system);
 
   bool vr_enabled() const override;
+  bool is_openvr() const override;
   uint32_t view_width() const override;
   uint32_t width() const override;
   uint32_t height() const override;

@@ -152,6 +152,11 @@ bool OculusRenderer::vr_enabled() const
   return true;
 }
 
+bool OculusRenderer::is_openvr() const
+{
+  return false;
+}
+
 uint32_t OculusRenderer::view_width() const
 {
   return _width / 2;

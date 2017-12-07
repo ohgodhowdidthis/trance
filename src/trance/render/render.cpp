@@ -118,6 +118,11 @@ bool ScreenRenderer::vr_enabled() const
   return false;
 }
 
+bool ScreenRenderer::is_openvr() const
+{
+  return false;
+}
+
 uint32_t ScreenRenderer::view_width() const
 {
   return width();

@@ -62,6 +62,11 @@ bool VideoExportRenderer::vr_enabled() const
   return _settings.export_3d;
 }
 
+bool VideoExportRenderer::is_openvr() const
+{
+  return false;
+}
+
 uint32_t VideoExportRenderer::view_width() const
 {
   return _settings.export_3d ? _settings.width / 2 : _settings.width;

@@ -89,6 +89,11 @@ bool OpenVrRenderer::vr_enabled() const
   return true;
 }
 
+bool OpenVrRenderer::is_openvr() const
+{
+  return true;
+}
+
 uint32_t OpenVrRenderer::view_width() const
 {
   return _width;
@@ -107,7 +112,8 @@ uint32_t OpenVrRenderer::height() const
 
 float OpenVrRenderer::eye_spacing_multiplier() const
 {
-  return 32.f;
+  // TODO: ???
+  return 150.f;
 }
 
 void OpenVrRenderer::init()

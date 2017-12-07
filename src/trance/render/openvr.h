@@ -16,6 +16,7 @@ public:
   bool success() const;
 
   bool vr_enabled() const override;
+  bool is_openvr() const override;
   uint32_t view_width() const override;
   uint32_t width() const override;
   uint32_t height() const override;
