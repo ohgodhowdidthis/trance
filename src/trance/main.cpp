@@ -14,9 +14,9 @@
 #include <filesystem>
 #include <iostream>
 #include <map>
+#include <set>
 #include <string>
 #include <thread>
-#include <unordered_set>
 
 #pragma warning(push, 0)
 #include <common/trance.pb.h>
@@ -349,9 +349,9 @@ std::map<std::string, std::string> parse_variables(const std::string& variables)
 int validate_session(const std::string& root_path, const trance_pb::Session& session)
 {
   // TODO: report unused files or incorrect extensions.
-  std::unordered_set<std::string> image_paths;
-  std::unordered_set<std::string> animation_paths;
-  std::unordered_set<std::string> font_paths;
+  std::set<std::string> image_paths;
+  std::set<std::string> animation_paths;
+  std::set<std::string> font_paths;
   for (const auto& pair : session.theme_map()) {
     for (const auto& path : pair.second.image_path()) {
       image_paths.insert(root_path + "/" + path);
@@ -364,7 +364,7 @@ int validate_session(const std::string& root_path, const trance_pb::Session& ses
     }
   }
 
-  std::unordered_set<std::string> broken_paths;
+  std::set<std::string> broken_paths;
   for (const auto& path : image_paths) {
     std::cout << "checking " << path << std::endl;
     Image image = load_image(path);
