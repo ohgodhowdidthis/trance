@@ -1,4 +1,4 @@
-#include "video_export.h"
+#include <trance/render/video_export.h>
 #include <common/util.h>
 #include <trance/media/export.h>
 #include <trance/shaders.h>

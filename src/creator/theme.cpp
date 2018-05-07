@@ -1,4 +1,4 @@
-#include "theme.h"
+#include <creator/theme.h>
 #include <common/common.h>
 #include <common/media/image.h>
 #include <common/media/streamer.h>

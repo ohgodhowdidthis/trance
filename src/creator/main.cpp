@@ -1,4 +1,4 @@
-#include "main.h"
+#include <creator/main.h>
 #include <common/common.h>
 #include <common/session.h>
 #include <common/util.h>
@@ -45,6 +45,8 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
   menu_file->Append(wxID_SAVE);
   menu_file->AppendSeparator();
   menu_file->Append(ID_LAUNCH_SESSION, "&Launch session...\tCtrl+L", "Launch the current session");
+  menu_file->Append(ID_VALIDATE_SESSION, "Vali&date session...\tCtrl+D",
+                    "Validate the current session");
   menu_file->Append(ID_EXPORT_VIDEO, "Export &video...\tCtrl+V",
                     "Export the current session as a video");
   menu_file->Append(ID_EXPORT_ARCHIVE, "Export &archive...\tCtrl+A",
@@ -57,6 +59,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
   _menu_bar->Append(menu_file, "&File");
   _menu_bar->Enable(wxID_SAVE, false);
   _menu_bar->Enable(ID_LAUNCH_SESSION, false);
+  _menu_bar->Enable(ID_VALIDATE_SESSION, false);
   _menu_bar->Enable(ID_EXPORT_VIDEO, false);
   _menu_bar->Enable(ID_EXPORT_ARCHIVE, false);
   SetMenuBar(_menu_bar);
@@ -139,6 +142,7 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
          MakeDirty(false);
          SetStatusText("Wrote " + _session_path);
          _menu_bar->Enable(ID_LAUNCH_SESSION, true);
+         _menu_bar->Enable(ID_VALIDATE_SESSION, true);
          _menu_bar->Enable(ID_EXPORT_VIDEO, true);
          _menu_bar->Enable(ID_EXPORT_ARCHIVE, true);
        },
@@ -154,6 +158,15 @@ CreatorFrame::CreatorFrame(const std::string& executable_path, const std::string
          auto frame = new LaunchFrame{this, _system, _session, _session_path};
        },
        ID_LAUNCH_SESSION);
+
+  Bind(wxEVT_MENU,
+       [&](wxCommandEvent& event) {
+         if (!ConfirmDiscardChanges()) {
+           return;
+         }
+         ValidateSession();
+       },
+       ID_VALIDATE_SESSION);
 
   Bind(wxEVT_MENU,
        [&](wxCommandEvent& event) {
@@ -230,6 +243,16 @@ void CreatorFrame::Launch()
   if (!_session.variable_map().empty()) {
     command_line += " \"--variables=" + EncodeVariables() + "\"";
   }
+  SetStatusText("Running " + command_line);
+  wxExecute(command_line, wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE);
+}
+
+void CreatorFrame::ValidateSession()
+{
+  auto trance_exe_path = get_trance_exe_path(_executable_path);
+  auto system_config_path = get_system_config_path(_executable_path);
+  auto command_line = trance_exe_path + " \"" + _session_path + "\" \"" + system_config_path + "\"";
+  command_line += " \"--validate_session\"";
   SetStatusText("Running " + command_line);
   wxExecute(command_line, wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE);
 }
@@ -554,6 +577,7 @@ bool CreatorFrame::OpenSession(const std::string& path)
     SetStatusText("Read " + _session_path);
     SetSessionPath(path);
     _menu_bar->Enable(ID_LAUNCH_SESSION, true);
+    _menu_bar->Enable(ID_VALIDATE_SESSION, true);
     _menu_bar->Enable(ID_EXPORT_VIDEO, true);
     _menu_bar->Enable(ID_EXPORT_ARCHIVE, true);
     MakeDirty(false);

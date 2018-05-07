@@ -9,7 +9,6 @@
 #include <mutex>
 #include <vector>
 
-
 // TODO: should really use image pools to avoid allocating every frame separately.
 class AsyncStreamer
 {

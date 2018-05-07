@@ -1,4 +1,4 @@
-﻿#include "director.h"
+﻿#include <trance/director.h>
 #include <common/session.h>
 #include <common/util.h>
 #include <trance/media/font.h>

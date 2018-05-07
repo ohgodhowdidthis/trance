@@ -1,4 +1,4 @@
-#include "visual.h"
+#include <trance/visual/visual.h>
 #include <common/util.h>
 #include <trance/director.h>
 #include <trance/visual/api.h>

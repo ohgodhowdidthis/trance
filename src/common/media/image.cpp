@@ -1,6 +1,6 @@
-#include "image.h"
+#include <common/media/image.h>
+#include <common/util.h>
 #include <iostream>
-#include "common/util.h"
 
 #define VPX_CODEC_DISABLE_COMPAT 1
 #pragma warning(push, 0)

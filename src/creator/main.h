@@ -26,6 +26,7 @@ public:
   void SaveSystem(bool show_status);
 
   void Launch();
+  void ValidateSession();
   void ExportVideo(const std::string& path);
   void ExportArchive(const std::string& path);
 
@@ -59,8 +60,9 @@ private:
   enum {
     ID_EDIT_SYSTEM_CONFIG = 10101,
     ID_LAUNCH_SESSION = 10102,
-    ID_EXPORT_VIDEO = 10103,
-    ID_EXPORT_ARCHIVE = 10104,
+    ID_VALIDATE_SESSION = 10103,
+    ID_EXPORT_VIDEO = 10104,
+    ID_EXPORT_ARCHIVE = 10105,
   };
 
   trance_pb::System _system;

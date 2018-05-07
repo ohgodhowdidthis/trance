@@ -1,4 +1,4 @@
-#include "async_streamer.h"
+#include <trance/media/async_streamer.h>
 #include <common/util.h>
 
 namespace

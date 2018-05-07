@@ -1,4 +1,4 @@
-#include "oculus.h"
+#include <trance/render/oculus.h>
 #include <common/util.h>
 #include <algorithm>
 #include <iostream>

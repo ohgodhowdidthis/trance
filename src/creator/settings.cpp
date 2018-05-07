@@ -1,4 +1,4 @@
-#include "settings.h"
+#include <creator/settings.h>
 #include <common/common.h>
 #include <creator/main.h>
 

@@ -1,4 +1,4 @@
-#include "api.h"
+#include <trance/visual/api.h>
 #include <common/media/image.h>
 #include <common/util.h>
 #include <trance/director.h>

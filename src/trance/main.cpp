@@ -4,6 +4,7 @@
 #include <trance/director.h>
 #include <trance/media/audio.h>
 #include <trance/media/export.h>
+#include <common/media/image.h>
 #include <trance/render/oculus.h>
 #include <trance/render/openvr.h>
 #include <trance/render/render.h>
@@ -15,10 +16,12 @@
 #include <map>
 #include <string>
 #include <thread>
+#include <unordered_set>
 
 #pragma warning(push, 0)
 #include <common/trance.pb.h>
 #include <gflags/gflags.h>
+#include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #pragma warning(pop)
 
@@ -343,11 +346,74 @@ std::map<std::string, std::string> parse_variables(const std::string& variables)
   return {};
 }
 
+int validate_session(const std::string& root_path, const trance_pb::Session& session)
+{
+  // TODO: report unused files or incorrect extensions.
+  std::unordered_set<std::string> image_paths;
+  std::unordered_set<std::string> animation_paths;
+  std::unordered_set<std::string> font_paths;
+  for (const auto& pair : session.theme_map()) {
+    for (const auto& path : pair.second.image_path()) {
+      image_paths.insert(root_path + "/" + path);
+    }
+    for (const auto& path : pair.second.animation_path()) {
+      animation_paths.insert(root_path + "/" + path);
+    }
+    for (const auto& path : pair.second.font_path()) {
+      font_paths.insert(root_path + "/" + path);
+    }
+  }
+
+  std::unordered_set<std::string> broken_paths;
+  for (const auto& path : image_paths) {
+    std::cout << "checking " << path << std::endl;
+    Image image = load_image(path);
+    if (!image) {
+      broken_paths.insert(path);
+      std::cerr << path << " failed to load" << std::endl;
+    }
+  }
+  for (const auto& path : animation_paths) {
+    std::cout << "checking " << path << std::endl;
+    auto streamer = load_animation(path);
+    while (true) {
+      if (!streamer->success()) {
+        broken_paths.insert(path);
+        std::cerr << path << " failed to load" << std::endl;
+        break;
+      }
+      if (!streamer->next_frame()) {
+        break;
+      }
+    }
+  }
+  for (const auto& path : font_paths) {
+    std::cout << "checking " << path << std::endl;
+    sf::Font font;
+    if (!font.loadFromFile(path)) {
+      broken_paths.insert(path);
+      std::cerr << path << " failed to load" << std::endl;
+    }
+  }
+
+  if (!broken_paths.empty()) {
+    std::cout << std::endl;
+  }
+  for (const auto& path : broken_paths) {
+    std::cerr << "FAILED: " << path << std::endl;
+  }
+  std::cout << "press any key to continue..." << std::endl;
+  char c;
+  std::cin >> c;
+  return broken_paths.empty() ? 0 : 1;
+}
+
 int export_archive(const std::string& root_path, const trance_pb::Session& session,
                    const std::string& archive_path) {
   return 0;
 }
 
+DEFINE_bool(validate_session, false, "validate session");
 DEFINE_string(export_archive, "", "export archive to this path");
 DEFINE_string(variables, "", "semicolon-separated list of key=value variable assignments");
 DEFINE_string(export_path, "", "export video to this path");
@@ -401,6 +467,9 @@ int main(int argc, char** argv)
   }
 
   auto root_path = std::tr2::sys::path{session_path}.parent_path().string();
+  if (FLAGS_validate_session) {
+    return validate_session(root_path, session);
+  }
   if (!FLAGS_export_archive.empty()) {
     return export_archive(root_path, session, FLAGS_export_archive);
   }

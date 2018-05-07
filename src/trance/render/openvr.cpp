@@ -1,4 +1,4 @@
-#include "openvr.h"
+#include <trance/render/openvr.h>
 #include <common/util.h>
 #include <algorithm>
 #include <iostream>
