@@ -810,6 +810,7 @@ void ThemePage::RefreshDirectory(const std::string& directory)
   }
 
   std::size_t file_count = 0;
+  std::size_t unused_count = 0;
   for (const auto& path_str : paths) {
     std::tr2::sys::path path{path_str};
     for (auto it = ++path.begin(); it != path.end(); ++it) {
@@ -827,10 +828,12 @@ void ThemePage::RefreshDirectory(const std::string& directory)
           ++file_count;
           data = new wxStringClientData{component.string()};
         }
-        auto str = it != --path.end() || used_paths.count(component.string())
-            ? it->string()
-            : "[UNUSED] " + it->string();
+        auto is_used = it != --path.end() || used_paths.count(component.string());
+        auto str = is_used ? it->string() : "[UNUSED] " + it->string();
         auto item = _tree->AppendItem(_tree_lookup[parent.string()], str, -1, -1, data);
+        if (!is_used) {
+          ++unused_count;
+        }
         _tree_lookup[component.string()] = item;
       }
     }
@@ -860,7 +863,9 @@ void ThemePage::RefreshDirectory(const std::string& directory)
       _tree->Expand(pair.second);
     }
   }
-  _creator_frame.SetStatusText("Scanned " + std::to_string(file_count) + " files in " + directory);
+  _creator_frame.SetStatusText(
+      "Scanned " + std::to_string(file_count) + " files in " + directory +
+      " (" + std::to_string(unused_count) + " unused)");
 
   auto it = _tree_lookup.find(_path_selected);
   if (it == _tree_lookup.end()) {
