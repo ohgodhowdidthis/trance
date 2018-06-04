@@ -22,10 +22,10 @@ public:
   {
   }
   ItemList(wxWindow* parent, map_type& data, const std::string& type_name,
-           std::function<void(const std::string&)> on_change,
-           std::function<void(const std::string&)> on_create,
-           std::function<void(const std::string&)> on_delete,
-           std::function<void(const std::string&, const std::string&)> on_rename,
+           const std::function<void(const std::string&)>& on_change,
+           const std::function<void(const std::string&)>& on_create,
+           const std::function<void(const std::string&)>& on_delete,
+           const std::function<void(const std::string&, const std::string&)>& on_rename,
            bool allow_empty = false)
   : wxPanel{parent, wxID_ANY}
   , _data{data}
@@ -142,6 +142,12 @@ public:
            _on_rename(old_name, new_name);
          },
          wxID_ANY);
+  }
+
+  void AddOnDoubleClick(const std::function<void(const std::string&)>& on_double_click)
+  {
+    Bind(wxEVT_LIST_ITEM_ACTIVATED,
+         [this, on_double_click](wxListEvent&) { on_double_click(_selection); }, wxID_ANY);
   }
 
   void RefreshData()

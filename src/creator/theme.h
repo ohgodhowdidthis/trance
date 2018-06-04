@@ -34,6 +34,7 @@ public:
   void Shutdown();
 
 private:
+  bool HandleCheck(wxTreeListItem item);
   void RefreshTree(wxTreeListItem item);
   void RefreshHighlights();
   void GenerateFontPreview();
@@ -59,6 +60,7 @@ private:
   wxButton* _button_rename;
   wxButton* _button_refresh;
   wxButton* _button_next_unused;
+  wxButton* _button_random_unused;
   wxButton* _button_next_theme;
   wxRadioButton* _button_show_all;
   wxRadioButton* _button_show_images;

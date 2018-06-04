@@ -6,8 +6,10 @@
 #include <creator/item_list.h>
 #include <creator/main.h>
 #include <algorithm>
+#include <ctime>
 #include <filesystem>
 #include <iomanip>
+#include <random>
 #include <sstream>
 #include <thread>
 
@@ -27,6 +29,8 @@
 
 namespace
 {
+  std::mt19937 engine{static_cast<std::mt19937::result_type>(time(0))};
+
   std::string NlToUser(const std::string& nl)
   {
     std::string s = nl;
@@ -102,6 +106,38 @@ namespace
     }
     ss << static_cast<float>(size) / (1024 * 1024 * 1024);
     return ss.str() + "GB";
+  }
+
+  std::vector<std::string> SortedPaths(const trance_pb::Theme& theme)
+  {
+    std::vector<std::string> paths;
+    for (const auto& path : theme.image_path()) {
+      paths.push_back(path);
+    }
+    for (const auto& path : theme.animation_path()) {
+      paths.push_back(path);
+    }
+    for (const auto& path : theme.font_path()) {
+      paths.push_back(path);
+    }
+    std::sort(paths.begin(), paths.end());
+    return paths;
+  }
+
+  bool IsUnused(const trance_pb::Session& session, const std::string& path)
+  {
+    for (const auto& pair : session.theme_map()) {
+      const auto& t = pair.second;
+      if (std::find(t.font_path().begin(), t.font_path().end(), path) !=
+              t.font_path().end() ||
+          std::find(t.image_path().begin(), t.image_path().end(), path) !=
+              t.image_path().end() ||
+          std::find(t.animation_path().begin(), t.animation_path().end(), path) !=
+              t.animation_path().end()) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 
@@ -312,6 +348,7 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
   _button_rename = new wxButton{leftleft_panel, wxID_ANY, "Move / rename"};
   _button_refresh = new wxButton{leftleft_panel, wxID_ANY, "Refresh directory"};
   _button_next_unused = new wxButton{leftleft_panel, wxID_ANY, "Next unused"};
+  _button_random_unused = new wxButton{leftleft_panel, wxID_ANY, "Random unused"};
   _button_next_theme = new wxButton{leftleft_panel, wxID_ANY, "Next in theme"};
 
   _button_show_all = new wxRadioButton{leftleft_panel,    wxID_ANY,      "All",
@@ -327,6 +364,7 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
   _button_refresh->SetToolTip(
       "Scan the session directory for available images, animations and fonts.");
   _button_next_unused->SetToolTip("Jump to the next unused item.");
+  _button_random_unused->SetToolTip("Jump to a random unused item.");
   _button_next_theme->SetToolTip("Jump to the next item in the current theme.");
   _button_show_all->SetToolTip("Show all items (images, animations and fonts).");
   _button_show_images->SetToolTip("Show images only.");
@@ -349,6 +387,7 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
   leftleft_row1->Add(_button_rename, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft_row1->Add(_button_refresh, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft_row2->Add(_button_next_unused, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
+  leftleft_row2->Add(_button_random_unused, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft_row2->Add(_button_next_theme, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
   leftleft_panel->SetSizer(leftleft);
   leftright->Add(_image_panel, 1, wxEXPAND | wxALL, DEFAULT_BORDER);
@@ -538,39 +577,53 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
   });
 
   _button_next_unused->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
-    std::vector<std::string> paths;
-    for (const auto& path : _complete_theme->image_path()) {
-      paths.push_back(path);
-    }
-    for (const auto& path : _complete_theme->animation_path()) {
-      paths.push_back(path);
-    }
-    for (const auto& path : _complete_theme->font_path()) {
-      paths.push_back(path);
-    }
+    auto paths = SortedPaths(*_complete_theme);
     if (paths.empty()) {
       return;
     }
-    std::sort(paths.begin(), paths.end());
     auto it = std::lower_bound(paths.begin(), paths.end(), _path_selected);
     std::size_t index = it == paths.end() ? 0 : std::distance(paths.begin(), it);
     for (std::size_t i = (index + 1) % paths.size(); i != index; i = (i + 1) % paths.size()) {
       if (!_tree_lookup.count(paths[i])) {
         continue;
       }
-      bool unused = true;
-      for (const auto& pair : _session.theme_map()) {
-        const auto& t = pair.second;
-        if (std::find(t.font_path().begin(), t.font_path().end(), paths[i]) !=
-                t.font_path().end() ||
-            std::find(t.image_path().begin(), t.image_path().end(), paths[i]) !=
-                t.image_path().end() ||
-            std::find(t.animation_path().begin(), t.animation_path().end(), paths[i]) !=
-                t.animation_path().end()) {
-          unused = false;
-        }
+      if (IsUnused(session, paths[i])) {
+        _tree->Select(_tree_lookup[paths[i]]);
+        _tree->EnsureVisible(_tree_lookup[paths[i]]);
+        RefreshTree(_tree_lookup[paths[i]]);
+        break;
       }
-      if (unused) {
+    }
+  });
+
+  _button_random_unused->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [&](wxCommandEvent&) {
+    auto paths = SortedPaths(*_complete_theme);
+    if (paths.empty()) {
+      return;
+    }
+    std::size_t unused_count = 0;
+    for (std::size_t i = 0; i < paths.size(); ++i) {
+      if (!_tree_lookup.count(paths[i])) {
+        continue;
+      }
+      if (IsUnused(session, paths[i])) {
+        ++unused_count;
+      }
+    }
+    if (!unused_count) {
+      return;
+    }
+    std::uniform_int_distribution<std::size_t> d{0, unused_count - 1};
+    auto r = d(engine);
+    unused_count = 0;
+    for (std::size_t i = 0; i < paths.size(); ++i) {
+      if (!_tree_lookup.count(paths[i])) {
+        continue;
+      }
+      if (!IsUnused(session, paths[i])) {
+        continue;
+      }
+      if (r < ++unused_count) {
         _tree->Select(_tree_lookup[paths[i]]);
         _tree->EnsureVisible(_tree_lookup[paths[i]]);
         RefreshTree(_tree_lookup[paths[i]]);
@@ -639,47 +692,22 @@ ThemePage::ThemePage(wxNotebook* parent, CreatorFrame& creator_frame, trance_pb:
   _tree->Bind(
       wxEVT_TREELIST_ITEM_CHECKED,
       [&](wxTreeListEvent& e) {
-        auto it = _session.mutable_theme_map()->find(_item_selected);
-        if (it == _session.mutable_theme_map()->end()) {
-          e.Veto();
-          return;
+        if (!HandleCheck(e.GetItem())) {
+           e.Veto();
         }
-        auto checked = _tree->GetCheckedState(e.GetItem());
-        _tree->CheckItemRecursively(e.GetItem(), checked);
-        _tree->UpdateItemParentStateRecursively(e.GetItem());
-
-        auto handle = [&](const google::protobuf::RepeatedPtrField<std::string>& c,
-                          google::protobuf::RepeatedPtrField<std::string>& t,
-                          const std::string& path) {
-          if (std::find(c.begin(), c.end(), path) == c.end()) {
-            return;
-          }
-          auto it = std::find(t.begin(), t.end(), path);
-          if (checked == wxCHK_CHECKED && it == t.end()) {
-            *t.Add() = path;
-          }
-          if (checked == wxCHK_UNCHECKED && it != t.end()) {
-            t.erase(it);
-          }
-        };
-
-        std::function<void(const wxTreeListItem&)> recurse = [&](const wxTreeListItem& item) {
-          for (auto c = _tree->GetFirstChild(item); c.IsOk(); c = _tree->GetNextSibling(c)) {
-            recurse(c);
-          }
-          auto data = _tree->GetItemData(item);
-          if (data != nullptr) {
-            std::string path = ((const wxStringClientData*) data)->GetData();
-            handle(_complete_theme->image_path(), *it->second.mutable_image_path(), path);
-            handle(_complete_theme->animation_path(), *it->second.mutable_animation_path(), path);
-            handle(_complete_theme->font_path(), *it->second.mutable_font_path(), path);
-          }
-        };
-        recurse(e.GetItem());
-        _creator_frame.MakeDirty(true);
-        RefreshHighlights();
       },
       wxID_ANY);
+
+  _item_list->AddOnDoubleClick([&](const std::string&) {
+    auto it = _tree_lookup.find(_path_selected);
+    if (it == _tree_lookup.end()) {
+      return;
+    }
+    auto checked = _tree->GetCheckedState(it->second);
+    checked = checked == wxCHK_UNCHECKED ? wxCHK_CHECKED : wxCHK_UNCHECKED;
+    _tree->CheckItem(it->second, checked);
+    HandleCheck(it->second);
+  });
 }
 
 ThemePage::~ThemePage()
@@ -879,6 +907,49 @@ void ThemePage::RefreshDirectory(const std::string& directory)
 void ThemePage::Shutdown()
 {
   _image_panel->Shutdown();
+}
+
+bool ThemePage::HandleCheck(wxTreeListItem item)
+{
+  auto it = _session.mutable_theme_map()->find(_item_selected);
+  if (it == _session.mutable_theme_map()->end()) {
+    return false;
+  }
+  auto checked = _tree->GetCheckedState(item);
+  _tree->CheckItemRecursively(item, checked);
+  _tree->UpdateItemParentStateRecursively(item);
+
+  auto handle = [&](const google::protobuf::RepeatedPtrField<std::string>& c,
+                    google::protobuf::RepeatedPtrField<std::string>& t,
+                    const std::string& path) {
+    if (std::find(c.begin(), c.end(), path) == c.end()) {
+      return;
+    }
+    auto it = std::find(t.begin(), t.end(), path);
+    if (checked == wxCHK_CHECKED && it == t.end()) {
+      *t.Add() = path;
+    }
+    if (checked == wxCHK_UNCHECKED && it != t.end()) {
+      t.erase(it);
+    }
+  };
+
+  std::function<void(const wxTreeListItem&)> recurse = [&](const wxTreeListItem& item) {
+    for (auto c = _tree->GetFirstChild(item); c.IsOk(); c = _tree->GetNextSibling(c)) {
+      recurse(c);
+    }
+    auto data = _tree->GetItemData(item);
+    if (data != nullptr) {
+      std::string path = ((const wxStringClientData*) data)->GetData();
+      handle(_complete_theme->image_path(), *it->second.mutable_image_path(), path);
+      handle(_complete_theme->animation_path(), *it->second.mutable_animation_path(), path);
+      handle(_complete_theme->font_path(), *it->second.mutable_font_path(), path);
+    }
+  };
+  recurse(item);
+  _creator_frame.MakeDirty(true);
+  RefreshHighlights();
+  return true;
 }
 
 void ThemePage::RefreshTree(wxTreeListItem item)
